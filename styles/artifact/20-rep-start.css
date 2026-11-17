@@ -1,0 +1,9 @@
+/* Ported verbatim from artifact/app.html: "Rep: start workday" */
+@layer components {
+.startw{max-width:640px; margin:30px auto; text-align:center; padding:34px 30px; border-radius:26px; background:var(--surface); border:1px solid var(--line); box-shadow:var(--sh-1)}
+.startw .sico{width:64px; height:64px; border-radius:20px; margin:0 auto 14px; display:grid; place-items:center; background:var(--g50); color:var(--g600)}
+.startw h2{font-size:24px}
+.startw p{color:var(--muted); margin:8px auto 18px; max-width:46ch}
+.startw .btn.pri{height:46px; padding:0 22px; font-size:15px; border-radius:14px}
+.startw .pre{display:flex; justify-content:center; gap:10px; flex-wrap:wrap; margin-top:18px}
+}

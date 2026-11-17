@@ -1,0 +1,33 @@
+/* Ported verbatim from artifact/app.html: "Help and data" */
+@layer components {
+.help-intro{padding:18px 20px; border-radius:20px; background:linear-gradient(120deg, var(--g25), var(--surface) 70%); border:1px solid var(--line); margin-bottom:16px}
+.help-intro .who{font-size:13px; color:var(--g600); font-weight:700}
+.flow{display:flex; flex-direction:column; gap:8px; margin:14px 0}
+.flow div{display:flex; gap:12px; align-items:flex-start; padding:10px 12px; border-radius:14px; background:var(--surface); border:1px solid var(--line); font-size:14px}
+.flow i{width:26px; height:26px; border-radius:9px; background:var(--g600); color:var(--on-g); display:grid; place-items:center; font-style:normal; font-weight:800; font-size:12.5px; flex:none}
+.hv{padding:14px 16px; border-radius:18px; background:var(--surface); border:1px solid var(--line); margin-bottom:10px}
+.hv .h{display:flex; align-items:center; gap:10px}
+.hv .h b{font-size:15px}
+.hv .h .btn{margin-left:auto}
+.hv ul{margin:8px 0 0; padding-left:18px; color:var(--muted); font-size:13.5px}
+.rel{display:flex; gap:10px; flex-wrap:wrap}
+.rel button{display:flex; align-items:center; gap:8px; padding:10px 12px; border-radius:14px; background:var(--surface); border:1px solid var(--line); font-size:13.5px; text-align:left}
+.rel button:hover{border-color:var(--g200)}
+.dbw{padding:26px 30px 70px}
+.az{display:flex; flex-direction:column; gap:16px}
+.azs h3{font-size:16px; margin-bottom:8px}
+.azr{display:grid; grid-template-columns:150px minmax(0,1fr) 260px; gap:12px; align-items:center; padding:10px 14px; border-radius:14px; background:var(--surface); border:1px solid var(--line); margin-bottom:6px; font-size:13.5px; cursor:pointer}
+.azr:hover{border-color:var(--g200)}
+.dbg{display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:12px}
+.dbc{padding:14px 16px; border-radius:18px; background:var(--surface); border:1px solid var(--line); text-align:left}
+.dbc.ex{border-style:dashed}
+.dbc h4{font-size:15px; display:flex; gap:8px; align-items:center}
+.dbc p{font-size:12.5px; color:var(--muted); margin:4px 0 8px}
+.dbc .f{display:flex; justify-content:space-between; font-size:12.5px; padding:3px 0; border-top:1px dashed var(--line)}
+.dbc .f span:last-child{color:var(--muted)}
+.mx{border-collapse:collapse; width:100%; background:var(--surface); border-radius:16px; overflow:hidden; font-size:13px}
+.mx th,.mx td{border:1px solid var(--line); padding:7px 9px; text-align:center}
+.mx th:first-child,.mx td:first-child{text-align:left}
+.mx td.w{background:var(--g50); color:var(--g600); font-weight:700}
+.mx td.r{background:var(--b25); color:var(--b500)}
+}

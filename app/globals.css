@@ -1,26 +1,58 @@
-@import "tailwindcss";
+/*
+ * Tailwind CSS 4, without preflight.
+ * The artifact ran on browser defaults plus its own CSS, so preflight would change how it looks
+ * (list bullets, inline SVG icons, h4 weight...). Theme + utilities only.
+ */
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@source not "../artifact";
+@source not "../tests";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
+/*
+ * Artifact CSS, one file per section of artifact/app.html (see artifact/MAPA.md).
+ * It lives in the `components` layer so Tailwind utilities win over it, the same way the
+ * artifact's inline style="" attributes won over its stylesheet.
+ */
+@import "../styles/artifact/skeleton.css";
+@import "../styles/artifact/00-tokens-base.css";
+@import "../styles/artifact/01-top-bar.css";
+@import "../styles/artifact/02-app-layout.css";
+@import "../styles/artifact/03-stats.css";
+@import "../styles/artifact/04-buttons-pills.css";
+@import "../styles/artifact/05-lists.css";
+@import "../styles/artifact/06-cards.css";
+@import "../styles/artifact/07-record-page.css";
+@import "../styles/artifact/08-issue-traceback.css";
+@import "../styles/artifact/09-timeline.css";
+@import "../styles/artifact/10-messages.css";
+@import "../styles/artifact/11-picker-calendar-modal.css";
+@import "../styles/artifact/12-email-preview.css";
+@import "../styles/artifact/13-phone.css";
+@import "../styles/artifact/14-week.css";
+@import "../styles/artifact/15-kpis.css";
+@import "../styles/artifact/16-help-data.css";
+@import "../styles/artifact/17-tour.css";
+@import "../styles/artifact/18-month-legend-tips.css";
+@import "../styles/artifact/19-sign-in.css";
+@import "../styles/artifact/20-rep-start.css";
+@import "../styles/artifact/21-rep-work.css";
+@import "../styles/artifact/22-manager.css";
 
+/* Artifact tokens exposed to Tailwind: bg-n50, text-g600, border-line, shadow-sh-2, font-sans... */
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  --font-sans: var(--f);
+  --color-n0: var(--n0); --color-n25: var(--n25); --color-n50: var(--n50); --color-n100: var(--n100); --color-n200: var(--n200);
+  --color-n300: var(--n300); --color-n500: var(--n500); --color-n600: var(--n600); --color-n900: var(--n900);
+  --color-g25: var(--g25); --color-g50: var(--g50); --color-g100: var(--g100); --color-g200: var(--g200); --color-g400: var(--g400);
+  --color-g500: var(--g500); --color-g600: var(--g600); --color-g700: var(--g700);
+  --color-a25: var(--a25); --color-a50: var(--a50); --color-a100: var(--a100); --color-a300: var(--a300); --color-a400: var(--a400);
+  --color-a500: var(--a500); --color-a700: var(--a700); --color-a900: var(--a900);
+  --color-r25: var(--r25); --color-r50: var(--r50); --color-r100: var(--r100); --color-r500: var(--r500); --color-r700: var(--r700);
+  --color-b25: var(--b25); --color-b50: var(--b50); --color-b100: var(--b100); --color-b500: var(--b500); --color-b700: var(--b700);
+  --color-v25: var(--v25); --color-v50: var(--v50); --color-v100: var(--v100); --color-v500: var(--v500);
+  --color-on-g: var(--on-g); --color-bg: var(--bg); --color-surface: var(--surface); --color-ink: var(--ink);
+  --color-muted: var(--muted); --color-faint: var(--faint); --color-line: var(--line); --color-line-2: var(--line-2);
+  --shadow-sh-1: var(--sh-1); --shadow-sh-2: var(--sh-2); --shadow-sh-3: var(--sh-3);
+  --ease-art: var(--ease);
 }
