@@ -1,0 +1,275 @@
+'use client';
+/* ===== OUTREACH MANAGER ===== (artifact/app.html): VIEWS.mgr side, mgrLive, mgrPool, mgrLeads,
+ * mgrCamps, mgrRules, perfTable, mgrPerf, mgrMail, mgrSync. Modals are in ./modals.tsx. */
+import type React from 'react';
+import {
+  AUDK, AUDS, C, CALLS, CAMPS, CFG, CTS, D, DAY, DAYM, LASTDAY, LEADS, LEAD_OUT, OUT, OUTK, P, PASTDAYS, PEO, PRANK, PRI, PROPS, REPS, SYNC, TODAY, WD,
+  callsOn, campName, campOf, demoN, docOf, dupCheck, elig, first, fmtS, fmtT, fmtUS, fmtWD, listOf, mDay, mOf, openOf, ownerOf, propStatus, relDay,
+  type Metrics, type Pri, type RepKey,
+} from '@/lib/domain';
+import { inp, on } from '@/lib/state/actions';
+import { S, bump, toast } from '@/lib/state/store';
+import { Sidebar } from '@/components/shell/Sidebar';
+import { Avatar, Bar, Icon, Kv, OutPill, PageHeader, Pill, PrTag, StatFilter } from '@/components/ui';
+
+export function MgrSide() {
+  return <Sidebar k="mgr" items={[['Today'], ['live', 'The day by rep', 'target'], ['pool', 'Contact pool', 'users'], ['leads', 'Hand-offs to sales', 'hand', LEADS.filter(l => l.fresh).length], ['Plan'], ['camp', 'Campaigns', 'cal'], ['rules', 'Assignment rules', 'gear'], ['Results'], ['perf', 'Performance', 'chart'], ['mail', 'Daily emails', 'mail'], ['monday'], ['sync', 'monday sync', 'sync']]}
+    foot={<><b>{fmtWD(TODAY)}</b>Morning allocation ran at 7:00 AM. Lists refresh {CFG.refresh === 'daily' ? 'every morning' : 'every Monday'}.</>} />;
+}
+
+/* ----- The day by rep ----- */
+function RepCard({ r }: { r: RepKey }) {
+  const d = DAY[r], cp = campOf(r), m = mOf(callsOn(r, TODAY)), all = d.list.length, dn = docOf(r).length + listOf(r).filter(c => !d.done[c.k] && (c.stop || P(c.prop).lead)).length;
+  const st = d.st === 'off' ? <Pill t="Off today" /> : d.st === 'started' ? <Pill t={'Calling since ' + fmtT(d.startedAt!)} cls="green dot" /> : d.st === 'ended' ? <Pill t={'Ended ' + fmtT(d.endedAt!)} cls="ink" /> : <Pill t="Not started" cls="amber dot" />;
+  const own = listOf(r).filter(c => ownerOf(c) === r).length;
+  return <div className={`repc ${d.st === 'off' ? 'off' : ''}`}>
+    <div className="h"><Avatar k={r} /><div><b>{PEO[r].n}</b><small>{cp ? campName(cp) : 'Not scheduled'}</small></div><span className="r">{st}</span></div>
+    <div className="sm flex justify-between"><span>{dn} of {all} documented</span><span className="muted">{own} own follow-ups</span></div><Bar n={dn} d={all} />
+    <div className="nums"><div><small>Calls</small><b>{m.calls}</b></div><div><small>Connects</small><b>{m.con}</b></div><div><small>Convos</small><b>{m.conv}</b></div><div><small>Leads</small><b>{m.leads}</b></div></div>
+    <div className="foot"><button className="btn sec sm" {...on('replist', r)}><Icon n="list" s={14} />See list</button><button className="btn sec sm" {...on('reassign', r)} disabled={!openOf(r).length}><Icon n="shuffle" s={14} />Reassign</button><button className="btn ghost sm" {...on('viewas', r)}>Open as {first(r)}</button></div>
+  </div>;
+}
+function MgrLive() {
+  const res = CTS.filter(c => c.res && c.res.date === TODAY).length;
+  const docd = REPS.reduce((a, r) => a + docOf(r).length, 0);
+  const pool = CTS.filter(c => elig(c).k === 'pool').length;
+  const mt = mOf(callsOn(null, TODAY));
+  const dup = dupCheck();
+  const today = LEADS.filter(l => l.at.slice(0, 10) === TODAY);
+  return <>
+    <PageHeader t="The day by rep" sub={`${fmtWD(TODAY)}. Each rep got an even share from the morning allocation, follow-ups went back to the rep who set them, and every contact is reserved for one rep only.`}
+      acts={<><button className="btn sec" {...on('pg_mgr', 'rules')}><Icon n="gear" s={15} />Rules</button><button className="btn pri" {...on('pg_mgr', 'camp')}><Icon n="cal" s={15} />Campaigns</button></>} />
+    <div className="stats"><div className="stat"><small>Reserved today</small><b>{res}</b></div><div className="stat green"><small>Documented</small><b>{docd}</b></div><div className="stat"><small>Calls so far</small><b>{mt.calls}</b></div><div className="stat green"><small>New leads today</small><b>{mt.leads}</b></div><div className="stat blue"><small>Eligible, not reserved</small><b>{pool}</b></div><div className={`stat ${dup ? 'red' : 'green'}`}><small>Same house, two reps</small><b>{dup}</b></div></div>
+    <div className="reps">{REPS.map(r => <RepCard key={r} r={r} />)}</div>
+    <div className="grid2">
+      <div className="card"><h3><Icon n="cal" s={16} />Today’s campaigns</h3>{CAMPS.filter(c => !c.past && c.date === TODAY).map(c => <div key={c.k} className="mrow"><b>{fmtUS(c.date)}</b><span>{c.auds.map(a => AUDS[a].n).join(', ')}</span><span className="ml-auto flex gap-[4px]">{c.reps.map(r => <Avatar key={r} k={r} sm />)}</span></div>)}</div>
+      <div className="card"><h3><Icon n="hand" s={16} />Hand-offs to sales today<span className="r"><button className="btn ghost sm" {...on('pg_mgr', 'leads')}>All</button></span></h3>
+        {today.length ? today.map(l => <div key={l.k} className="mrow cursor-pointer" {...on('openprop', l.prop)}><b>{C(l.ct).n}</b><span className="muted">{P(l.prop).addr}</span><span className="ml-auto"><Pill t={l.out} cls="green" /></span></div>)
+          : <p className="sm muted">None yet today. When a rep marks Interested or Working on Plans, it shows here and in the AB Leads board in monday.</p>}
+      </div>
+    </div>
+  </>;
+}
+
+/* ----- Contact pool ----- */
+const POOLF: [string, string, string][] = [['pool', 'Eligible, not reserved', 'green'], ['res', 'Reserved today', 'blue'], ['due', 'Not due yet', ''], ['hold', 'On hold, no number', 'amber'], ['stop', 'Removed by the property', 'red'], ['closed', 'Closed', 'red'], ['dnc', 'Do Not Call or suppressed', 'red'], ['pipe', 'In AB sales pipeline', 'blue'], ['lead', 'Handed to sales', 'green'], ['max', 'Max attempts', ''], ['all', 'All contacts', '']];
+const POOL_COLS = 'grid-cols-[40px_minmax(0,1.2fr)_minmax(0,1fr)_150px_150px_minmax(0,1.3fr)]';
+function MgrPool() {
+  const E = CTS.map(c => [c, elig(c)] as const);
+  const cnt = (k: string) => k === 'all' ? E.length : E.filter(x => x[1].k === k).length;
+  const f = S.f.pool, q = (S.srch.pool || '').toLowerCase();
+  const rk = (p?: Pri) => p ? PRANK[p] : 9;
+  const rows = E.filter(([c, e]) => (f === 'all' || e.k === f) && (!q || (c.n + ' ' + P(c.prop).addr).toLowerCase().includes(q)))
+    .sort((a, b) => rk(a[1].pri) - rk(b[1].pri) || (a[0].nextAt || '').localeCompare(b[0].nextAt || ''));
+  return <>
+    <PageHeader t="Contact pool" sub="Every contact and why it is, or is not, in today’s lists. The rules run in this order: handed to sales, Do Not Call and suppression, already in AB’s pipeline, closed, removed by another contact, no valid phone, max attempts, not due yet." />
+    <div className="stats">{POOLF.map(([k, l, cl]) => <StatFilter key={k} fk="pool" val={k} label={l} n={cnt(k)} cls={cl} />)}</div>
+    <div className="toolbar"><div className="search"><Icon n="search" s={15} /><input id="srpool" placeholder="Search name or address" defaultValue={S.srch.pool || ''} {...inp('srch.pool')} /></div><span className="sp" /><span className="sm muted">{rows.length} contacts</span></div>
+    <div className="rows">
+      <div className={`row head ${POOL_COLS}`}><span /><span>Contact</span><span>Property</span><span>Last result</span><span>Next eligible</span><span>Status</span></div>
+      {rows.slice(0, 120).map(([c, e]) => {
+        const p = P(c.prop);
+        return <div key={c.k} className={`row ${POOL_COLS}`} {...on('openprop', p.k)}>
+          {e.pri ? <PrTag pr={e.pri} sm /> : <span />}
+          <div className="t"><b>{c.n}</b><small>{c.role === 'Other' ? c.other || 'Other' : c.role}, attempt {c.att}</small></div>
+          <div className="t"><b className="font-semibold">{p.addr}</b><small>{AUDS[p.aud].s}, {p.permit === 'None' ? 'no permit' : p.permit}</small></div>
+          <div className="cell"><OutPill o={c.out} /><small>{c.lastAt ? fmtS(c.lastAt) + (c.rep ? ' by ' + first(c.rep) : '') : ''}</small></div>
+          <div className="cell">{c.nextAt ? <><b>{fmtWD(c.nextAt)}</b><small>{relDay(c.nextAt)}</small></> : <span className="muted">Any day</span>}</div>
+          <div className="cell"><Pill t={e.why.length > 46 ? e.why.slice(0, 44) + '...' : e.why} cls={e.tone} /></div>
+        </div>;
+      })}
+    </div>
+  </>;
+}
+
+/* ----- Hand-offs to sales ----- */
+const LEAD_COLS = 'grid-cols-[80px_minmax(0,1.2fr)_minmax(0,1fr)_150px_130px_minmax(0,1.4fr)]';
+function MgrLeads() {
+  const l = LEADS.slice().sort((a, b) => b.at.localeCompare(a.at));
+  return <>
+    <PageHeader t="Hand-offs to sales" sub="The rep’s job is to find interest and pass it on. Every Potential Lead becomes an item in the AB Leads board in monday, with the call history, for the internal team. Inbound calls taken by the office are there too, and their properties stay out of outbound lists." />
+    <div className="rows">
+      <div className={`row head ${LEAD_COLS}`}><span>Lead</span><span>Property</span><span>Contact</span><span>Source</span><span>Date</span><span>Note</span></div>
+      {l.map(x => {
+        const p = P(x.prop), c = C(x.ct);
+        return <div key={x.k} className={`row ${x.fresh ? 'alert bg-g25' : ''} ${LEAD_COLS}`} {...on('openprop', p.k)}>
+          <div className="cell"><b>{x.k}</b></div>
+          <div className="t"><b>{p.addr}</b><small>{AUDS[p.aud].s}, {p.permit === 'None' ? 'no permit' : p.permit}</small></div>
+          <div className="t"><b className="font-semibold">{c.n}</b><small>{x.out}</small></div>
+          <div className="cell">{x.src === 'Inbound' ? <Pill t="Inbound, office" cls="blue" /> : <Pill t={'Outbound, ' + first(x.rep)} cls="green" />}<small>In AB Leads (monday)</small></div>
+          <div className="cell">{fmtS(x.at)}<small>{fmtT(x.at)}</small></div>
+          <div className="cell muted">{x.note || ''}</div>
+        </div>;
+      })}
+    </div>
+  </>;
+}
+
+/* ----- Campaigns ----- */
+const CAMP_COLS = 'grid-cols-[110px_minmax(0,1.6fr)_150px_120px_110px_90px]';
+function CampRow({ c }: { c: (typeof CAMPS)[number] }) {
+  const res = c.date === TODAY ? c.reps.reduce((a, r) => a + DAY[r].list.length, 0) : null;
+  const m = c.date === TODAY ? mOf(CALLS.filter(x => c.reps.includes(x.rep as RepKey) && x.at.slice(0, 10) === TODAY))
+    : DAYM[c.date] ? c.reps.reduce((a, r) => ({ calls: a.calls + DAYM[c.date][r].calls, leads: a.leads + DAYM[c.date][r].leads }), { calls: 0, leads: 0 }) : null;
+  return <div className={`row ${CAMP_COLS}`}>
+    <div className="cell"><b>{fmtUS(c.date)}</b><small>{WD[D(c.date)!.getDay()]}</small></div>
+    <div className="t"><b>{c.auds.map(a => AUDS[a].n).join(', ')}</b><small>{c.k}, goal {c.goal} potential lead per rep</small></div>
+    <div className="cell flex gap-[4px]">{c.reps.map(r => <Avatar key={r} k={r} sm />)}</div>
+    <div className="cell">{res != null ? res + ' reserved' : c.date > TODAY ? 'Allocates at 7:00 AM' : 'Closed'}</div>
+    <div className="cell">{m ? m.calls + ' calls' : ''}</div>
+    <div className="cell">{m ? m.leads + ' leads' : ''}</div>
+  </div>;
+}
+function MgrCamps() {
+  const cur = CAMPS.filter(c => !c.past && c.date >= TODAY).sort((a, b) => a.date.localeCompare(b.date)), past = CAMPS.filter(c => c.past || c.date < TODAY);
+  return <>
+    <PageHeader t="Campaigns" sub="A campaign is a date, one or more audiences and the reps scheduled for it. The engine allocates each rep from the audiences of their campaign." acts={<button className="btn pri" {...on('newcamp')}><Icon n="plus" s={15} />New campaign</button>} />
+    <div className="grp"><div className="grp-h"><i className="bg-g500" />Today and upcoming<span className="n">{cur.length}</span></div><div className="rows">{cur.map(c => <CampRow key={c.k} c={c} />)}</div></div>
+    <div className="grp"><div className="grp-h"><i />Past<span className="n">{past.length}</span></div><div className="rows">{past.map(c => <CampRow key={c.k} c={c} />)}</div></div>
+    <div className="card"><h3><Icon n="users" s={16} />Audiences</h3>
+      <div className="grid4">{AUDK.map(a => { const ps = PROPS.filter(p => p.aud === a); return <Kv key={a} l={AUDS[a].n} v={ps.length + ' properties'} sub={`${ps.filter(p => propStatus(p) === 'Potential Lead').length} potential leads, ${ps.filter(p => p.permit === 'Permit Issued').length} with permit`} />; })}</div>
+      <p className="sm muted mt-[8px]">One zone is still to be loaded from PropertyRadar. New audiences by trigger (property sold, new permits) are phase 2.</p>
+    </div>
+  </>;
+}
+
+/* ----- Assignment rules ----- */
+const cfgChange = () => { toast('Rule saved. The next allocation uses it'); bump(); };
+function Num({ k, v, w = 70 }: { k: string; v: number; w?: number }) {
+  return <input className={`numin ${w === 62 ? 'w-[62px]' : 'w-[70px]'}`} type="number" min={0} defaultValue={v} {...inp('cfg.' + k)} onChange={cfgChange} id={'cfg-' + k} />;
+}
+function Rule({ icon, t, d, r, tag }: { icon: string; t: string; d: React.ReactNode; r?: React.ReactNode; tag?: React.ReactNode }) {
+  return <div className="rule"><span className="ic2"><Icon n={icon} s={15} /></span><div><b>{t}</b> {tag}<br /><span className="sm muted">{d}</span></div><div className="r">{r}</div></div>;
+}
+function MgrRules() {
+  const tv = <Pill t="To validate" cls="amber" />;
+  const eligRows: [string, string, string, React.ReactNode][] = [['ban', 'Not on Do Not Call or suppression lists', 'National registry filter is confirmed by AB.', ''], ['hand', 'Not already an AB client or in an active sale', 'Cross check with the AB Leads board by phone and address, including inbound calls.', ''], ['ban', 'Not removed by another contact of the property', 'One no, or one lead, takes the rest of the house out.', <Pill key="m" t="Manuel’s rule" cls="blue" />], ['call', 'Valid and callable phone', 'A Wrong Number marks that number; with no other number the contact waits.', ''], ['flag', 'Under the max attempts', `After ${CFG.maxAtt} attempts the contact leaves the lists.`, tv], ['cal', 'Due according to the last result', 'See the waiting times.', ''], ['users', 'Not reserved for another rep or campaign', 'No duplicates.', '']];
+  return <>
+    <PageHeader t="Assignment rules" sub="Everything the engine decides comes from here. Andrew changes a rule and the next allocation uses it, with no change request. Rules marked To validate are our proposal; the rest come from Andrew’s design." />
+    <div className="grid2">
+      <div>
+        <div className="card p-[6px_4px]"><h3 className="p-[10px_14px_0]"><Icon n="users" s={16} />How much and when</h3>
+          <Rule icon="target" t="Daily allocation per rep" d={`Up to this many eligible contacts each morning. Today reps make about 108 calls a day. In this demo: ${demoN(CFG.first)}, scaled to its data.`} r={<><Num k="first" v={CFG.first} /><span className="sm muted">contacts</span></>} />
+          <Rule icon="plus" t="Request more" d={`Next batch when the rep has documented the whole list. In this demo: ${demoN(CFG.more)}.`} r={<><Num k="more" v={CFG.more} /><span className="sm muted">contacts</span></>} tag={tv} />
+          <Rule icon="refresh" t="List refresh" d="Daily is the default; Andrew mentioned weekly could be enough." r={<span className="segs">{['daily', 'weekly'].map(k => <button key={k} className="seg" {...on('cfgset', `refresh|${k}`)} aria-pressed={CFG.refresh === k}>{k === 'daily' ? 'Daily' : 'Weekly'}</button>)}</span>} />
+          <Rule icon="logout" t="Not called at the end of the day" d="Back to the pool with its priority, or kept by the same rep tomorrow." r={<span className="segs">{[['pool', 'Back to pool'], ['keep', 'Same rep']].map(([k, l]) => <button key={k} className="seg" {...on('cfgset', `endDay|${k}`)} aria-pressed={CFG.endDay === k}>{l}</button>)}</span>} tag={tv} />
+          <Rule icon="shuffle" t="Even split" d="Each new property goes to the scheduled rep with the lowest load. A property and all its contacts stay with one rep for the day." r={<Pill t="Least loaded" cls="green" />} tag={tv} />
+          <Rule icon="clock" t="Calling hours" d={CFG.hours + '. AB confirms what applies.'} r="" tag={tv} />
+        </div>
+        <div className="card p-[6px_4px]"><h3 className="p-[10px_14px_0]"><Icon n="shield" s={16} />Eligibility, checked in this order</h3>
+          {eligRows.map(([i, t, d, tg], ix) => <Rule key={ix} icon={i} t={t} d={d} r="" tag={tg} />)}
+          <Rule icon="flag" t="Max attempts per contact" d="Counts every call, answered or not." r={<><Num k="maxAtt" v={CFG.maxAtt} /><span className="sm muted">calls</span></>} tag={tv} />
+        </div>
+      </div>
+      <div>
+        <div className="card"><h3><Icon n="list" s={16} />Priorities</h3>
+          <table className="ptbl"><tbody><tr><th>Priority</th><th>Criteria</th><th>Assignment</th></tr>{(Object.entries(PRI) as [Pri, (typeof PRI)[Pri]][]).map(([k, x]) => <tr key={k}><td><PrTag pr={k} sm /></td><td>{x.d}</td><td>{x.who === 'Original rep' ? <Pill t="Original rep" cls="violet" /> : <Pill t="Any rep" />}</td></tr>)}</tbody></table>
+          <p className="sm muted mt-[8px]">Inside a priority, the property that waited longest goes first, so the whole base gets worked and not only the top of the list. {tv}</p>
+        </div>
+        <div className="card"><h3><Icon n="cal" s={16} />When a contact can be called again {tv}</h3>
+          <table className="ptbl"><tbody><tr><th>Result</th><th>Property status</th><th>Eligible again</th></tr>
+            {OUTK.map(o => <tr key={o}><td>{o}{OUT[o].prop ? <> <Pill t="Proposed" cls="amber" /></> : null}</td><td>{OUT[o].st}</td><td>{CFG.rc[o] != null
+              ? <span className="inline-flex gap-[6px] items-center"><Num k={'rc.' + o.replace(/ /g, '_')} v={CFG.rc[o]} w={62} /><span className="sm muted">{o === 'Undecided' || o === 'Not Interested' ? 'days, same rep for Undecided' : 'business days'}</span></span>
+              : o === 'Follow Up' ? 'On the date the rep sets, same rep' : LEAD_OUT.includes(o) ? 'Goes to AB sales' : o === 'Wrong Number' ? 'Next number, or on hold' : 'Never'}</td></tr>)}
+          </tbody></table>
+          <p className="sm muted mt-[8px]">With several contacts, the property takes the most advanced status: Potential Lead, then Not Interested, then Contacted, then Not Contacted.</p>
+        </div>
+      </div>
+    </div>
+  </>;
+}
+
+/* ----- Performance ----- */
+export function PerfTable({ day }: { day: string }) {
+  const rows = REPS.map(r => [r, mDay(r, day)] as const), t = mDay(null, day);
+  const tr = (key: string, n: React.ReactNode, m: Metrics, cls = '') => <tr key={key} className={cls}><td>{n}</td><td className="n">{m.calls}</td><td className="n">{m.con}</td><td className="n">{m.conv}</td><td className="n">{m.leads}</td><td className="n">{m.d2c}</td><td className="n">{m.c2v}</td><td className="n">{m.v2l}</td></tr>;
+  return <table className="ptbl"><tbody>
+    <tr><th>Rep</th><th className="n">Calls Made</th><th className="n">Connects</th><th className="n">Conversations</th><th className="n">New Leads</th><th className="n">Dial to Connect</th><th className="n">Connect to Convo</th><th className="n">Convo to Lead</th></tr>
+    {rows.map(([r, m]) => tr(r, <span className="inline-flex gap-[8px] items-center"><Avatar k={r} sm />{PEO[r].n}</span>, m))}
+    {tr('team', 'Team', t, 'tot')}
+  </tbody></table>;
+}
+function MgrPerf() {
+  const day = S.f.perf === 'today' ? TODAY : LASTDAY;
+  const mx = Math.max(...PASTDAYS.map(d => mDay(null, d).calls));
+  return <>
+    <PageHeader t="Performance" sub="Calls, connects, conversations and leads by rep, with the rates from Andrew’s daily email. Each number comes from the call log."
+      acts={<span className="segs"><button className="seg" {...on('filt', 'perf|last')} aria-pressed={S.f.perf !== 'today'}>{fmtWD(LASTDAY)}</button><button className="seg" {...on('filt', 'perf|today')} aria-pressed={S.f.perf === 'today'}>Today so far</button></span>} />
+    <PerfTable day={day} />
+    <div className="grid2 mt-[14px]">
+      <div className="card"><h3><Icon n="chart" s={16} />Team, last 10 business days</h3>
+        <div className="vbars">{PASTDAYS.map(d => {
+          const m = mDay(null, d);
+          return <div key={d} className="c"><span className="v">{m.calls}</span><div className="st" style={{ height: Math.round(m.calls * 110 / mx) }}>
+            <i className="bg-n200" style={{ height: Math.round((m.calls - m.con) * 110 / mx) }} />
+            <i className="bg-b500" style={{ height: Math.round((m.con - m.conv) * 110 / mx) }} />
+            <i className="bg-g500" style={{ height: Math.max(2, Math.round(m.conv * 110 / mx)) }} />
+          </div><small>{fmtS(d)}</small></div>;
+        })}</div>
+        <div className="legend"><span><i className="bg-n200" />No answer</span><span><i className="bg-b500" />Connected, no conversation</span><span><i className="bg-g500" />Conversation</span></div>
+        <p className="sm muted mt-[6px]">Past days are sample totals at today’s pace (about 108 calls per rep a day).</p>
+      </div>
+      <div className="card"><h3><Icon n="info" s={16} />How each number is counted <Pill t="To validate" cls="amber" /></h3>
+        <div className="sm">
+          <p><b>Call:</b> every attempt the rep records.</p>
+          <p className="mt-[6px]"><b>Connect:</b> someone answered. Every result except Not Contacted, Left VM and Wrong Number.</p>
+          <p className="mt-[6px]"><b>Conversation:</b> a connect with a real answer. Every connect except Hung Up. Without a result like Hung Up, connects and conversations would always be the same number.</p>
+          <p className="mt-[6px]"><b>Lead:</b> Working on Plans or Interested.</p>
+          <p className="mt-[8px] muted">Bonuses: in phase 1 the rep records the calls, so they are not verified. Paying for calls attempted needs the phone provider’s call data (phase 2), or a rule such as a minimum duration.</p>
+        </div>
+      </div>
+    </div>
+  </>;
+}
+
+/* ----- Daily emails ----- */
+function MgrMail() {
+  const r = S.f.mailrep as RepKey, cp = campOf(r) || CAMPS[0], a = AUDS[cp.auds[0]];
+  const own = listOf(r).filter(c => ownerOf(c) === r).length;
+  const body = `Good morning ${first(r)},
+
+Today’s Goals
+Contact ${CFG.first} contacts
+Identify ${cp.goal} Potential Lead
+
+Audience: ${cp.auds.map(x => AUDS[x].n).join(', ')}
+You have ${DAY[r].list.length} contacts reserved${own ? `, ${own} of them your own follow-ups` : ''}.
+
+Audience background
+${a.s} was devastated by the January 2025 fires. Arzuman Brothers is rebuilding homes with a full design-build service, from plans and permits to construction.
+
+Script: open in the app
+Call queue: open My Outbound Dashboard
+
+Bonus reminder
+Leads identified $$$
+Contacts made $$
+Calls attempted $`;
+  const repMail = <div className="mail"><div className="mh2"><b>To:</b> {PEO[r].n}<br /><b>Subject:</b> Today’s Outreach Campaign | {fmtUS(TODAY)}<br /><b>Sent:</b> {fmtWD(TODAY)}, 7:00 AM</div><div className="mb2">{body}</div></div>;
+  const day = LASTDAY;
+  const perfMail = <div className="mail"><div className="mh2"><b>To:</b> Andrew Vaitkevicius, Harut Arzumanyan, Edgar<br /><b>Subject:</b> Outreach Performance | {fmtUS(day)}<br /><b>Sent:</b> {fmtWD(day)}, 7:30 PM</div>
+    <div className="mb2 whitespace-normal">{fmtWD(day)}<br /><br /><b>Activity</b><PerfTable day={day} /><p className="sm muted mt-[8px]">Bonus by rep is calculated with the amounts AB sets.</p></div></div>;
+  return <>
+    <PageHeader t="Daily emails" sub="Two automatic emails from Andrew’s design: each rep’s campaign in the morning and the performance report at the end of the day. Both read the same data as the app."
+      acts={<span className="segs"><button className="seg" {...on('filt', 'mail|rep')} aria-pressed={S.f.mail === 'rep'}>Rep, morning</button><button className="seg" {...on('filt', 'mail|perf')} aria-pressed={S.f.mail === 'perf'}>Management, end of day</button></span>} />
+    {S.f.mail === 'rep'
+      ? <><div className="toolbar">{REPS.map(x => <button key={x} className="seg" {...on('filt', `mailrep|${x}`)} aria-pressed={r === x}>{PEO[x].n}</button>)}</div><div className="pv">{repMail}</div></>
+      : <div className="pv max-w-[980px]">{perfMail}</div>}
+  </>;
+}
+
+/* ----- monday sync ----- */
+function MgrSync() {
+  const boards: [string, string, number][] = [['Fire Rebuild Properties', 'Outreach Status, Permit, Construction Started', PROPS.length], ['Fire Rebuild Contacts', 'Last Call Outcome, Last Call Date, Next Eligible Call, Call Attempts', CTS.length], ['AB Leads', 'Potential Leads with their call history', LEADS.length], ['Outreach Daily Metrics', 'Calls, connects, conversations and leads by rep and day', PASTDAYS.length * REPS.length]];
+  return <>
+    <PageHeader t="monday sync" sub="The engine and the app run outside monday; monday stays where AB sees the information. Every result, hand-off and daily total is pushed to these boards." />
+    <div className="grid4 mb-[14px]">{boards.map(([n, d, c]) => <div key={n} className="kv"><small>{n}</small><b>{c} items</b><span className="sub">{d}</span></div>)}</div>
+    <div className="card synclog"><h3><Icon n="sync" s={16} />Today’s pushes<span className="r"><Pill t="Connected" cls="green dot" /></span></h3>
+      {SYNC.slice(0, 40).map((s, i) => <div key={i} className="mrow"><span className="muted w-[70px]">{fmtT(s.at)}</span><b>{s.board}</b><span>{s.item}</span><span className="muted ml-auto text-right">{s.what}</span></div>)}
+    </div>
+  </>;
+}
+
+export const MgrPages: Record<'live' | 'pool' | 'leads' | 'camp' | 'rules' | 'perf' | 'mail' | 'sync', () => React.ReactNode> = {
+  live: MgrLive, pool: MgrPool, leads: MgrLeads, camp: MgrCamps, rules: MgrRules, perf: MgrPerf, mail: MgrMail, sync: MgrSync,
+};

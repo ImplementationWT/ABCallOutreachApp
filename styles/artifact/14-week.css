@@ -1,0 +1,11 @@
+/* Ported verbatim from artifact/app.html: "Week" */
+@layer components {
+.week{display:grid; grid-template-columns:150px repeat(5,minmax(0,1fr)); border-radius:18px; border:1px solid var(--line); overflow:hidden; background:var(--surface)}
+.week > div{border-left:1px solid var(--line); border-top:1px solid var(--line); padding:8px; min-height:92px}
+.week .wh{min-height:0; font-size:12px; font-weight:700; color:var(--muted); background:var(--n25); text-align:center}
+.week .wh.td{color:var(--g600)}
+.week .wp{font-size:13px; font-weight:700; background:var(--n25)}
+.week .wp small{display:block; color:var(--muted); font-weight:500; font-size:11.5px}
+.wv{display:block; width:100%; text-align:left; padding:6px 8px; border-radius:10px; background:var(--t50); color:var(--ink); font-size:12px; margin-bottom:5px; border-left:3px solid var(--t600)}
+.wv b{display:block; font-size:12px}
+}

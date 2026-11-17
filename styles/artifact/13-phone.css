@@ -1,0 +1,19 @@
+/* Ported verbatim from artifact/app.html: "Phone" */
+@layer components {
+.phone-stage{display:grid; place-items:center; padding:10px 0 20px}
+.phone{width:380px; height:740px; border-radius:48px; padding:10px; background:#131A17; box-shadow:var(--sh-3); position:relative}
+.screen{height:100%; border-radius:39px; overflow:hidden; background:var(--bg); display:flex; flex-direction:column; position:relative}
+.notch{position:absolute; top:10px; left:50%; transform:translateX(-50%); width:96px; height:26px; border-radius:15px; background:#131A17; z-index:6}
+.p-top{flex:none; padding:44px 20px 12px; background:var(--surface); border-bottom:1px solid var(--line)}
+.p-top small{display:block; color:var(--muted); font-size:12.5px}
+.p-top b{display:block; font-size:20px; font-weight:800; letter-spacing:-.02em}
+.p-body{flex:1; overflow-y:auto; padding:14px 16px 24px}
+.pc{display:block; width:100%; text-align:left; padding:13px 14px; border-radius:18px; background:var(--surface); border:1px solid var(--line); margin-bottom:10px}
+.pc b{display:block; font-size:15px}
+.pc small{display:block; font-size:12.5px; color:var(--muted)}
+.p-foot{flex:none; padding:10px 16px 18px; background:var(--surface); border-top:1px solid var(--line)}
+.go{width:100%; height:50px; border-radius:16px; background:var(--g600); color:var(--on-g); font-size:15.5px; font-weight:700; display:flex; align-items:center; justify-content:center; gap:8px}
+.go:disabled{background:var(--n100); color:var(--faint)}
+.bigopt{display:flex; align-items:center; gap:10px; width:100%; min-height:48px; padding:10px 12px; border-radius:14px; border:1.5px solid var(--line); background:var(--surface); font-size:14.5px; font-weight:600; margin-bottom:8px; text-align:left}
+.bigopt[aria-pressed="true"]{border-color:var(--g500); background:var(--g25)}
+}

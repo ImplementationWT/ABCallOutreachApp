@@ -1,0 +1,36 @@
+/* Ported verbatim from artifact/app.html: "Issue and traceback" */
+@layer components {
+.issue{padding:16px 18px; border-radius:18px; background:var(--surface); border:1px solid var(--line); margin-bottom:14px}
+.issue-h{display:flex; align-items:flex-start; gap:10px}
+.issue-h b{font-size:15px}
+.issue-h .r{margin-left:auto; display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end}
+.issue p.q{margin-top:6px; font-size:14px}
+.issue .loc{font-size:12.5px; color:var(--muted); margin-top:3px}
+.ai{margin-top:12px; padding:12px 14px; border-radius:14px; background:var(--v25); border:1px solid var(--v100); font-size:13.5px}
+.ai .h{display:flex; align-items:center; gap:8px; font-weight:700; color:var(--v500); margin-bottom:5px}
+.ai .h .r{margin-left:auto}
+.ai ul{margin:6px 0 0; padding-left:18px}
+.trace{margin-top:12px; display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0; border-radius:14px; border:1px solid var(--line); overflow:hidden}
+.trace > div{padding:10px 12px; border-left:1px solid var(--line); position:relative; min-width:0}
+.trace > div:first-child{border-left:0}
+.trace small{display:block; font-size:11px; font-weight:700; color:var(--faint); text-transform:uppercase; letter-spacing:.04em}
+.trace b{display:block; font-size:13.5px; margin-top:2px}
+.trace .sub{font-size:12px; color:var(--muted)}
+.trace .ok{background:var(--g25)} .trace .risk{background:var(--a25)} .trace .bad{background:var(--r25)}
+.mrow{display:flex; align-items:center; gap:10px; padding:8px 0; border-top:1px dashed var(--line); font-size:13px}
+.mrow:first-child{border-top:0}
+.decide{margin-top:12px; padding:12px 14px; border-radius:14px; background:var(--n25); border:1px solid var(--line)}
+.decide .opts{display:flex; gap:6px; flex-wrap:wrap; margin:8px 0}
+.seg{height:32px; padding:0 12px; border-radius:10px; font-size:13px; font-weight:600; border:1.5px solid var(--line-2); background:var(--surface)}
+.seg[aria-pressed="true"]{background:var(--ink); color:var(--surface); border-color:var(--ink)}
+.shots{display:flex; gap:6px; margin-top:8px; flex-wrap:wrap}
+.shot{width:74px; height:56px; border-radius:10px; overflow:hidden; background:var(--n100); display:grid; place-items:center; color:var(--faint); font-size:10.5px; text-align:center; position:relative}
+.shot svg.ph{position:absolute; inset:0; width:100%; height:100%}
+.shot span{position:relative; background:rgba(0,0,0,.45); color:#fff; padding:1px 5px; border-radius:6px; font-size:10px; align-self:end; margin-bottom:4px}
+.files{display:flex; flex-direction:column; gap:6px}
+.file{display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:12px; background:var(--n25); border:1px solid var(--line); font-size:13px}
+.file .fi{width:30px; height:30px; border-radius:9px; background:var(--b50); color:var(--b500); display:grid; place-items:center}
+.file small{color:var(--muted); display:block; font-size:11.5px}
+.upl{display:inline-flex; align-items:center; gap:7px; cursor:pointer}
+.upl input{display:none}
+}

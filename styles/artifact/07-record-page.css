@@ -1,0 +1,31 @@
+/* Ported verbatim from artifact/app.html: "Record page (ficha)" */
+@layer components {
+.crumb{display:flex; align-items:center; gap:6px; font-size:13.5px; color:var(--faint); margin-bottom:10px}
+.crumb button{color:var(--muted); font-weight:600; border-radius:8px; padding:2px 6px; margin-left:-6px}
+.crumb button:hover{background:var(--g50); color:var(--g700)}
+.crumb span{color:var(--ink); font-weight:600}
+.rh{display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap; margin-bottom:14px}
+.rh h1{font-size:26px; letter-spacing:-.03em; line-height:1.15}
+.rh p{color:var(--muted); margin-top:4px}
+.rh .pills{display:flex; gap:6px; flex-wrap:wrap; margin-top:8px}
+.rh .acts{margin-left:auto; display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+.nextstep{display:flex; align-items:center; gap:12px; padding:12px 14px; border-radius:16px; background:var(--g25); border:1px solid var(--g100); margin-bottom:16px}
+.nextstep .ic{width:34px; height:34px; border-radius:11px; display:grid; place-items:center; background:var(--g600); color:var(--on-g); flex:none}
+.nextstep b{display:block; font-size:14px}
+.nextstep small{display:block; color:var(--muted); font-size:12.5px}
+.nextstep .acts{margin-left:auto; display:flex; gap:8px; flex-wrap:wrap}
+.nextstep.amber{background:var(--a25); border-color:var(--a100)} .nextstep.amber .ic{background:var(--a500); color:var(--a900)}
+.nextstep.red{background:var(--r25); border-color:var(--r100)} .nextstep.red .ic{background:var(--r500); color:#fff}
+.nextstep.grey{background:var(--n25); border-color:var(--line)} .nextstep.grey .ic{background:var(--n300); color:var(--ink)}
+.slas{display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:10px; margin-bottom:16px}
+.sla{padding:10px 12px; border-radius:14px; background:var(--surface); border:1px solid var(--line)}
+.sla small{display:block; font-size:11.5px; color:var(--muted); font-weight:600}
+.sla b{display:block; font-size:13.5px; margin-top:2px}
+.sla .pill{margin-top:5px}
+.jtabs{display:flex; gap:2px; border-bottom:1px solid var(--line); margin-bottom:16px; overflow-x:auto}
+.jtabs button{display:flex; align-items:center; gap:7px; padding:10px 14px; font-size:14px; font-weight:600; color:var(--muted); border-bottom:2.5px solid transparent; margin-bottom:-1px; white-space:nowrap}
+.jtabs button:hover{color:var(--ink)}
+.jtabs button[aria-pressed="true"]{color:var(--ink); border-bottom-color:var(--g500)}
+.jtabs span{font-size:11.5px; font-weight:700; padding:1px 7px; border-radius:9px; background:var(--n50); color:var(--muted)}
+.jtabs span.red{background:var(--r500); color:#fff}
+}

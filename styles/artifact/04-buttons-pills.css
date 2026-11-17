@@ -1,0 +1,24 @@
+/* Ported verbatim from artifact/app.html: "Buttons and pills" */
+@layer components {
+.btn{white-space:nowrap; height:36px; padding:0 14px; border-radius:12px; font-size:13.5px; font-weight:600; display:inline-flex; align-items:center; gap:7px; transition:background .15s, border-color .15s, color .15s}
+.btn.pri{background:var(--g600); color:var(--on-g)}
+.btn.pri:hover{background:var(--g700)}
+.btn.sec{background:var(--surface); border:1.5px solid var(--line-2)}
+.btn.sec:hover{border-color:var(--g400); background:var(--g25)}
+.btn.warn{background:var(--a50); color:var(--a700); border:1.5px solid var(--a100)}
+.btn.dang{background:var(--surface); color:var(--r500); border:1.5px solid var(--r100)}
+.btn.dang:hover{background:var(--r25)}
+.btn.ghost{color:var(--g600); padding:0 8px}
+.btn.ghost:hover{background:var(--g50)}
+.btn.sm{height:30px; padding:0 11px; font-size:12.5px; border-radius:10px}
+.btn:disabled{opacity:.45; cursor:not-allowed}
+.pill{display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:700; padding:3px 9px; border-radius:9px; white-space:nowrap; background:var(--n50); color:var(--muted); width:max-content}
+.pill.red{background:var(--r50); color:var(--r500)} .pill.amber{background:var(--a50); color:var(--a700)} .pill.green{background:var(--g50); color:var(--g600)}
+.pill.blue{background:var(--b50); color:var(--b500)} .pill.violet{background:var(--v50); color:var(--v500)} .pill.ink{background:var(--ink); color:var(--surface)}
+.pill.dot::before{content:""; width:7px; height:7px; border-radius:50%; background:currentColor}
+.pill.blink::before{animation:blink 1.6s infinite}
+@keyframes blink{50%{opacity:.25}}
+.chipt{display:inline-flex; align-items:center; font-size:12px; font-weight:600; padding:2px 8px; border-radius:8px; background:var(--n50); color:var(--ink); white-space:nowrap}
+.muted{color:var(--muted)} .faint{color:var(--faint)} .sm{font-size:12.5px}
+.mono{font-variant-numeric:tabular-nums}
+}

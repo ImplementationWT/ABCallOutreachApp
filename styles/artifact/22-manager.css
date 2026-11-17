@@ -1,0 +1,46 @@
+/* Ported verbatim from artifact/app.html: "Manager" */
+@layer components {
+.reps{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-bottom:14px}
+.repc{padding:14px 16px; border-radius:18px; background:var(--surface); border:1px solid var(--line)}
+.repc .h{display:flex; align-items:center; gap:10px; margin-bottom:10px}
+.repc .h b{display:block; font-size:15px}
+.repc .h small{display:block; font-size:12px; color:var(--muted)}
+.repc .h .r{margin-left:auto}
+.repc .nums{display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:6px; margin-top:10px}
+.repc .nums div{padding:6px 8px; border-radius:10px; background:var(--n25); text-align:center}
+.repc .nums small{display:block; font-size:10.5px; color:var(--muted); font-weight:600}
+.repc .nums b{font-size:17px; font-weight:800}
+.repc .foot{display:flex; gap:6px; margin-top:10px; flex-wrap:wrap}
+.repc.off{opacity:.6; border-style:dashed}
+.ptbl{width:100%; border-collapse:separate; border-spacing:0; background:var(--surface); border:1px solid var(--line); border-radius:16px; overflow:hidden; font-size:13.5px}
+.ptbl th{font-size:11.5px; font-weight:700; color:var(--faint); text-transform:uppercase; letter-spacing:.04em; background:var(--n25); padding:9px 12px; text-align:left; border-bottom:1px solid var(--line)}
+.ptbl td{padding:10px 12px; border-top:1px solid var(--line)}
+.ptbl tr:first-child td{border-top:0}
+.ptbl td.n, .ptbl th.n{text-align:right; font-variant-numeric:tabular-nums}
+.ptbl tr.tot td{font-weight:800; background:var(--n25)}
+.ptbl input.fld{width:90px; min-height:32px; padding:4px 8px; text-align:right}
+.ptbl tr.click{cursor:pointer}
+.ptbl tr.click:hover td{background:var(--g25)}
+.vbars{display:flex; align-items:flex-end; gap:10px; height:150px; padding:10px 6px 0; border-bottom:1px solid var(--line)}
+.vbars .c{flex:1; display:flex; flex-direction:column; align-items:center; gap:4px; height:100%; justify-content:flex-end; min-width:0}
+.vbars .st{width:100%; max-width:46px; display:flex; flex-direction:column-reverse; border-radius:7px 7px 0 0; overflow:hidden}
+.vbars .st i{display:block}
+.vbars small{font-size:11px; color:var(--muted); white-space:nowrap}
+.vbars .v{font-size:11px; font-weight:700}
+.legend{display:flex; gap:14px; flex-wrap:wrap; font-size:12.5px; color:var(--muted); margin-top:8px}
+.legend i{display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px}
+.rule{display:flex; align-items:center; gap:12px; padding:10px 14px; border-top:1px solid var(--line); font-size:13.5px}
+.rule:first-child{border-top:0}
+.rule .r{margin-left:auto; display:flex; gap:6px; align-items:center}
+.rule .ic2{width:28px; height:28px; border-radius:9px; display:grid; place-items:center; background:var(--g50); color:var(--g600); flex:none}
+.segs{display:inline-flex; gap:4px; flex-wrap:wrap}
+.numin{width:70px; height:32px; border-radius:10px; border:1.5px solid var(--line-2); background:var(--surface); text-align:center; font-weight:700}
+.numin:focus{outline:none; border-color:var(--g500)}
+.synclog .mrow b{font-size:13px}
+.pv{max-width:720px}
+
+@media (max-width:1180px){ .work{grid-template-columns:1fr} .qlist{position:static; max-height:420px} .outs{grid-template-columns:repeat(3,minmax(0,1fr))} .reps{grid-template-columns:1fr} }
+@media (max-width:900px){ .lgrid{grid-template-columns:1fr} .outs{grid-template-columns:repeat(2,minmax(0,1fr))} .repc .nums{grid-template-columns:repeat(2,1fr)} .ptbl{display:block; overflow-x:auto} }
+
+.sw-b .bd{left:auto; right:-5px; top:-5px}
+}
