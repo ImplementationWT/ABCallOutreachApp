@@ -10,11 +10,14 @@ import {
 } from '@/lib/domain';
 import { inp, on } from '@/lib/state/actions';
 import { S, bump, toast } from '@/lib/state/store';
+import { can } from '@/lib/state/auth';
+import { UsersPage } from './users';
+import type { SbItem } from '@/components/shell/Sidebar';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { Avatar, Bar, Icon, Kv, OutPill, PageHeader, Pill, PrTag, StatFilter } from '@/components/ui';
 
 export function MgrSide() {
-  return <Sidebar k="mgr" items={[['Today'], ['live', 'The day by rep', 'target'], ['pool', 'Contact pool', 'users'], ['leads', 'Hand-offs to sales', 'hand', LEADS.filter(l => l.fresh).length], ['Plan'], ['camp', 'Campaigns', 'cal'], ['rules', 'Assignment rules', 'gear'], ['Results'], ['perf', 'Performance', 'chart'], ['mail', 'Daily emails', 'mail'], ['monday'], ['sync', 'monday sync', 'sync']]}
+  return <Sidebar k="mgr" items={[['Today'], ['live', 'The day by rep', 'target'], ['pool', 'Contact pool', 'users'], ['leads', 'Hand-offs to sales', 'hand', LEADS.filter(l => l.fresh).length], ['Plan'], ['camp', 'Campaigns', 'cal'], ['rules', 'Assignment rules', 'gear'], ['Results'], ['perf', 'Performance', 'chart'], ['mail', 'Daily emails', 'mail'], ['monday'], ['sync', 'monday sync', 'sync'], ...(can('users.manage') ? [['Admin'], ['users', 'Users', 'key']] as SbItem[] : [])]}
     foot={<><b>{fmtWD(TODAY)}</b>Morning allocation ran at 7:00 AM. Lists refresh {CFG.refresh === 'daily' ? 'every morning' : 'every Monday'}.</>} />;
 }
 
@@ -135,9 +138,9 @@ function MgrCamps() {
 }
 
 /* ----- Assignment rules ----- */
-const cfgChange = () => { toast('Rule saved. The next allocation uses it'); bump(); };
+const cfgChange = () => { if (!can('mgr.manage')) return; toast('Rule saved. The next allocation uses it'); bump(); };
 function Num({ k, v, w = 70 }: { k: string; v: number; w?: number }) {
-  return <input className={`numin ${w === 62 ? 'w-[62px]' : 'w-[70px]'}`} type="number" min={0} defaultValue={v} {...inp('cfg.' + k)} onChange={cfgChange} id={'cfg-' + k} />;
+  return <input className={`numin ${w === 62 ? 'w-[62px]' : 'w-[70px]'}`} type="number" min={0} defaultValue={v} readOnly={!can('mgr.manage')} {...inp('cfg.' + k)} onChange={cfgChange} id={'cfg-' + k} />;
 }
 function Rule({ icon, t, d, r, tag }: { icon: string; t: string; d: React.ReactNode; r?: React.ReactNode; tag?: React.ReactNode }) {
   return <div className="rule"><span className="ic2"><Icon n={icon} s={15} /></span><div><b>{t}</b> {tag}<br /><span className="sm muted">{d}</span></div><div className="r">{r}</div></div>;
@@ -271,6 +274,6 @@ function MgrSync() {
   </>;
 }
 
-export const MgrPages: Record<'live' | 'pool' | 'leads' | 'camp' | 'rules' | 'perf' | 'mail' | 'sync', () => React.ReactNode> = {
-  live: MgrLive, pool: MgrPool, leads: MgrLeads, camp: MgrCamps, rules: MgrRules, perf: MgrPerf, mail: MgrMail, sync: MgrSync,
+export const MgrPages: Record<'live' | 'pool' | 'leads' | 'camp' | 'rules' | 'perf' | 'mail' | 'sync' | 'users', () => React.ReactNode> = {
+  live: MgrLive, pool: MgrPool, leads: MgrLeads, camp: MgrCamps, rules: MgrRules, perf: MgrPerf, mail: MgrMail, sync: MgrSync, users: UsersPage,
 };

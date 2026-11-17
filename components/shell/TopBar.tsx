@@ -6,6 +6,8 @@ import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { DAY, LEADS, PEO, openOf } from '@/lib/domain';
 import { on } from '@/lib/state/actions';
 import { routeOf } from '@/lib/state/navigation';
+import { useMe } from '@/lib/state/auth';
+import { VIEW_PERM } from '@/lib/auth/roles';
 import { APPS, APP_FASE, EMP0, S, brand, bump, store, useApp, type AppKey } from '@/lib/state/store';
 import { Avatar, Icon } from '@/components/ui';
 
@@ -28,9 +30,12 @@ export function TopBar() {
     brand.emp = store.get('emp', EMP0);
     bump();
   }, []);
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '/';
   // Before hydration ends the view comes from the URL (S is shared while prerendering routes).
   const view = mounted ? S.view : routeOf(pathname)?.view ?? S.view;
+  const me = useMe(s => s.me);
+  // Only the sections the user may open (all of them until the user is known, as in the artifact)
+  const allowed = (k: string) => !me || me.perms.includes(VIEW_PERM[k]);
   const b = badges();
   const w = whoNow(view), p = w ? PEO[w] : null;
   const de = mounted ? document.documentElement : null;
@@ -61,13 +66,13 @@ export function TopBar() {
         </div>
       </div>
       <nav className="appsw" id="appsw" aria-label="Apps">
-        {APPS.map(([k, n, icon, tone]) => {
+        {APPS.filter(([k]) => allowed(k)).map(([k, n, icon, tone]) => {
           const lu = APP_FASE[k] === 'luego';
           return <button key={k} className={`sw-b ${tone} ${lu ? 'luego' : ''}`} {...on('view', k)} aria-current={view === k} title={lu ? 'Phase 2' : 'Phase 1'}>
             <span className="si"><Icon n={icon} s={15} /></span>{n}{lu ? <span className="ph">phase 2</span> : null}{b[k] ? <span className="bd">{b[k]}</span> : null}
           </button>;
         })}
-        <button className="sw-b tb" {...on('view', 'db')} aria-current={view === 'db'}><span className="si"><Icon n="db" s={15} /></span>Data</button>
+        {allowed('db') ? <button className="sw-b tb" {...on('view', 'db')} aria-current={view === 'db'}><span className="si"><Icon n="db" s={15} /></span>Data</button> : null}
       </nav>
       <div className="tools" id="tools">
         <button className={`tbtn ${S.tour.on ? 'on' : ''}`} {...on('tour')} title="Presenter walkthrough"><Icon n="compass" s={16} />Walkthrough</button>

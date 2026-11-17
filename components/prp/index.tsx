@@ -6,7 +6,8 @@ import {
   AUDK, AUDS, C, CALLS, CFG, CTS, LEADS, NO_OUT, PROPS, TODAY,
   ctsOf, elig, first, fmtD, fmtS, propStatus, relDay, type Status,
 } from '@/lib/domain';
-import { inp, on } from '@/lib/state/actions';
+import { denied, inp, on } from '@/lib/state/actions';
+import { can } from '@/lib/state/auth';
 import { S, toast } from '@/lib/state/store';
 import { AudPill, Icon, Kv, OutPill, P2Tag, PageHeader, PermitPill, Pill, StPill, StatFilter } from '@/components/ui';
 import { Sidebar } from '@/components/shell/Sidebar';
@@ -147,6 +148,7 @@ const LOADS = (): [string, string, number, number, number, string][] => [
 ];
 function PrpImport() {
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!can('prp.edit')) { e.target.value = ''; denied(); return; }
     const el = e.currentTarget;
     if (el.files && el.files.length) toast(`${el.files[0].name} received. In the app it is matched by address and phone before loading`);
     el.value = '';

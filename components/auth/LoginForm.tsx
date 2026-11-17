@@ -2,8 +2,10 @@
 /* The login screen, in the artifact's style (.login, .card, .fld, .btn). */
 import { useState } from 'react';
 import { brand } from '@/lib/state/store';
+import { homeOf, type Me } from '@/lib/auth/roles';
 
-const safeNext = (n: string | null) => (n && n.startsWith('/') && !n.startsWith('//') && !n.startsWith('/login') ? n : '/');
+/** A local path to go back to after signing in, or `home`. */
+export const safeNext = (n: string | null, home = '/') => (n && n.startsWith('/') && !n.startsWith('//') && !n.startsWith('/login') && !n.startsWith('/password') ? n : home);
 
 export function LoginForm() {
   const [error, setError] = useState('');
@@ -14,7 +16,13 @@ export function LoginForm() {
     setBusy(true); setError('');
     try {
       const res = await fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: f.get('username'), password: f.get('password') }) });
-      if (res.ok) { location.href = safeNext(new URLSearchParams(location.search).get('next')); return; }
+      if (res.ok) {
+        const { me } = (await res.json()) as { me: Me };
+        const next = new URLSearchParams(location.search).get('next');
+        // First sign-in or after a reset: choose a password first
+        location.href = me.mustChange ? '/password' + (next ? '?next=' + encodeURIComponent(next) : '') : safeNext(next, homeOf(me));
+        return;
+      }
       setError((await res.json().catch(() => ({}))).error || 'Could not sign in');
     } catch { setError('Could not reach the server'); }
     setBusy(false);

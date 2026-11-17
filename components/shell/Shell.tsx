@@ -6,22 +6,25 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import { dispatch } from '@/lib/state/actions';
 import { applyRoute, markApplied, routeOf, urlOf } from '@/lib/state/navigation';
 import { loadState } from '@/lib/state/persist';
+import { loadMe } from '@/lib/state/auth';
 import { S, brand, bump, store, useRev } from '@/lib/state/store';
 import { Layer } from './Layer';
 import { Toast } from './Toast';
 import { TopBar } from './TopBar';
 import { Tour } from './Tour';
 
+/** Pages outside the app frame (no top bar, no data). */
+const AUTH_PAGES = ['/login', '/password'];
 const useIso = typeof window === 'undefined' ? useEffect : useLayoutEffect;
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const rev = useRev(s => s.rev);
-  const pathname = usePathname();
+  const pathname = usePathname() ?? '/';
   const router = useRouter();
   const main = useRef<HTMLDivElement>(null);
   const lastPath = useRef(pathname);
 
-  const isLogin = pathname === '/login';
+  const isLogin = AUTH_PAGES.includes(pathname);
   // The URL is applied to S before anything renders (direct load, back and forward).
   const r = isLogin ? null : routeOf(pathname);
   if (r) applyRoute(r);
@@ -50,7 +53,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   // BOOT: the data from MongoDB, the stored theme.
   useEffect(() => {
-    if (location.pathname !== '/login') void loadState();
+    if (!AUTH_PAGES.includes(location.pathname)) { void loadMe(); void loadState(); }
     const th = store.get<string | null>('theme', null);
     if (th) document.documentElement.dataset.theme = th;
   }, []);

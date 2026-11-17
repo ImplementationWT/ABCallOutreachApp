@@ -7,6 +7,10 @@ login real ni sincronización con monday todavía.
 
 ## Cómo correrlo
 
+Si el repo está en una carpeta sincronizada con iCloud (`~/Documents`), iCloud puede borrar archivos de `node_modules`
+y `.next`. Para evitarlo, muévelos a carpetas `*.nosync` y deja un enlace: `mv node_modules node_modules.nosync && ln -s node_modules.nosync node_modules`
+(igual con `.next`). Ambas están en `.gitignore`.
+
 ```bash
 npm install
 npm run dev          # http://localhost:3000
@@ -36,6 +40,7 @@ cp .env.example .env.local      # y pon la contraseña del usuario de la base; .
 npm run db:seed                 # crea colecciones, índices y el usuario admin; si la base está vacía, carga la demo
 npm run db:seed -- --reset      # borra los datos y vuelve a cargar la demo, fechada hoy (los usuarios se mantienen)
 npm run db:seed -- --reset-admin  # contraseña de admin de vuelta a la inicial
+npm run db:users                # crea andrew, maya, daniel y priya si faltan (muestra sus contraseñas temporales)
 ```
 
 Comprobar la conexión: `GET /api/health/db`. Los e2e usan su propia base, `calloutreach_e2e`, que se vuelve a sembrar sola.
@@ -55,7 +60,7 @@ Comprobar la conexión: `GET /api/health/db`. Los e2e usan su propia base, `call
 | `daily_metrics` | los totales de un rep en un día pasado | `day + rep` (único) |
 | `sync_log` | un envío a monday | `at` |
 | `app_meta` | contadores de ids | |
-| `users` | un usuario con su contraseña cifrada | `username` (único) |
+| `users` | un usuario: nombre, rol, permisos, a quién representa, contraseña cifrada, estado | `username` (único) |
 | `sessions` | una sesión abierta (hash del token) | `expiresAt` (TTL), `user` |
 
 Cada colección tiene un validador JSON Schema estricto (`lib/db/schema.ts`): MongoDB rechaza documentos con
@@ -64,17 +69,31 @@ La conversión entre el estado de la app y los documentos está en `lib/domain/s
 
 Si dos personas editan a la vez, gana la última escritura de cada documento.
 
-## Login
+## Login, usuarios y permisos
 
-La app pide usuario y contraseña (`/login`). El usuario inicial es **admin** con la contraseña **adminmaster123**;
-cámbiala desde el botón con la llave de la barra superior (Account → Change password). Al cambiarla se cierran las
-demás sesiones de ese usuario.
+La app pide usuario y contraseña (`/login`). Cada persona tiene su usuario:
 
-- Las contraseñas se guardan cifradas con scrypt en la colección `users`; las sesiones, en `sessions`
-  (solo el hash del token, con caducidad de 7 días). La cookie es `httpOnly`.
-- Cinco contraseñas incorrectas seguidas bloquean el usuario 5 minutos.
-- `proxy.ts` manda a `/login` a quien no tiene sesión; cada ruta de la API valida la sesión contra MongoDB.
-- Si se olvida la contraseña: `npm run db:seed -- --reset-admin` la vuelve a `adminmaster123` y cierra todas las sesiones.
+| Usuario | Rol | Entra a |
+| --- | --- | --- |
+| `andrew` | Manager | el selector de usuario de la demo y todo lo demás, incluida **Outreach Manager > Users** |
+| `maya`, `daniel`, `priya` | Sales rep | su propia lista en Rep Workspace (no ven la de otros ni Outreach Manager) |
+| `admin` | Administrator | todo; contraseña inicial `adminmaster123` |
+
+`npm run db:users` crea los usuarios del equipo que falten, con una contraseña temporal que se muestra solo
+en ese momento; en el primer login cada uno elige la suya (`/password`).
+
+**Roles y permisos** (`lib/auth/roles.ts`). El rol precarga los permisos y se pueden ajustar uno por uno:
+Rep Workspace, Outreach Manager (ver / cambiar), Properties (ver / cambiar), Calling and AI, Data y Users.
+Un usuario vinculado a Maya, Daniel o Priya sin Outreach Manager trabaja solo en la lista de ese rep.
+La app oculta lo que el usuario no puede abrir y el servidor rechaza lo que no puede hacer (403).
+
+**Outreach Manager > Users** (permiso Users): crear usuarios con rol, permisos y a quién representan; editar,
+desactivar (cierra sus sesiones al instante) y resetear contraseñas (temporal, se muestra una vez). Nadie puede
+quitarse a sí mismo el acceso a Users, y siempre queda al menos un usuario activo con ese permiso.
+
+Seguridad: contraseñas con scrypt en `users`; sesiones en `sessions` (solo el hash del token, 7 días, TTL);
+cookie `httpOnly`; cinco contraseñas incorrectas bloquean el usuario 5 minutos. Cada uno cambia la suya en
+Account (la llave de la barra superior). `npm run db:seed -- --reset-admin` repone la contraseña de `admin`.
 
 ## Fechas
 
@@ -87,7 +106,8 @@ Andrew cree una. Los días pasados sin totales sembrados se calculan desde `call
 
 | Ruta | Vista del artifact |
 | --- | --- |
-| `/login` | Login con usuario y contraseña (no está en el artifact) |
+| `/login` · `/password` | Login, y elegir contraseña tras una temporal (no están en el artifact) |
+| `/mgr/users` | Usuarios, roles y permisos (solo con el permiso Users) |
 | `/` | Sign in (`loginPage`): Maya, Daniel, Priya y Andrew |
 | `/rep/today` · `/rep/fu` · `/rep/calls` · `/rep/help` | Rep Workspace: My Outbound Dashboard, My follow-ups, My calls today, How it works |
 | `/mgr/live` · `pool` · `leads` · `camp` · `rules` · `perf` · `mail` · `sync` · `help` | Outreach Manager |
