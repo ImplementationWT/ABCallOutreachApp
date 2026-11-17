@@ -63,6 +63,7 @@ Los tokens también están expuestos a Tailwind en `app/globals.css` (`@theme in
 | `syncLog` | `lib/domain/data.ts` |
 | `METRICS` (`mOf`, `callsOn`, `DAYM`, `mDay`, `PASTDAYS`, `LASTDAY`) | `lib/domain/metrics.ts` (el IIFE de `DAYM` → `buildDaym()`, llamado desde `world.ts`) |
 | `MORNING STATE` | `lib/domain/world.ts` |
+| Mundo sembrado completo (Live cases ... MORNING STATE) | `buildWorld()` en `lib/domain/world.ts`; solo lo usan `npm run db:seed` y los tests |
 | `STATE` (`S`, `EMP`, `APPS`, `APPN`, `APP_FASE`) | `lib/state/store.ts` (`EMP` → `brand.emp`) |
 | `VIEWS` | `components/shell/AppScreen.tsx` |
 | `A`, `IN`, `PK`, `DK` | `lib/state/actions.ts` (mismos nombres) |
@@ -132,3 +133,7 @@ Los tokens también están expuestos a Tailwind en `app/globals.css` (`@theme in
 10. **Ficha inexistente.** `/prp/props/<id>` con un id que no existe muestra "Property not found." (el artifact no
     tenía URL para llegar ahí).
 11. **Espacios.** El HTML del artifact tenía saltos de línea entre etiquetas; JSX no los genera. No se ven.
+12. **Datos en MongoDB.** El artifact construía sus datos al cargar; aquí `buildWorld()` solo alimenta `npm run db:seed`
+    y la app carga el estado desde MongoDB (`fromDocs`) y guarda los cambios (`toDocs` + diff, `lib/state/persist.ts`).
+    Si una versión nueva del artifact agrega un campo o una colección, actualiza `lib/domain/snapshot.ts`,
+    `lib/db/schema.ts` y vuelve a sembrar. Mientras carga, las vistas muestran "Loading data from the database…".

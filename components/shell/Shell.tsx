@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useLayoutEffect, useRef } from 'react';
 import { dispatch } from '@/lib/state/actions';
 import { applyRoute, markApplied, routeOf, urlOf } from '@/lib/state/navigation';
+import { loadState } from '@/lib/state/persist';
 import { S, brand, bump, store, useRev } from '@/lib/state/store';
 import { Layer } from './Layer';
 import { Toast } from './Toast';
@@ -45,8 +46,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
     }
   }, [rev, pathname]);
 
-  // BOOT: stored theme and old #vista=...&pagina=... links.
+  // BOOT: the data from MongoDB, the stored theme.
   useEffect(() => {
+    void loadState();
     const th = store.get<string | null>('theme', null);
     if (th) document.documentElement.dataset.theme = th;
   }, []);

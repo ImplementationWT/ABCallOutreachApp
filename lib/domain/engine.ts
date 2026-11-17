@@ -38,6 +38,10 @@ export const DAY: Record<RepKey, DayState> = {
   dan: { st: 'reserved', list: [], done: {}, batches: [] },
   pri: { st: 'reserved', list: [], done: {}, batches: [] },
 };
+/** Every rep back to a reserved, empty day. */
+export function resetDays() {
+  for (const r of Object.keys(DAY) as RepKey[]) DAY[r] = { st: 'reserved', list: [], done: {}, batches: [] };
+}
 export const callable = (c: Contact) => c.phones.some(x => x.st !== 'bad');
 export const isFinal = (c: Contact) => c.out === 'Already Building / Done' || c.out === 'Do Not Contact';
 export function priOf(c: Contact): Pri {

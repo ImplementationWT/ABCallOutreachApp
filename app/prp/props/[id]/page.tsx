@@ -1,9 +1,9 @@
 import { AppScreen } from '@/components/shell/AppScreen';
-import { PROPS } from '@/lib/domain';
 
-/* Property record (prpRecord), with its tabs. Every seeded property is prerendered. */
+/* Property record (prpRecord), with its tabs. The records live in MongoDB, so the page is a
+ * shell rendered for any id; the first seeded id is listed because Cache Components needs one. */
 export function generateStaticParams() {
-  return PROPS.map(p => ({ id: p.k }));
+  return [{ id: 'P-1001' }];
 }
 
 export default async function Page({ params }: PageProps<'/prp/props/[id]'>) {

@@ -1,5 +1,7 @@
-/* Entry point of the domain. Importing it builds the seeded demo world once (world.ts). */
-export { LIVE } from './world';
+/* Entry point of the domain. The collections start empty: the app fills them from MongoDB
+ * (snapshot.ts, fromDocs) and the seed script builds them with buildWorld() (world.ts). */
+export { buildWorld } from './world';
+export * from './snapshot';
 export * from './dates';
 export * from './seed';
 export * from './people';

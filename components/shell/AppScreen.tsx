@@ -5,6 +5,7 @@
 import type React from 'react';
 import { useId, useLayoutEffect } from 'react';
 import { applyRoute, type Route } from '@/lib/state/navigation';
+import { loadState, useData } from '@/lib/state/persist';
 import { APP_FASE, S, bump, useApp, type AppKey } from '@/lib/state/store';
 import { PhaseBanner } from '@/components/ui';
 import { HelpPage } from './HelpPage';
@@ -46,8 +47,12 @@ export function AppScreen(route: Route) {
     return () => setHidden(id, true);
   }, [id]);
   useApp();
+  const data = useData();
   if (hidden.has(id)) return null;
   applyRoute(route);
+  if (data.status !== 'ready') return <section className="view" key="data"><div className="op"><div className="empty">
+    {data.status === 'loading' ? 'Loading data from the database…' : <>Could not load the data: {data.error}. <button className="btn ghost sm" onClick={() => void loadState()}>Try again</button></>}
+  </div></div></section>;
   const v = S.view;
   if (v === 'in') return <section className="view" key="in"><div id="inview"><SignIn /></div></section>;
   if (v === 'db') return <section className="view" key="db"><div id="dbview"><DataPage /></div></section>;
