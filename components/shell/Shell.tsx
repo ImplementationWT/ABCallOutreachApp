@@ -21,8 +21,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const main = useRef<HTMLDivElement>(null);
   const lastPath = useRef(pathname);
 
+  const isLogin = pathname === '/login';
   // The URL is applied to S before anything renders (direct load, back and forward).
-  const r = routeOf(pathname);
+  const r = isLogin ? null : routeOf(pathname);
   if (r) applyRoute(r);
 
   // A new pathname (back, forward, a link): re-render the frame with it.
@@ -30,6 +31,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
   // After each action: push the URL S stands for, scroll to top, highlight, title.
   useIso(() => {
+    if (isLogin) return;
     const url = urlOf();
     const pending = url !== pathname;
     if (pending) { markApplied(); router.push(url, { scroll: false }); }
@@ -44,11 +46,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
         S.hl = null;
       } else if (!pending) S.hl = null;
     }
-  }, [rev, pathname]);
+  }, [rev, pathname, isLogin]);
 
   // BOOT: the data from MongoDB, the stored theme.
   useEffect(() => {
-    void loadState();
+    if (location.pathname !== '/login') void loadState();
     const th = store.get<string | null>('theme', null);
     if (th) document.documentElement.dataset.theme = th;
   }, []);
@@ -84,6 +86,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
     return () => { document.removeEventListener('click', click); document.removeEventListener('keydown', key); removeEventListener('resize', resize); };
   }, []);
 
+  if (isLogin) return <>{children}<Toast /></>;
   return <>
     <div className="shell">
       <TopBar />

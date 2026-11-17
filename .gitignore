@@ -11,6 +11,7 @@ next-env.d.ts.bak
 /test-results/
 /playwright-report/
 /blob-report/
+/playwright/.auth/
 
 # misc
 .DS_Store

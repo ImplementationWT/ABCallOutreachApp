@@ -17,7 +17,8 @@ npx playwright install chromium   # una vez
 npm run test:e2e     # compara la app con artifact/app.html (necesita npm run build antes)
 ```
 
-`npm run test:e2e` levanta `next start` en el puerto 3217 y corre:
+`npm run test:e2e` levanta `next start` en el puerto 3217 contra la base `calloutreach_e2e`, con una sesión de admin
+y el reloj del navegador fijo en el día del artifact (2 de noviembre de 2026, 8:20 AM), y corre:
 
 - `tests/e2e/compare.spec.ts`: captura del artifact y de la app en cada ruta, en claro, oscuro y ancho de móvil,
   con diff de píxeles. Las imágenes quedan en `test-results/compare/`.
@@ -32,8 +33,9 @@ El motor de asignación sigue corriendo en el navegador, igual que en el artifac
 
 ```bash
 cp .env.example .env.local      # y pon la contraseña del usuario de la base; .env.local no se sube
-npm run db:seed                 # crea las colecciones (validadores e índices) y carga los datos de la demo
-npm run db:seed -- --reset      # borra todo y vuelve a cargar los datos de la demo
+npm run db:seed                 # crea colecciones, índices y el usuario admin; si la base está vacía, carga la demo
+npm run db:seed -- --reset      # borra los datos y vuelve a cargar la demo, fechada hoy (los usuarios se mantienen)
+npm run db:seed -- --reset-admin  # contraseña de admin de vuelta a la inicial
 ```
 
 Comprobar la conexión: `GET /api/health/db`. Los e2e usan su propia base, `calloutreach_e2e`, que se vuelve a sembrar sola.
@@ -52,19 +54,40 @@ Comprobar la conexión: `GET /api/health/db`. Los e2e usan su propia base, `call
 | `rules` | las reglas de Andrew (un documento) | |
 | `daily_metrics` | los totales de un rep en un día pasado | `day + rep` (único) |
 | `sync_log` | un envío a monday | `at` |
-| `app_meta` | reloj de la demo y contadores de ids | |
+| `app_meta` | contadores de ids | |
+| `users` | un usuario con su contraseña cifrada | `username` (único) |
+| `sessions` | una sesión abierta (hash del token) | `expiresAt` (TTL), `user` |
 
 Cada colección tiene un validador JSON Schema estricto (`lib/db/schema.ts`): MongoDB rechaza documentos con
 campos obligatorios faltantes, tipos incorrectos o valores fuera de catálogo (resultado, rep, audiencia...).
 La conversión entre el estado de la app y los documentos está en `lib/domain/snapshot.ts`.
 
-Pendiente: no hay login todavía, así que cualquiera que llegue a la app puede leer y escribir; si dos personas
-editan a la vez, gana la última escritura de cada documento. La fecha de la demo sigue fija (lunes 2 de noviembre de 2026).
+Si dos personas editan a la vez, gana la última escritura de cada documento.
+
+## Login
+
+La app pide usuario y contraseña (`/login`). El usuario inicial es **admin** con la contraseña **adminmaster123**;
+cámbiala desde el botón con la llave de la barra superior (Account → Change password). Al cambiarla se cierran las
+demás sesiones de ese usuario.
+
+- Las contraseñas se guardan cifradas con scrypt en la colección `users`; las sesiones, en `sessions`
+  (solo el hash del token, con caducidad de 7 días). La cookie es `httpOnly`.
+- Cinco contraseñas incorrectas seguidas bloquean el usuario 5 minutos.
+- `proxy.ts` manda a `/login` a quien no tiene sesión; cada ruta de la API valida la sesión contra MongoDB.
+- Si se olvida la contraseña: `npm run db:seed -- --reset-admin` la vuelve a `adminmaster123` y cierra todas las sesiones.
+
+## Fechas
+
+La app usa la fecha y la hora reales. Los datos de la demo se generan relativos al día en que se corre el seed
+(`npm run db:seed -- --reset`). La primera vez que se abre la app en un día nuevo corre la asignación de la mañana
+con las campañas de ese día y la guarda; si ese día no hay campañas, los reps aparecen "not scheduled" hasta que
+Andrew cree una. Los días pasados sin totales sembrados se calculan desde `call_log`.
 
 ## Rutas
 
 | Ruta | Vista del artifact |
 | --- | --- |
+| `/login` | Login con usuario y contraseña (no está en el artifact) |
 | `/` | Sign in (`loginPage`): Maya, Daniel, Priya y Andrew |
 | `/rep/today` · `/rep/fu` · `/rep/calls` · `/rep/help` | Rep Workspace: My Outbound Dashboard, My follow-ups, My calls today, How it works |
 | `/mgr/live` · `pool` · `leads` · `camp` · `rules` · `perf` · `mail` · `sync` · `help` | Outreach Manager |

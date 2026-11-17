@@ -1,15 +1,17 @@
 import { connection } from 'next/server';
 import type { AnyBulkWriteOperation } from 'mongodb';
 import { getDb } from '@/lib/db/mongodb';
+import { currentUser, unauthorized } from '@/lib/auth/session';
 import { COLLECTIONS, type CollectionName, type Doc, type Snapshot } from '@/lib/domain';
 
 /* GET /api/state: every collection, to build the app's state (lib/state/persist.ts).
  * POST /api/state: the documents that changed after an action, { changes: { [collection]: { upsert, delete } } }.
- * There is no login yet: anyone who reaches the app can read and write, as in the demo. */
+ * Both need a session (POST /api/auth/login). */
 
 export async function GET() {
   await connection();
   try {
+    if (!(await currentUser())) return unauthorized();
     const db = await getDb();
     const entries = await Promise.all(COLLECTIONS.map(async n => [n, await db.collection<Doc>(n).find({}).toArray()] as const));
     return Response.json(Object.fromEntries(entries) as Snapshot);
@@ -23,6 +25,7 @@ type Change = { upsert?: Doc[]; delete?: (string | number)[] };
 const MAX_DOCS = 2000;
 
 export async function POST(req: Request) {
+  try { if (!(await currentUser())) return unauthorized(); } catch { return Response.json({ error: 'Could not reach the database' }, { status: 503 }); }
   let body: { changes?: Partial<Record<CollectionName, Change>> };
   try { body = await req.json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
   const changes = body.changes || {};

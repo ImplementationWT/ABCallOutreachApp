@@ -127,6 +127,11 @@ export function morningAlloc() {
   }
   for (const r of REPS) DAY[r].batches.push({ at: '7:00 AM', n: DAY[r].list.length, k: 'Morning allocation' });
 }
+/** A day with no workdays yet (the first load of the day): the morning allocation for today's campaigns. */
+export function startNewDay() {
+  resetDays();
+  morningAlloc();
+}
 export const listOf = (rep: RepKey) => DAY[rep].list.map(C);
 export const openOf = (rep: RepKey) => listOf(rep).filter(c => !DAY[rep].done[c.k] && !c.stop && !P(c.prop).lead);
 export const docOf = (rep: RepKey) => listOf(rep).filter(c => DAY[rep].done[c.k]);

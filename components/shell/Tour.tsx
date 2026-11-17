@@ -1,7 +1,7 @@
 'use client';
 /* ===== WALKTHROUGH ===== renderTour() in artifact/app.html: the draggable presenter panel. */
 import { useRef } from 'react';
-import { TOUR } from '@/lib/domain/tour';
+import { TOUR, tourText } from '@/lib/domain/tour';
 import { TOUR_MAS, on } from '@/lib/state/actions';
 import { S, useApp } from '@/lib/state/store';
 import { Icon } from '@/components/ui';
@@ -47,7 +47,7 @@ export function Tour() {
         : <div className="tb">
           <h4>{st.t}</h4>
           <div className="why"><b className="sm">Why it matters</b><div className="sm">{st.dolor}</div></div>
-          <b className="sm">Show</b><ul>{st.show.map((s, i) => <li key={i}>{s}</li>)}</ul>
+          <b className="sm">Show</b><ul>{st.show.map((s, i) => <li key={i}>{tourText(s)}</li>)}</ul>
           <div className="say"><b className="sm">Say</b><div className="sm">{st.say}</div></div>
         </div>}
       <div className="tf">

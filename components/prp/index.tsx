@@ -2,6 +2,7 @@
 /* ===== PROPERTIES ===== (artifact/app.html): VIEWS.prp side, prpList, prpRecord, prpContacts, prpImport. */
 import type React from 'react';
 import {
+  T0, addDays,
   AUDK, AUDS, C, CALLS, CFG, CTS, LEADS, NO_OUT, PROPS, TODAY,
   ctsOf, elig, first, fmtD, fmtS, propStatus, relDay, type Status,
 } from '@/lib/domain';
@@ -82,7 +83,7 @@ export function PrpRecord({ k }: { k: string }) {
       <Kv l="Lot size" v={p.lot.toLocaleString('en-US') + ' sq ft'} />
       <Kv l="Home before the fire" v={p.prior.toLocaleString('en-US') + ' sq ft'} sub={'built ' + p.built} />
       <Kv l="Owner since" v={p.since} />
-      <Kv l="Source" v={p.src} sub="last load Oct 28" />
+      <Kv l="Source" v={p.src} sub={`last load ${fmtS(loadDay())}`} />
     </div>
     <p className="sm muted mt-[10px]">Informative columns from the data load. Which ones matter for the script or the priority is to be confirmed with Andrew.</p>
   </>;
@@ -138,9 +139,11 @@ function PrpContacts() {
 }
 
 const IROW = 'grid-cols-[130px_minmax(0,1fr)_120px_120px_120px_minmax(0,1fr)]';
-const LOADS: [string, string, number, number, number, string][] = [
-  ['Oct 28, 2026', 'PropertyRadar, Pacific Palisades and Sunset Mesa', 34, 66, 3, 'Matched by address and phone'],
-  ['Oct 28, 2026', 'PropertyRadar, Malibu and Altadena', 29, 56, 2, 'Contacts without a phone: 9, waiting for enrichment'],
+/** Sample loads of the demo, dated five days back (the artifact showed Oct 28 for Nov 2). */
+const loadDay = () => addDays(T0, -5);
+const LOADS = (): [string, string, number, number, number, string][] => [
+  [fmtD(loadDay()), 'PropertyRadar, Pacific Palisades and Sunset Mesa', 34, 66, 3, 'Matched by address and phone'],
+  [fmtD(loadDay()), 'PropertyRadar, Malibu and Altadena', 29, 56, 2, 'Contacts without a phone: 9, waiting for enrichment'],
 ];
 function PrpImport() {
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -153,7 +156,7 @@ function PrpImport() {
       acts={<label className="btn pri"><Icon n="upload" s={15} />Load a PropertyRadar file<input type="file" accept=".csv,.xlsx" data-up="imp" style={{ display: 'none' }} onChange={onFile} /></label>} />
     <div className="rows">
       <div className={`row head ${IROW}`}><span>Date</span><span>File</span><span>Properties</span><span>Contacts</span><span>Duplicates</span><span>Note</span></div>
-      {LOADS.map((r, i) => <div key={i} className={`row ${IROW}`}><div className="cell"><b>{r[0]}</b></div><div className="t"><b>{r[1]}</b></div><div className="cell">{r[2]}</div><div className="cell">{r[3]}</div><div className="cell">{r[4]} merged</div><div className="cell muted">{r[5]}</div></div>)}
+      {LOADS().map((r, i) => <div key={i} className={`row ${IROW}`}><div className="cell"><b>{r[0]}</b></div><div className="t"><b>{r[1]}</b></div><div className="cell">{r[2]}</div><div className="cell">{r[3]}</div><div className="cell">{r[4]} merged</div><div className="cell muted">{r[5]}</div></div>)}
     </div>
     <div className="grid2 mt-[14px]">
       <div className="card"><h3><Icon n="check" s={16} />What a load does</h3><ul className="sm m-0 pl-[18px]"><li>Matches each row to an existing property by address, and each contact by phone, so nothing is loaded twice.</li><li>Keeps every phone of a contact as its own number, so a wrong one does not lose the others.</li><li>Leaves the call history untouched.</li><li>Pushes new properties and contacts to monday.</li></ul></div>

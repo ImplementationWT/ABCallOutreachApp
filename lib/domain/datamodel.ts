@@ -1,6 +1,6 @@
 /* ===== DATA ===== (artifact/app.html) tables behind the apps, access by app and the A to Z process. */
 import { CALLS, CTS, LEADS, PROPS } from './data';
-import { PASTDAYS } from './metrics';
+import { pastDays } from './metrics';
 import { REPS } from './people';
 import { CAMPS } from './campaigns';
 
@@ -19,7 +19,7 @@ export const DBS: Table[] = [
   { k: 'mprops', n: 'Fire Rebuild Properties', g: 'mon', d: 'monday board, updated by the sync', f: [['Address', 'Name'], ['Outreach Status', 'Status'], ['Permit Status', 'Dropdown'], ['Construction Started', 'Dropdown'], ['Contacts', 'Connection']], c: () => PROPS.length },
   { k: 'mcts', n: 'Fire Rebuild Contacts', g: 'mon', d: 'monday board, updated by the sync', f: [['Name', 'Name'], ['Last Call Outcome', 'Dropdown'], ['Last Call Date, Next Eligible Call', 'Dates'], ['Call Attempts', 'Numbers'], ['Property', 'Connection']], c: () => CTS.length },
   { k: 'mleads', n: 'AB Leads', g: 'mon', ex: true, d: 'Existing AB board for the sales team', f: [['Lead', 'Name'], ['Source', 'Dropdown'], ['Property and contact', 'Connections'], ['Call history', 'Long text']], c: () => LEADS.length },
-  { k: 'mmet', n: 'Outreach Daily Metrics', g: 'mon', d: 'monday board for the dashboards: 1 row = rep and day', f: [['Rep and day', 'Name'], ['Calls, connects, conversations, leads', 'Numbers'], ['Rates', 'Formula']], c: () => PASTDAYS.length * REPS.length },
+  { k: 'mmet', n: 'Outreach Daily Metrics', g: 'mon', d: 'monday board for the dashboards: 1 row = rep and day', f: [['Rep and day', 'Name'], ['Calls, connects, conversations, leads', 'Numbers'], ['Rates', 'Formula']], c: () => pastDays().length * REPS.length },
 ];
 export const ACC: Record<string, Record<string, 'r' | 'w'>> = {
   rep: { props: 'r', cts: 'w', phones: 'w', camps: 'r', res: 'r', calls: 'w', hand: 'w', rules: 'r' },

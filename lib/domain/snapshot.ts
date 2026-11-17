@@ -8,7 +8,7 @@
  */
 import { CAMPS, resetCampaigns, type Campaign } from './campaigns';
 import { CALLS, CTS, LEADS, PROPS, SEQ, SYNC, resetData, type Call, type Contact, type Lead, type Phone, type PhoneSt, type Property, type SyncEntry } from './data';
-import { TODAY, getClock, isoT, D, setClock } from './dates';
+import { TODAY } from './dates';
 import { DAY, resetDays, type DayState } from './engine';
 import { DAYM, resetDaym } from './metrics';
 import { PEO, type Person, type PersonKey, type RepKey } from './people';
@@ -38,7 +38,7 @@ export type RulesDoc = Config & { _id: 'default' };
 export type MetricDoc = { _id: string; day: string; rep: RepKey; calls: number; con: number; conv: number; leads: number };
 /** _id counts from the oldest entry, so it stays the same when newer entries are added on top. */
 export type SyncDoc = SyncEntry & { _id: number };
-export type MetaDoc = { _id: 'state'; clock: string; seq: typeof SEQ };
+export type MetaDoc = { _id: 'state'; seq: typeof SEQ };
 
 const clean = <T extends object>(o: T) => JSON.parse(JSON.stringify(o)) as T;
 
@@ -65,7 +65,7 @@ export function toDocs(): Snapshot {
     rules: [{ _id: 'default', ...CFG }],
     daily_metrics: metrics,
     sync_log: SYNC.map((s, i) => ({ _id: SYNC.length - 1 - i, ...s })),
-    app_meta: [{ _id: 'state', clock: isoT(getClock()), seq: { ...SEQ } }],
+    app_meta: [{ _id: 'state', seq: { ...SEQ } }],
   } as unknown as Snapshot);
 }
 
@@ -102,6 +102,6 @@ export function fromDocs(s: Snapshot) {
     if (c) c.res = { rep: r.rep, date: r.date };
   }
   const meta = (s.app_meta as MetaDoc[]).find(m => m._id === 'state');
-  if (meta) { setClock(D(meta.clock)!); Object.assign(SEQ, meta.seq); }
+  if (meta) Object.assign(SEQ, meta.seq);
 }
 

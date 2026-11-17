@@ -1,13 +1,13 @@
 /* A second walk over the actions the first one does not touch, again on both targets. */
 import { expect, test, type Page } from '@playwright/test';
 import { TOASTS, btn, idle, openApp, openArtifact, toastText } from './targets';
-import { reseed } from './db';
+import { STORAGE, reseed } from './db';
 
 test.beforeEach(async () => { await reseed(); });
 
 async function walk(page: Page) {
   const log: string[] = [];
-  const note = async (label: string, v: Promise<string | null> | string | null) => { log.push(`${label}: ${(await v)?.replace(/\s+/g, '')}`); };
+  const note = async (label: string, v: Promise<string | null> | string | null) => { log.push(`${label}: ${(await v)?.replace(/\s+/g, '').replace(/\d{1,2}:\d{2}(AM|PM)/g, 'T')}`); };
   const text = (sel: string) => page.locator(sel).first().textContent();
 
   // Rep: dial, follow up with the calendar, script
@@ -95,10 +95,10 @@ async function walk(page: Page) {
 }
 
 test('artifact and app agree on the remaining actions', async ({ browser }) => {
-  const pa = await browser.newPage(); await pa.addInitScript(TOASTS);
+  const pa = await browser.newPage({ storageState: STORAGE }); await pa.addInitScript(TOASTS);
   await openArtifact(pa);
   const a = await walk(pa);
-  const pb = await browser.newPage(); await pb.addInitScript(TOASTS);
+  const pb = await browser.newPage({ storageState: STORAGE }); await pb.addInitScript(TOASTS);
   await openApp(pb, '/');
   const b = await walk(pb);
   expect(b.length).toBe(a.length);
@@ -140,8 +140,8 @@ async function drag(page: Page) {
   return [before, after, await box()];
 }
 test('the walkthrough panel drags the same', async ({ browser }) => {
-  const pa = await browser.newPage(); await openArtifact(pa);
-  const pb = await browser.newPage(); await openApp(pb, '/');
+  const pa = await browser.newPage({ storageState: STORAGE }); await openArtifact(pa);
+  const pb = await browser.newPage({ storageState: STORAGE }); await openApp(pb, '/');
   const a = await drag(pa), b = await drag(pb);
   expect(b).toEqual(a);
   expect(b[1][0]).toBeLessThan(b[0][0]);

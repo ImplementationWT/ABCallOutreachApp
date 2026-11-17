@@ -76,6 +76,7 @@ A.cal = (v, t) => { const r = t!.getBoundingClientRect(); const cur = t!.dataset
 A.calnav = v => { if (S.pop?.t !== 'cal') return false; const m = new Date(S.pop.m); m.setMonth(m.getMonth() + Number(v)); S.pop.m = m; return false; };
 A.calpick = v => { const fn = S.pop && DK[S.pop.key]; S.pop = null; if (fn) fn(v); };
 A.nop = () => false;
+A.account = () => { S.modal = { k: 'account' }; };
 A.signout = () => { S.view = 'in'; S.top = true; };
 A.openprop = v => { openProp(v); };
 IN.popq = v => { if (S.pop?.t === 'pick') { S.pop.q = v; S.pop.kb = 0; } };
