@@ -6,6 +6,10 @@ import type React from 'react';
 import { useId, useLayoutEffect } from 'react';
 import { applyRoute, type Route } from '@/lib/state/navigation';
 import { loadState, useData } from '@/lib/state/persist';
+import { useMe } from '@/lib/state/auth';
+import { VIEW_PERM, homeOf } from '@/lib/auth/roles';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import { APP_FASE, S, bump, useApp, type AppKey } from '@/lib/state/store';
 import { PhaseBanner } from '@/components/ui';
 import { HelpPage } from './HelpPage';
@@ -48,9 +52,17 @@ export function AppScreen(route: Route) {
   }, [id]);
   useApp();
   const data = useData();
-  if (hidden.has(id)) return null;
-  applyRoute(route);
-  if (data.status !== 'ready') return <section className="view" key="data"><div className="op"><div className="empty">
+  const me = useMe(s => s.me);
+  const router = useRouter();
+  const isHidden = hidden.has(id);
+  if (!isHidden) applyRoute(route);
+  const blocked = !isHidden && !!me && !me.perms.includes(VIEW_PERM[S.view]);
+  const home = me ? homeOf(me) : '/';
+  // A section the user may not open: back to their home (a rep to their own list)
+  useEffect(() => { if (blocked) router.replace(home); }, [blocked, home, router]);
+  if (isHidden) return null;
+  if (blocked) return <section className="view" key="denied"><div className="op"><div className="empty">You do not have access to this section.</div></div></section>;
+  if (data.status !== 'ready' || !me) return <section className="view" key="data"><div className="op"><div className="empty">
     {data.status === 'loading' ? 'Loading data from the database…' : <>Could not load the data: {data.error}. <button className="btn ghost sm" onClick={() => void loadState()}>Try again</button></>}
   </div></div></section>;
   const v = S.view;

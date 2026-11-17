@@ -15,6 +15,8 @@ import { TOUR } from '@/lib/domain/tour';
 import { go, openProp } from './navigation';
 import { queueSort } from './rep';
 import { APPS, S, bump, store, toast, type AppKey, type ViewKey } from './store';
+import { can, lockedRep } from './auth';
+import type { Perm } from '@/lib/auth/roles';
 
 type Fn = (v: string, el?: HTMLElement, e?: React.SyntheticEvent | Event) => unknown;
 export const A: Record<string, Fn> = {};
@@ -28,10 +30,17 @@ export const registerDate = (k: string, fn: (v: string) => void) => { DK[k] = fn
 
 /* ===== EVENTS: dispatch ===== */
 const KEEP_POP = ['pick', 'cal', 'calnav', 'pickset', 'calpick'];
+/** Actions that need a permission (the server checks the same when saving). */
+const NEED: Record<string, Perm> = {
+  newcamp: 'mgr.manage', ncsave: 'mgr.manage', reassign: 'mgr.manage', radone: 'mgr.manage', cfgset: 'mgr.manage',
+  reopen: 'prp.edit', started: 'prp.edit', viewas: 'mgr.view', signin: 'mgr.view', replist: 'mgr.view',
+};
+export const denied = () => toast('You do not have permission for this');
 export function dispatch(act: string, v?: string, el?: HTMLElement, e?: React.SyntheticEvent | Event) {
   const fn = A[act];
   if (!fn) { console.warn('No action', act); return; }
   if (S.pop && !KEEP_POP.includes(act)) S.pop = null;
+  if (NEED[act] && !can(NEED[act])) { denied(); bump(); return; }
   const r = fn(v as string, el, e);
   if (r !== false || act === 'pick' || act === 'cal' || act === 'calnav') bump();
 }
@@ -77,7 +86,8 @@ A.calnav = v => { if (S.pop?.t !== 'cal') return false; const m = new Date(S.pop
 A.calpick = v => { const fn = S.pop && DK[S.pop.key]; S.pop = null; if (fn) fn(v); };
 A.nop = () => false;
 A.account = () => { S.modal = { k: 'account' }; };
-A.signout = () => { S.view = 'in'; S.top = true; };
+/* "Switch user" goes to the demo's user picker; a rep (who cannot switch) gets their Account. */
+A.signout = () => { if (lockedRep() || !can('mgr.view')) { S.modal = { k: 'account' }; return; } S.view = 'in'; S.top = true; };
 A.openprop = v => { openProp(v); };
 IN.popq = v => { if (S.pop?.t === 'pick') { S.pop.q = v; S.pop.kb = 0; } };
 
@@ -156,7 +166,8 @@ A.ncsave = () => {
   CAMPS.push({ k: 'C-' + m.date.slice(5).replace('-', '') + '-' + String.fromCharCode(65 + CAMPS.filter(c => c.date === m.date).length), date: m.date, auds: m.auds, reps: m.reps, goal: m.goal });
   S.modal = null; toast('Campaign created for ' + fmtWD(m.date));
 };
-IN.cfg = (v, k) => { const n = Math.max(0, Number(v) || 0); if (k.startsWith('rc.')) CFG.rc[k.slice(3).replace(/_/g, ' ')] = n; else CFG[k] = n; };
+IN.cfg = (v, k) => {
+  if (!can('mgr.manage')) return; const n = Math.max(0, Number(v) || 0); if (k.startsWith('rc.')) CFG.rc[k.slice(3).replace(/_/g, ' ')] = n; else CFG[k] = n; };
 A.cfgset = v => { const [k, val] = v.split('|'); CFG[k] = val; toast('Rule saved. The next allocation uses it'); };
 
 /* ===== PROPERTIES ===== */

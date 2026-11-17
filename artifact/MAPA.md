@@ -143,3 +143,7 @@ Los tokens también están expuestos a Tailwind en `app/globals.css` (`@theme in
     artifact, el resultado es idéntico (test de determinismo). Un día nuevo corre `startNewDay()` al cargar.
 14. **Login.** No está en el artifact: `/login`, el botón de cuenta (llave) en la barra superior y el modal `account`
     (`components/auth/`), con usuarios y sesiones en MongoDB (`lib/db/auth-core.ts`) y `proxy.ts`.
+15. **Usuarios y permisos.** No están en el artifact. Un rep sin Outreach Manager queda fijo en su propia lista
+    (`S.user` = su persona) y el avatar abre Account en vez del selector de usuario; las secciones sin permiso
+    se ocultan en la barra y redirigen a su inicio; las acciones de `NEED` en `lib/state/actions.ts` piden permiso.
+    La sección Users vive en `components/mgr/users.tsx` (`/mgr/users`).

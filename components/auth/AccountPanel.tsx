@@ -7,7 +7,7 @@ export function AccountPanel() {
   const [user, setUser] = useState('');
   const [msg, setMsg] = useState<{ ok: boolean; t: string } | null>(null);
   const [busy, setBusy] = useState(false);
-  useEffect(() => { fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(d => d && setUser(d.user)).catch(() => {}); }, []);
+  useEffect(() => { fetch('/api/auth/me').then(r => r.ok ? r.json() : null).then(d => d && setUser(d.username)).catch(() => {}); }, []);
 
   const change = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();

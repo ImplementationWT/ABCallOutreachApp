@@ -12,9 +12,9 @@ export async function POST(req: Request) {
     const db = await getDb();
     await ensureAuth(db);
     const r = await login(db, username, password);
-    if (!r.ok) return Response.json({ error: r.reason === 'locked' ? 'Too many attempts. Try again in a few minutes' : 'User or password is not correct' }, { status: r.reason === 'locked' ? 429 : 401 });
+    if (!r.ok) return Response.json({ error: r.reason === 'locked' ? 'Too many attempts. Try again in a few minutes' : r.reason === 'inactive' ? 'This user is deactivated. Ask your manager' : 'User or password is not correct' }, { status: r.reason === 'locked' ? 429 : r.reason === 'inactive' ? 403 : 401 });
     await setSessionCookie(r.token);
-    return Response.json({ ok: true, user: r.user });
+    return Response.json({ ok: true, me: r.me });
   } catch (e) {
     console.error('Login failed', e);
     return Response.json({ error: 'Could not reach the database' }, { status: 503 });

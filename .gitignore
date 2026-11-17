@@ -1,8 +1,10 @@
-# dependencies
+# dependencies (node_modules and .next may be symlinks to *.nosync folders, which iCloud does not sync)
 /node_modules
+*.nosync
 
 # next.js
 /.next/
+/.next
 /out/
 next-env.d.ts.bak
 *.tsbuildinfo
