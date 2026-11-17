@@ -75,7 +75,7 @@ La app pide usuario y contraseña (`/login`). Cada persona tiene su usuario:
 
 | Usuario | Rol | Entra a |
 | --- | --- | --- |
-| `andrew` | Manager | el selector de usuario de la demo y todo lo demás, incluida **Outreach Manager > Users** |
+| `andrew` | Manager | The day by rep y todo lo demás, incluida **Outreach Manager > Users**; abre la lista de un rep con "Open as" |
 | `maya`, `daniel`, `priya` | Sales rep | su propia lista en Rep Workspace (no ven la de otros ni Outreach Manager) |
 | `admin` | Administrator | todo; contraseña inicial `adminmaster123` |
 
@@ -108,7 +108,7 @@ Andrew cree una. Los días pasados sin totales sembrados se calculan desde `call
 | --- | --- |
 | `/login` · `/password` | Login, y elegir contraseña tras una temporal (no están en el artifact) |
 | `/mgr/users` | Usuarios, roles y permisos (solo con el permiso Users) |
-| `/` | Sign in (`loginPage`): Maya, Daniel, Priya y Andrew |
+| `/` | Lleva a cada usuario a su inicio: un rep a su lista, un manager a The day by rep |
 | `/rep/today` · `/rep/fu` · `/rep/calls` · `/rep/help` | Rep Workspace: My Outbound Dashboard, My follow-ups, My calls today, How it works |
 | `/mgr/live` · `pool` · `leads` · `camp` · `rules` · `perf` · `mail` · `sync` · `help` | Outreach Manager |
 | `/prp/props` · `/prp/cts` · `/prp/imp` · `/prp/help` | Properties |

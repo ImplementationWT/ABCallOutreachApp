@@ -1,7 +1,6 @@
-import { AppScreen } from '@/components/shell/AppScreen';
-import { HashRedirect } from '@/components/shell/HashRedirect';
+import { HomeRedirect } from '@/components/shell/HomeRedirect';
 
-/* Sign in (loginPage). */
+/* The user's home (there is no user picker with the real login). */
 export default function Page() {
-  return <><HashRedirect /><AppScreen view="in" /></>;
+  return <HomeRedirect />;
 }

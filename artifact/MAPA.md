@@ -76,7 +76,7 @@ Los tokens también están expuestos a Tailwind en `app/globals.css` (`@theme in
 | `renderApp`, `render` | `components/shell/AppScreen.tsx`; scroll arriba, `S.hl`, `document.title` en `components/shell/Shell.tsx` |
 | `renderLayer`, `popHtml` | `components/shell/Layer.tsx` |
 | `GENERIC ACTIONS` | `lib/state/actions.ts` |
-| `SIGN IN` (`loginPage`, `A.signin`) | `components/signin/SignIn.tsx`, `lib/state/actions.ts` |
+| `SIGN IN` (`loginPage`, `A.signin`) | Eliminado: con el login real, `/` lleva a cada usuario a su inicio (`components/shell/HomeRedirect.tsx`) |
 | `REP WORKSPACE` (`repToday`, `repStart`, `repEnded`, `repWork`, `qItem`, `repDetail`, `sibRow`, `histList`, `scriptFor`, `repFollowUps`, `repCalls`) | `components/rep/index.tsx` |
 | `grpBest`, `grpFirst`, `queueSort`, `myFollowUps` | `lib/state/rep.ts` |
 | `OUTREACH MANAGER` (`mgrLive`, `mgrPool` + `POOLF`, `mgrLeads`, `mgrCamps`, `mgrRules`, `perfTable`, `mgrPerf`, `mgrMail`, `mgrSync`) | `components/mgr/index.tsx` |
@@ -147,3 +147,6 @@ Los tokens también están expuestos a Tailwind en `app/globals.css` (`@theme in
     (`S.user` = su persona) y el avatar abre Account en vez del selector de usuario; las secciones sin permiso
     se ocultan en la barra y redirigen a su inicio; las acciones de `NEED` en `lib/state/actions.ts` piden permiso.
     La sección Users vive en `components/mgr/users.tsx` (`/mgr/users`).
+16. **Sin selector de usuario.** La pantalla "Sign in to the Call Center" (`loginPage`) y `A.signin` no existen: el
+    login real decide quién es cada uno. El avatar ("Switch user" en el artifact) abre Account. Un manager abre la lista
+    de un rep con "Open as" en The day by rep. Si una versión nueva del artifact cambia `loginPage`, no hay nada que portar.

@@ -7,7 +7,8 @@ test.beforeEach(async () => { await reseed(); });
 
 test('a saved call, a new campaign and a rule survive a reload', async ({ page }) => {
   await openApp(page, '/');
-  await btn(page, 'Maya Torres').click(); await idle(page);
+  await expect(page).toHaveURL(/\/mgr\/live$/);
+  await btn(page, 'Open as Maya').click(); await idle(page);
   await btn(page, 'Start Workday').click(); await idle(page);
   await page.locator('.ob', { hasText: 'Left VM' }).first().click(); await idle(page);
   await page.locator('textarea.fld').first().fill('Saved in MongoDB');
@@ -56,9 +57,10 @@ test('a new day: the first load runs the morning allocation for that day’s cam
   await page.waitForTimeout(800);
   await page.clock.setFixedTime(new Date(2026, 10, 3, 9, 0));
   await page.goto('/'); await page.waitForLoadState('networkidle');
-  await expect(page.locator('.login > p.sm')).toContainText('Today is Tue, Nov 3, 9:00 AM.');
-  await expect(page.locator('.lcard', { hasText: 'Maya Torres' })).toContainText('Sales rep, Pacific Palisades');
-  await expect(page.locator('.lcard', { hasText: 'Priya Shah' })).toContainText('not scheduled');
+  await expect(page).toHaveURL(/\/mgr\/live$/);
+  await expect(page.locator('.op-h p')).toContainText('Tue, Nov 3');
+  await expect(page.locator('.repc', { hasText: 'Maya Torres' })).toContainText('Pacific Palisades');
+  await expect(page.locator('.repc', { hasText: 'Priya Shah' })).toContainText('Not scheduled');
   await page.waitForTimeout(800);
   await withDb(async db => {
     expect(await db.collection('workdays').countDocuments({ date: '2026-11-03' })).toBe(3);
@@ -67,5 +69,6 @@ test('a new day: the first load runs the morning allocation for that day’s cam
     expect(await db.collection('reservations').countDocuments({ date: '2026-11-02' })).toBe(42); // yesterday stays as history
   });
   await page.reload(); await page.waitForLoadState('networkidle');
-  await expect(page.locator('.lcard', { hasText: 'Maya Torres' })).toContainText('contacts reserved, not started');
+  await expect(page.locator('.repc', { hasText: 'Maya Torres' })).toContainText(/0 of [1-9]\d* documented/);
+  await expect(page.locator('.repc', { hasText: 'Maya Torres' })).toContainText('Not started');
 });

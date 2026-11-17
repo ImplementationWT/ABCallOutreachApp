@@ -1,7 +1,7 @@
 'use client';
 /* ===== NAVIGATION ===== (artifact/app.html)
  * The artifact kept the current app, page and record in S. Here the URL mirrors them:
- *   /                 sign in        (S.view 'in')
+ *   /                 the user's home (HomeRedirect); the artifact's user picker is gone with the real login
  *   /rep|mgr|prp|p2/[page]           (S.view + S.page[app])
  *   /prp/props/[id]   property record (S.det.prp)
  *   /data             Data           (S.view 'db')
@@ -69,7 +69,7 @@ export function hashRoute(hash: string): string | null {
 /** Inverse of urlOf(): the route a pathname stands for (null when it is not an app route). */
 export function routeOf(pathname: string): Route | null {
   const seg = pathname.split('/').filter(Boolean);
-  if (!seg.length) return { view: 'in' };
+  if (!seg.length) return null;
   if (seg[0] === 'data' && seg.length === 1) return { view: 'db' };
   if (!isApp(seg[0])) return null;
   if (seg[0] === 'prp' && seg[1] === 'props' && seg[2]) return { view: 'prp', page: 'props', det: decodeURIComponent(seg[2]) };

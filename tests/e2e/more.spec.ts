@@ -1,6 +1,6 @@
 /* A second walk over the actions the first one does not touch, again on both targets. */
 import { expect, test, type Page } from '@playwright/test';
-import { TOASTS, btn, idle, openApp, openArtifact, toastText } from './targets';
+import { TOASTS, btn, idle, openApp, openArtifact, toastText , openAsAndrew, openAsMaya } from './targets';
 import { STORAGE, reseed } from './db';
 
 test.beforeEach(async () => { await reseed(); });
@@ -11,7 +11,7 @@ async function walk(page: Page) {
   const text = (sel: string) => page.locator(sel).first().textContent();
 
   // Rep: dial, follow up with the calendar, script
-  await btn(page, 'Maya Torres').click(); await idle(page);
+  await openAsMaya(page);
   await btn(page, 'Start Workday').click(); await idle(page);
   await note('start', toastText(page));
   await page.locator('.ph-r button', { hasText: 'Call' }).first().click(); await idle(page);
@@ -65,8 +65,7 @@ async function walk(page: Page) {
   await note('az go', text('.op h1'));
 
   // Manager: list modal, open as, pool search
-  await page.locator('.me.click').click(); await idle(page);
-  await btn(page, 'Andrew Vaitkevicius').click(); await idle(page);
+  await openAsAndrew(page);
   await btn(page, 'See list').click(); await idle(page);
   await note('list modal', text('.modal'));
   await page.keyboard.press('Escape'); await idle(page);

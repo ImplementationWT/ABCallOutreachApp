@@ -13,7 +13,6 @@ import { useEffect } from 'react';
 import { APP_FASE, S, bump, useApp, type AppKey } from '@/lib/state/store';
 import { PhaseBanner } from '@/components/ui';
 import { HelpPage } from './HelpPage';
-import { SignIn } from '@/components/signin/SignIn';
 import { RepSide, RepPages } from '@/components/rep';
 import { MgrSide, MgrPages } from '@/components/mgr';
 import { PrpSide, PrpPages, PrpRecord } from '@/components/prp';
@@ -66,7 +65,7 @@ export function AppScreen(route: Route) {
     {data.status === 'loading' ? 'Loading data from the database…' : <>Could not load the data: {data.error}. <button className="btn ghost sm" onClick={() => void loadState()}>Try again</button></>}
   </div></div></section>;
   const v = S.view;
-  if (v === 'in') return <section className="view" key="in"><div id="inview"><SignIn /></div></section>;
+  if (v === 'in') return null; // no section yet: / sends each user to their home
   if (v === 'db') return <section className="view" key="db"><div id="dbview"><DataPage /></div></section>;
   return <section className="view" key={v} id={'v-' + v}>{renderApp(v)}</section>;
 }

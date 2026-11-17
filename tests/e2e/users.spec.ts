@@ -44,9 +44,10 @@ test('team users: Andrew manages, Maya works her own list only', async ({ browse
   await maya.locator('.me.click').click();
   await expect(maya.locator('.modal')).toContainText('Signed in as maya');
 
-  // Andrew: lands on the user picker, has Users in Outreach Manager
+  // Andrew: lands on The day by rep, has Users in Outreach Manager
   const andrew = await signIn(browser, 'andrew', pw.andrew, 'andrew-own-pass1');
-  await expect(andrew.locator('.login h1')).toHaveText('Sign in to the Call Center');
+  await expect(andrew).toHaveURL(/\/mgr\/live$/);
+  await expect(andrew.locator('.me b')).toHaveText('Andrew Vaitkevicius');
   await andrew.goto('/mgr/users'); await andrew.waitForLoadState('networkidle');
   await expect(andrew.locator('.sb')).toContainText('Users');
   await expect(andrew.locator('tr[data-user]')).toHaveCount(5);
