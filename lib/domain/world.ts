@@ -8,7 +8,7 @@
  */
 import { AUDK, LEAD_OUT, NO_OUT, type AudKey } from './catalogs';
 import { CTS, LEADS, LN, FN, OTHER_ROLES, PROPS, SEQ, SYNC, ctsOf, mkCt, mkPhone, mkProp, P, resetData, syncLog, type Contact, type Phone } from './data';
-import { D, T0, TODAY, addBiz, iso, p2, setClock } from './dates';
+import { D, T0, TODAY, WDL, addBiz, addDays, fmtS, fmtWD, iso, p2, setClock, setToday, subBiz } from './dates';
 import { DAY, morningAlloc, openOf, pastAt, pastCall, resetDays, saveOutcome } from './engine';
 import { resetCampaigns } from './campaigns';
 import { resetRules } from './rules';
@@ -17,33 +17,36 @@ import { REPS, type RepKey } from './people';
 import { CFG } from './rules';
 import { pick, resetSeed, rint, rnd } from './seed';
 
-export function buildWorld() {
+/** t0: the day (and time) the data is seeded for; every seeded date is relative to it. */
+export function buildWorld(t0: Date = new Date()) {
+  setToday(t0);
   resetSeed(); resetData(); resetDays(); resetCampaigns(); resetRules(); resetDaym(); setClock(new Date(T0));
+  const ago = (days: number) => iso(addDays(T0, -days));
 
   /* ----- Live cases (fictional people and addresses) ----- */
   // P1: Maya's follow-up due today, permit issued
-  const pW = mkProp('pp', { addr: '1418 Marquette Ridge Rd', permit: 'Permit Issued', permitDate: '2026-09-18' });
+  const pW = mkProp('pp', { addr: '1418 Marquette Ridge Rd', permit: 'Permit Issued', permitDate: ago(45) });
   const cW = mkCt(pW, { n: 'Laura Whitfield', phones: [{ n: '(310) 555-0142', st: 'ok' }, { n: '(424) 555-0187', st: 'untested' }] });
   mkCt(pW, { n: 'Greg Whitfield', role: 'Secondary owner', phones: [{ n: '(310) 555-0143', st: 'ok' }] });
   pastCall(cW, 'may', pastAt(14, 11, 20), 'Left VM');
-  pastCall(cW, 'may', pastAt(7, 14, 5), 'Follow Up', 'Meeting her architect this week. Asked to call back Monday Nov 2 after 9 AM.');
+  pastCall(cW, 'may', pastAt(7, 14, 5), 'Follow Up', `Meeting her architect this week. Asked to call back ${WDL[T0.getDay()]} ${fmtS(T0)} after 9 AM.`);
   cW.nextAt = TODAY;
-  // Interested: P2, Left VM Oct 27, eligible today
-  const pM = mkProp('pp', { addr: '36 Corsica Hill Dr', permit: 'Permit Issued', permitDate: '2026-08-21' });
+  // Interested: P2, Left VM 27 days ago, eligible today
+  const pM = mkProp('pp', { addr: '36 Corsica Hill Dr', permit: 'Permit Issued', permitDate: ago(73) });
   const cM = mkCt(pM, { n: 'Elena Marsh' });
   mkCt(pM, { n: 'David Marsh', role: 'Secondary owner' });
   pastCall(cM, 'dan', pastAt(27, 16, 40), 'Left VM');
   // Propagation: three contacts at one property
-  const pB = mkProp('pp', { addr: '905 Arbolada Way', permit: 'Permit Issued', permitDate: '2026-06-03' });
+  const pB = mkProp('pp', { addr: '905 Arbolada Way', permit: 'Permit Issued', permitDate: ago(152) });
   mkCt(pB, { n: 'Michael Brandt' });
   mkCt(pB, { n: 'Karen Brandt', role: 'Secondary owner' });
   const cTB = mkCt(pB, { n: 'Tom Brandt', role: 'Other', other: 'Adult child' });
   pastCall(cTB, 'may', pastAt(3, 15, 10), 'Left VM');
   // Wrong number with one phone
-  const pO = mkProp('sm', { addr: '17 Sea Meadow Ln', permit: 'Permit Issued', permitDate: '2026-05-12' });
+  const pO = mkProp('sm', { addr: '17 Sea Meadow Ln', permit: 'Permit Issued', permitDate: ago(174) });
   mkCt(pO, { n: 'Henry Okafor' });
   // Wrong number with a second phone
-  const pC = mkProp('sm', { addr: '2215 Tidecrest Dr', permit: 'Permit Issued', permitDate: '2026-04-14' });
+  const pC = mkProp('sm', { addr: '2215 Tidecrest Dr', permit: 'Permit Issued', permitDate: ago(202) });
   mkCt(pC, { n: 'Jasmine Cole', phones: [{ n: '(310) 555-0261', st: 'ok' }, { n: '(310) 555-0262', st: 'untested' }] });
   // P3: Maya's undecided
   const pL = mkProp('pp', { addr: '4410 Avenida Lucero', permit: 'None' });
@@ -51,7 +54,7 @@ export function buildWorld() {
   pastCall(cL, 'may', pastAt(18, 10, 30), 'Left VM');
   pastCall(cL, 'may', pastAt(14, 12, 10), 'Undecided', 'Insurance payout still open. Open to a design-build conversation once it closes.');
   // Inbound: already in AB's sales pipeline
-  const pH = mkProp('pp', { addr: '2840 Granada Crest Pl', permit: 'Plans Submitted', permitDate: '2026-07-09', inPipe: 'Inbound call Oct 28, taken by the AB office' });
+  const pH = mkProp('pp', { addr: '2840 Granada Crest Pl', permit: 'Plans Submitted', permitDate: ago(116), inPipe: `Inbound call ${fmtS(pastAt(5))}, taken by the AB office` });
   const cH = mkCt(pH, { n: 'Victor Haddad' });
   LEADS.push({ k: 'L-2019', prop: pH.k, ct: cH.k, rep: 'off', at: pastAt(5, 13, 25), out: 'Inbound call', note: 'Called the office after a yard sign on Granada Crest. Wants a design-build estimate.', src: 'Inbound' });
   // Max attempts
@@ -62,17 +65,17 @@ export function buildWorld() {
   const pD = mkProp('mb', { addr: '6120 Coral Heights Ln', permit: 'None' });
   mkCt(pD, { n: 'Christine Albright', dnc: true });
   // Daniel's own follow-up due today
-  const pK = mkProp('sm', { addr: '310 Cliffhaven Rd', permit: 'Plans Submitted', permitDate: '2026-05-27' });
+  const pK = mkProp('sm', { addr: '310 Cliffhaven Rd', permit: 'Plans Submitted', permitDate: ago(159) });
   const cK = mkCt(pK, { n: 'Robert Kessler' });
   pastCall(cK, 'dan', pastAt(5, 10, 45), 'Follow Up', 'Wife decides. Call back Monday morning.');
   cK.nextAt = TODAY;
   // Maya's follow-up later this week
-  const pN = mkProp('pp', { addr: '1902 Halden Ave', permit: 'Permit Issued', permitDate: '2026-10-02' });
+  const pN = mkProp('pp', { addr: '1902 Halden Ave', permit: 'Permit Issued', permitDate: ago(31) });
   const cN = mkCt(pN, { n: 'Naomi Sato' });
   pastCall(cN, 'may', pastAt(4, 15, 30), 'Follow Up', 'Traveling. Call Thursday afternoon.');
-  cN.nextAt = '2026-11-05';
+  cN.nextAt = iso(addBiz(T0, 3));
   // Handed off last week by Maya
-  const pE = mkProp('pp', { addr: '722 Bluffview Ter', permit: 'Permit Issued', permitDate: '2026-07-30' });
+  const pE = mkProp('pp', { addr: '722 Bluffview Ter', permit: 'Permit Issued', permitDate: ago(95) });
   const cE = mkCt(pE, { n: 'Arman Petrosyan' });
   mkCt(pE, { n: 'Lena Petrosyan', role: 'Secondary owner' });
   pastCall(cE, 'may', pastAt(10, 11, 0), 'Interested', 'Has permits, wants a design-build proposal. Prefers email first.');
@@ -91,7 +94,7 @@ export function buildWorld() {
       mkCt(p, o);
     }
   }
-  /* Call history for the random base, Oct 5 to Oct 30 */
+  /* Call history for the random base, 10 to 27 days before T0 */
   const repFor = (a: AudKey): RepKey => a === 'ad' || a === 'mb' ? pick<RepKey>(['pri', 'pri', 'dan']) : pick<RepKey>(['may', 'dan']);
   for (const c of CTS) {
     if (c.att || c.dnc) continue;
@@ -160,6 +163,6 @@ export function buildWorld() {
     setClock(new Date(T0));
     SYNC.length = 0;
     syncLog('Fire Rebuild Contacts', 'Morning allocation', `${REPS.reduce((a, r) => a + DAY[r].list.length, 0)} contacts reserved for 3 reps, Reserved For and Campaign columns updated`);
-    syncLog('Outreach Daily Metrics', 'Fri, Oct 30', 'Daily totals by rep pushed for the dashboard');
+    syncLog('Outreach Daily Metrics', fmtWD(subBiz(T0, 1)), 'Daily totals by rep pushed for the dashboard');
   })();
 }

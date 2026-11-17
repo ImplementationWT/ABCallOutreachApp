@@ -18,7 +18,7 @@ test('a saved call, a new campaign and a rule survive a reload', async ({ page }
   await withDb(async db => {
     const call = await db.collection('call_log').findOne({ note: 'Saved in MongoDB' });
     expect(call).toMatchObject({ rep: 'may', out: 'Left VM', live: true });
-    expect(await db.collection('workdays').findOne({ _id: '2026-11-02:may' as never })).toMatchObject({ st: 'started' });
+    expect(await db.collection('workdays').findOne({ _id: '2026-11-02:may' as never })).toMatchObject({ st: 'started' }); // the fixed demo day
     expect(await db.collection('contacts').findOne({ _id: call!.ct })).toMatchObject({ n: 'Laura Whitfield', out: 'Left VM', att: 3 });
   });
 
@@ -47,4 +47,25 @@ test('the database rejects a malformed document', async ({ request }) => {
   expect(res.status()).toBe(500);
   const bad = await request.post('/api/state', { data: { changes: { users: { upsert: [{ _id: 'x' }] } } } });
   expect(bad.status()).toBe(400);
+});
+
+test('a new day: the first load runs the morning allocation for that day’s campaigns', async ({ page }) => {
+  await openApp(page, '/mgr/camp');
+  await btn(page, 'New campaign').click(); await idle(page); // defaults: next business day, Pacific Palisades, Maya and Daniel
+  await btn(page, 'Create campaign').click(); await idle(page);
+  await page.waitForTimeout(800);
+  await page.clock.setFixedTime(new Date(2026, 10, 3, 9, 0));
+  await page.goto('/'); await page.waitForLoadState('networkidle');
+  await expect(page.locator('.login > p.sm')).toContainText('Today is Tue, Nov 3, 9:00 AM.');
+  await expect(page.locator('.lcard', { hasText: 'Maya Torres' })).toContainText('Sales rep, Pacific Palisades');
+  await expect(page.locator('.lcard', { hasText: 'Priya Shah' })).toContainText('not scheduled');
+  await page.waitForTimeout(800);
+  await withDb(async db => {
+    expect(await db.collection('workdays').countDocuments({ date: '2026-11-03' })).toBe(3);
+    expect(await db.collection('reservations').countDocuments({ date: '2026-11-03', rep: 'may' })).toBeGreaterThan(0);
+    expect(await db.collection('reservations').countDocuments({ date: '2026-11-03', rep: 'pri' })).toBe(0);
+    expect(await db.collection('reservations').countDocuments({ date: '2026-11-02' })).toBe(42); // yesterday stays as history
+  });
+  await page.reload(); await page.waitForLoadState('networkidle');
+  await expect(page.locator('.lcard', { hasText: 'Maya Torres' })).toContainText('contacts reserved, not started');
 });

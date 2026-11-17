@@ -5,10 +5,13 @@ import { AUDK, AUDS, CALLS, DAY, P, PEO, PRANK, PRI, REPS, first, listOf, openOf
 import { inp, on } from '@/lib/state/actions';
 import { S, type Modal } from '@/lib/state/store';
 import { DateField, OutPill, Pill, PrTag } from '@/components/ui';
+import { AccountPanel } from '@/components/auth/AccountPanel';
 
 export type ModalDef = { t: string; s?: string; wide?: boolean; body: React.ReactNode; foot?: React.ReactNode };
 
 export const MODALS: Record<string, (m: Modal) => ModalDef> = {
+  /* Not in the artifact: the signed-in user's account (change password, log out). */
+  account: () => ({ t: 'Account', s: 'Your user for the Call Center', body: <AccountPanel /> }),
   replist: m => {
     const r = m.r as RepKey, l = listOf(r);
     return {

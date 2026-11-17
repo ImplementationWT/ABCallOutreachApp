@@ -2,7 +2,7 @@
  * Every toast and key text is collected and both transcripts must match. */
 import { expect, test, type Page } from '@playwright/test';
 import { TOASTS, btn, idle, openApp, openArtifact, settle, toastText } from './targets';
-import { reseed } from './db';
+import { STORAGE, reseed } from './db';
 
 async function walk(page: Page, who: string) {
   const log: string[] = [];
@@ -81,18 +81,19 @@ async function walk(page: Page, who: string) {
 }
 
 test('artifact and app walk the same', async ({ browser }) => {
-  const pa = await browser.newPage();
+  const pa = await browser.newPage({ storageState: STORAGE });
   await pa.addInitScript(TOASTS);
   await openArtifact(pa);
   const a = await walk(pa, 'artifact');
   await reseed();
-  const pb = await browser.newPage();
+  const pb = await browser.newPage({ storageState: STORAGE });
   await pb.addInitScript(TOASTS);
   await openApp(pb, '/');
   const b = await walk(pb, 'app');
   // Whitespace is left out: the artifact's template strings put line breaks between tags, JSX does not
   // (the screenshot comparison covers how it looks).
-  const bare = (s?: string) => s?.replace(/\s+/g, '');
+  // Times too: the artifact's clock moved a minute per action, the app's is fixed (real time, frozen by the test).
+  const bare = (s?: string) => s?.replace(/\s+/g, '').replace(/\d{1,2}:\d{2}(AM|PM)/g, 'T');
   expect(b.length).toBe(a.length);
   for (let i = 0; i < a.length; i++) expect(bare(b[i]), `step ${i}: ${a[i].slice(0, 40)}`).toBe(bare(a[i]));
 });

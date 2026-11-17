@@ -37,7 +37,7 @@ export const SCHEMAS: Record<CollectionName, Schema> = {
   rules: obj(['first', 'more', 'scale', 'maxAtt', 'refresh', 'endDay', 'rc', 'hours'], { _id: enumOf(['default']), first: num, more: num, scale: num, maxAtt: num, refresh: enumOf(['daily', 'weekly']), endDay: enumOf(['pool', 'keep']), rc: { bsonType: 'object' }, hours: str }),
   daily_metrics: obj(['day', 'rep', 'calls', 'con', 'conv', 'leads'], { _id: str, day: date, rep: enumOf(REPS), calls: num, con: num, conv: num, leads: num }),
   sync_log: obj(['at', 'board', 'item', 'what'], { _id: num, at: dateTime, board: str, item: str, what: str }),
-  app_meta: obj(['clock', 'seq'], { _id: enumOf(['state']), clock: dateTime, seq: { bsonType: 'object' } }),
+  app_meta: obj(['seq'], { _id: enumOf(['state']), seq: { bsonType: 'object' } }),
 };
 
 export const INDEXES: Partial<Record<CollectionName, IndexDescription[]>> = {

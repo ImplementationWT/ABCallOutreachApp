@@ -71,6 +71,7 @@ export function TopBar() {
       </nav>
       <div className="tools" id="tools">
         <button className={`tbtn ${S.tour.on ? 'on' : ''}`} {...on('tour')} title="Presenter walkthrough"><Icon n="compass" s={16} />Walkthrough</button>
+        <button className="ib" {...on('account')} title="Account and password" data-auth="account"><Icon n="key" s={17} /></button>
         <button className="ib" {...on('theme')} title="Light or dark mode"><Icon n={dark ? 'sun' : 'moon'} s={17} /></button>
         {p && w
           ? <div className="me click" {...on('signout')} title="Switch user"><Avatar k={w} /><div><b>{p.n}</b><small>{p.r}</small></div></div>

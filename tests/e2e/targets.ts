@@ -9,7 +9,10 @@ export async function openArtifact(page: Page, hash = '') {
   await page.goto(ARTIFACT + (hash ? '#' + hash : ''));
   await settle(page);
 }
+/** The artifact's demo day, so the app (which uses the real date) shows the same screens. */
+export const fixClock = (page: Page) => page.clock.setFixedTime(new Date(2026, 10, 2, 8, 20));
 export async function openApp(page: Page, path: string) {
+  await fixClock(page);
   await page.goto(path);
   await settle(page);
 }

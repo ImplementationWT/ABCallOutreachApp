@@ -22,5 +22,5 @@ export async function pingDb() {
   const db = await getDb();
   const started = Date.now();
   await db.command({ ping: 1 });
-  return { db: db.databaseName, ms: Date.now() - started, collections: (await db.listCollections({}, { nameOnly: true }).toArray()).map(c => c.name) };
+  return { db: db.databaseName, ms: Date.now() - started };
 }

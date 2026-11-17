@@ -1,11 +1,12 @@
 'use client';
 /* The app's link to MongoDB.
  * loadState(): GET /api/state, then fromDocs() fills the domain (until then the views show "Loading").
+ * On the first load of a day it also runs the morning allocation for today's campaigns.
  * After that, every state change (each bump of the store) runs a diff of toDocs() against what the
  * database already has and POSTs only the documents that changed or disappeared. Writes go one at
  * a time, in order; a failed write is retried with the next change. */
 import { create } from 'zustand';
-import { COLLECTIONS, fromDocs, toDocs, type CollectionName, type Doc, type Snapshot } from '@/lib/domain';
+import { COLLECTIONS, TODAY, fromDocs, setToday, startNewDay, toDocs, type CollectionName, type Doc, type Snapshot } from '@/lib/domain';
 import { bump, toast, useRev } from './store';
 
 type Status = 'loading' | 'ready' | 'error';
@@ -22,10 +23,16 @@ export async function loadState() {
   useData.setState({ status: 'loading', error: undefined });
   try {
     const res = await fetch('/api/state', { cache: 'no-store' });
+    if (res.status === 401) { toLogin(); return; }
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
     const snap = (await res.json()) as Snapshot;
+    setToday(new Date());
     fromDocs(snap);
-    saved = hashes(toDocs());
+    // What the database has: only ids it sent count as saved, so a new day's documents get written
+    const now = hashes(toDocs());
+    for (const n of COLLECTIONS) { const ids = new Set(snap[n].map(d => d._id)); for (const id of [...now[n].keys()]) if (!ids.has(id)) now[n].delete(id); }
+    saved = now;
+    if (!snap.workdays.some(w => w.date === TODAY)) startNewDay();
     useData.setState({ status: 'ready' });
     unsub?.();
     unsub = useRev.subscribe(() => { void persist(); });
@@ -34,6 +41,10 @@ export async function loadState() {
     useData.setState({ status: 'error', error: e instanceof Error ? e.message : String(e) });
   }
 }
+
+/** The session expired or was closed: back to the login, then to this same page. */
+// eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload on purpose (fresh session and state)
+const toLogin = () => { location.href = '/login?next=' + encodeURIComponent(location.pathname); };
 
 type Change = { upsert: Doc[]; delete: (string | number)[] };
 function diff(now: Hashes): Partial<Record<CollectionName, Change>> | null {
@@ -59,6 +70,7 @@ export async function persist() {
       const changes = diff(now);
       if (!changes) break;
       const res = await fetch('/api/state', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ changes }), keepalive: true });
+      if (res.status === 401) { toLogin(); return; }
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
       saved = now;
     } while (again);

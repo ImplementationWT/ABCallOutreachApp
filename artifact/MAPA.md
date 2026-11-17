@@ -49,7 +49,7 @@ Los tokens también están expuestos a Tailwind en `app/globals.css` (`@theme in
 | --- | --- |
 | `IC`, `ico()` | `components/ui/icons.ts`, `Icon` en `components/ui/index.tsx` |
 | `esc()` | no hace falta: JSX escapa el texto |
-| `DATES` (`T0`, `CLOCK`, `nowT`, formatos, `addBiz`...) | `lib/domain/dates.ts` (`CLOCK` → `getClock()`/`setClock()`) |
+| `DATES` (`T0`, `CLOCK`, `nowT`, formatos, `addBiz`...) | `lib/domain/dates.ts` (fecha real; `T0`/`TODAY` vía `setToday()`, `CLOCK` → `getClock()`) |
 | `STORE` (localStorage `abc-demo-*`) | `lib/state/store.ts` (`store`) |
 | `SEEDED GENERATOR` | `lib/domain/seed.ts` |
 | `PEOPLE` | `lib/domain/people.ts` |
@@ -137,3 +137,9 @@ Los tokens también están expuestos a Tailwind en `app/globals.css` (`@theme in
     y la app carga el estado desde MongoDB (`fromDocs`) y guarda los cambios (`toDocs` + diff, `lib/state/persist.ts`).
     Si una versión nueva del artifact agrega un campo o una colección, actualiza `lib/domain/snapshot.ts`,
     `lib/db/schema.ts` y vuelve a sembrar. Mientras carga, las vistas muestran "Loading data from the database…".
+13. **Fecha real.** El artifact fijaba el lunes 2 de noviembre de 2026, 8:20 AM. Aquí `TODAY` y el reloj son los reales;
+    el seed (`buildWorld(t0)`) genera todo relativo a `t0`, y lo que el artifact escribía como fecha fija (fechas de
+    permisos, campañas pasadas, notas, el tour, las cargas de datos) se calcula desde ese día. Con `t0` = el día del
+    artifact, el resultado es idéntico (test de determinismo). Un día nuevo corre `startNewDay()` al cargar.
+14. **Login.** No está en el artifact: `/login`, el botón de cuenta (llave) en la barra superior y el modal `account`
+    (`components/auth/`), con usuarios y sesiones en MongoDB (`lib/db/auth-core.ts`) y `proxy.ts`.

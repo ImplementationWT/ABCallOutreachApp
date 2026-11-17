@@ -34,9 +34,9 @@ for (const { name: theme, theme: colorScheme, viewport, cases } of RUNS) {
       test(c.n, async ({ page }) => {
         await openArtifact(page, c.art);
         if (c.artClick) { await page.locator('.row', { hasText: c.artClick }).first().click(); await settle(page); }
-        const a = PNG.sync.read(await page.screenshot({ animations: 'disabled' }));
+        const a = PNG.sync.read(await page.screenshot({ animations: 'disabled', mask: [page.locator('#tools')] }));
         await openApp(page, c.app);
-        const b = PNG.sync.read(await page.screenshot({ animations: 'disabled' }));
+        const b = PNG.sync.read(await page.screenshot({ animations: 'disabled', mask: [page.locator('#tools')] }));
         const diff = new PNG({ width: a.width, height: a.height });
         const n = pixelmatch(a.data, b.data, diff.data, a.width, a.height, { threshold: 0.1 });
         const ratio = n / (a.width * a.height);

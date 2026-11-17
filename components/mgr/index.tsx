@@ -3,7 +3,8 @@
  * mgrCamps, mgrRules, perfTable, mgrPerf, mgrMail, mgrSync. Modals are in ./modals.tsx. */
 import type React from 'react';
 import {
-  AUDK, AUDS, C, CALLS, CAMPS, CFG, CTS, D, DAY, DAYM, LASTDAY, LEADS, LEAD_OUT, OUT, OUTK, P, PASTDAYS, PEO, PRANK, PRI, PROPS, REPS, SYNC, TODAY, WD,
+  lastDay, pastDays,
+  AUDK, AUDS, C, CALLS, CAMPS, CFG, CTS, D, DAY, LEADS, LEAD_OUT, OUT, OUTK, P, PEO, PRANK, PRI, PROPS, REPS, SYNC, TODAY, WD,
   callsOn, campName, campOf, demoN, docOf, dupCheck, elig, first, fmtS, fmtT, fmtUS, fmtWD, listOf, mDay, mOf, openOf, ownerOf, propStatus, relDay,
   type Metrics, type Pri, type RepKey,
 } from '@/lib/domain';
@@ -110,7 +111,7 @@ const CAMP_COLS = 'grid-cols-[110px_minmax(0,1.6fr)_150px_120px_110px_90px]';
 function CampRow({ c }: { c: (typeof CAMPS)[number] }) {
   const res = c.date === TODAY ? c.reps.reduce((a, r) => a + DAY[r].list.length, 0) : null;
   const m = c.date === TODAY ? mOf(CALLS.filter(x => c.reps.includes(x.rep as RepKey) && x.at.slice(0, 10) === TODAY))
-    : DAYM[c.date] ? c.reps.reduce((a, r) => ({ calls: a.calls + DAYM[c.date][r].calls, leads: a.leads + DAYM[c.date][r].leads }), { calls: 0, leads: 0 }) : null;
+    : c.date < TODAY ? c.reps.reduce((a, r) => { const d = mDay(r, c.date); return { calls: a.calls + d.calls, leads: a.leads + d.leads }; }, { calls: 0, leads: 0 }) : null;
   return <div className={`row ${CAMP_COLS}`}>
     <div className="cell"><b>{fmtUS(c.date)}</b><small>{WD[D(c.date)!.getDay()]}</small></div>
     <div className="t"><b>{c.auds.map(a => AUDS[a].n).join(', ')}</b><small>{c.k}, goal {c.goal} potential lead per rep</small></div>
@@ -190,15 +191,15 @@ export function PerfTable({ day }: { day: string }) {
   </tbody></table>;
 }
 function MgrPerf() {
-  const day = S.f.perf === 'today' ? TODAY : LASTDAY;
-  const mx = Math.max(...PASTDAYS.map(d => mDay(null, d).calls));
+  const day = S.f.perf === 'today' ? TODAY : lastDay();
+  const mx = Math.max(...pastDays().map(d => mDay(null, d).calls));
   return <>
     <PageHeader t="Performance" sub="Calls, connects, conversations and leads by rep, with the rates from Andrew’s daily email. Each number comes from the call log."
-      acts={<span className="segs"><button className="seg" {...on('filt', 'perf|last')} aria-pressed={S.f.perf !== 'today'}>{fmtWD(LASTDAY)}</button><button className="seg" {...on('filt', 'perf|today')} aria-pressed={S.f.perf === 'today'}>Today so far</button></span>} />
+      acts={<span className="segs"><button className="seg" {...on('filt', 'perf|last')} aria-pressed={S.f.perf !== 'today'}>{fmtWD(lastDay())}</button><button className="seg" {...on('filt', 'perf|today')} aria-pressed={S.f.perf === 'today'}>Today so far</button></span>} />
     <PerfTable day={day} />
     <div className="grid2 mt-[14px]">
       <div className="card"><h3><Icon n="chart" s={16} />Team, last 10 business days</h3>
-        <div className="vbars">{PASTDAYS.map(d => {
+        <div className="vbars">{pastDays().map(d => {
           const m = mDay(null, d);
           return <div key={d} className="c"><span className="v">{m.calls}</span><div className="st" style={{ height: Math.round(m.calls * 110 / mx) }}>
             <i className="bg-n200" style={{ height: Math.round((m.calls - m.con) * 110 / mx) }} />
@@ -246,7 +247,7 @@ Leads identified $$$
 Contacts made $$
 Calls attempted $`;
   const repMail = <div className="mail"><div className="mh2"><b>To:</b> {PEO[r].n}<br /><b>Subject:</b> Today’s Outreach Campaign | {fmtUS(TODAY)}<br /><b>Sent:</b> {fmtWD(TODAY)}, 7:00 AM</div><div className="mb2">{body}</div></div>;
-  const day = LASTDAY;
+  const day = lastDay();
   const perfMail = <div className="mail"><div className="mh2"><b>To:</b> Andrew Vaitkevicius, Harut Arzumanyan, Edgar<br /><b>Subject:</b> Outreach Performance | {fmtUS(day)}<br /><b>Sent:</b> {fmtWD(day)}, 7:30 PM</div>
     <div className="mb2 whitespace-normal">{fmtWD(day)}<br /><br /><b>Activity</b><PerfTable day={day} /><p className="sm muted mt-[8px]">Bonus by rep is calculated with the amounts AB sets.</p></div></div>;
   return <>
@@ -260,7 +261,7 @@ Calls attempted $`;
 
 /* ----- monday sync ----- */
 function MgrSync() {
-  const boards: [string, string, number][] = [['Fire Rebuild Properties', 'Outreach Status, Permit, Construction Started', PROPS.length], ['Fire Rebuild Contacts', 'Last Call Outcome, Last Call Date, Next Eligible Call, Call Attempts', CTS.length], ['AB Leads', 'Potential Leads with their call history', LEADS.length], ['Outreach Daily Metrics', 'Calls, connects, conversations and leads by rep and day', PASTDAYS.length * REPS.length]];
+  const boards: [string, string, number][] = [['Fire Rebuild Properties', 'Outreach Status, Permit, Construction Started', PROPS.length], ['Fire Rebuild Contacts', 'Last Call Outcome, Last Call Date, Next Eligible Call, Call Attempts', CTS.length], ['AB Leads', 'Potential Leads with their call history', LEADS.length], ['Outreach Daily Metrics', 'Calls, connects, conversations and leads by rep and day', pastDays().length * REPS.length]];
   return <>
     <PageHeader t="monday sync" sub="The engine and the app run outside monday; monday stays where AB sees the information. Every result, hand-off and daily total is pushed to these boards." />
     <div className="grid4 mb-[14px]">{boards.map(([n, d, c]) => <div key={n} className="kv"><small>{n}</small><b>{c} items</b><span className="sub">{d}</span></div>)}</div>
