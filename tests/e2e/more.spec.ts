@@ -1,6 +1,9 @@
 /* A second walk over the actions the first one does not touch, again on both targets. */
 import { expect, test, type Page } from '@playwright/test';
 import { TOASTS, btn, idle, openApp, openArtifact, toastText } from './targets';
+import { reseed } from './db';
+
+test.beforeEach(async () => { await reseed(); });
 
 async function walk(page: Page) {
   const log: string[] = [];

@@ -19,3 +19,4 @@ npm-debug.log*
 .env*
 .vercel
 .claude/settings.local.json
+!.env.example

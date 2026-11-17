@@ -18,7 +18,9 @@ export const callsOn = (rep: RepKey | null, day: string) => CALLS.filter(x => (!
 
 type DayRow = { calls: number; con: number; conv: number; leads: number };
 /* Past days: totals logged by the dialer before the app, at today's real pace (about 108 calls a day) */
+export type { DayRow };
 export const DAYM: Record<string, Record<RepKey, DayRow>> = {};
+export const resetDaym = () => { for (const k of Object.keys(DAYM)) delete DAYM[k]; };
 /** The last 10 business days before TODAY (no seed involved). */
 export const PASTDAYS: string[] = (() => {
   let d = D(TODAY)!;

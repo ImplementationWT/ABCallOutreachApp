@@ -10,7 +10,7 @@ login real ni sincronización con monday todavía.
 ```bash
 npm install
 npm run dev          # http://localhost:3000
-npm run build        # build de producción (94 páginas estáticas)
+npm run build        # build de producción (no necesita la base)
 npm run lint
 npm test             # determinismo: el mundo sembrado es idéntico al del artifact
 npx playwright install chromium   # una vez
@@ -23,6 +23,43 @@ npm run test:e2e     # compara la app con artifact/app.html (necesita npm run bu
   con diff de píxeles. Las imágenes quedan en `test-results/compare/`.
 - `tests/e2e/flow.spec.ts` y `more.spec.ts`: el mismo recorrido con clics en el artifact y en la app
   (Maya, Andrew, fichas, Data, Walkthrough completo); los textos y toasts de ambos deben coincidir.
+
+## Base de datos (MongoDB)
+
+Los datos viven en MongoDB Atlas (cluster `calloutreach`, base `calloutreach`). La app los carga al arrancar
+(`GET /api/state`) y, tras cada acción, envía solo los documentos que cambiaron (`POST /api/state`).
+El motor de asignación sigue corriendo en el navegador, igual que en el artifact.
+
+```bash
+cp .env.example .env.local      # y pon la contraseña del usuario de la base; .env.local no se sube
+npm run db:seed                 # crea las colecciones (validadores e índices) y carga los datos de la demo
+npm run db:seed -- --reset      # borra todo y vuelve a cargar los datos de la demo
+```
+
+Comprobar la conexión: `GET /api/health/db`. Los e2e usan su propia base, `calloutreach_e2e`, que se vuelve a sembrar sola.
+
+| Colección | Un documento es | Índices |
+| --- | --- | --- |
+| `properties` | una propiedad (`_id` = `P-1001`...) | `aud`, `addr` |
+| `contacts` | un contacto de una propiedad, con su último resultado y su próxima llamada | `prop`, `rep + nextAt` |
+| `phone_numbers` | un teléfono de un contacto y si funcionó | `ct + idx` (único), `n` |
+| `campaigns` | una campaña: fecha, audiencias, reps, meta | |
+| `reservations` | un contacto reservado para un rep en un día, en orden, y si ya tiene resultado | `date + rep + order`, `ct` |
+| `workdays` | la jornada de un rep: estado, inicio, fin, lotes recibidos | `date + rep` (único) |
+| `call_log` | una llamada | `ct`, `rep + at`, `at` |
+| `hand_offs` | un Potential Lead pasado a ventas (outbound o inbound) | `prop`, `at` |
+| `reps` | una persona con login (reps, Andrew, oficina) | |
+| `rules` | las reglas de Andrew (un documento) | |
+| `daily_metrics` | los totales de un rep en un día pasado | `day + rep` (único) |
+| `sync_log` | un envío a monday | `at` |
+| `app_meta` | reloj de la demo y contadores de ids | |
+
+Cada colección tiene un validador JSON Schema estricto (`lib/db/schema.ts`): MongoDB rechaza documentos con
+campos obligatorios faltantes, tipos incorrectos o valores fuera de catálogo (resultado, rep, audiencia...).
+La conversión entre el estado de la app y los documentos está en `lib/domain/snapshot.ts`.
+
+Pendiente: no hay login todavía, así que cualquiera que llegue a la app puede leer y escribir; si dos personas
+editan a la vez, gana la última escritura de cada documento. La fecha de la demo sigue fija (lunes 2 de noviembre de 2026).
 
 ## Rutas
 

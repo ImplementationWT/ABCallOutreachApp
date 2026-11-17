@@ -2,7 +2,9 @@
  * mulberry32. Every call site must run in the same order as in the artifact so names,
  * addresses, phones and metrics come out identical. Only lib/domain/world.ts drives it.
  */
-let SEED = 20261102;
+const SEED0 = 20261102;
+let SEED = SEED0;
+export const resetSeed = () => { SEED = SEED0; };
 
 export const rnd = () => {
   SEED |= 0; SEED = SEED + 0x6D2B79F5 | 0;

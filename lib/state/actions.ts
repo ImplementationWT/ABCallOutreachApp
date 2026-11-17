@@ -7,7 +7,7 @@
  */
 import type React from 'react';
 import {
-  C, CALLS, CAMPS, CFG, DAY, LEAD_OUT, LIVE, NO_OUT, P, PEO, PRANK, REPS, T0, TODAY,
+  C, CALLS, CAMPS, CFG, DAY, LEAD_OUT, NO_OUT, P, PROPS, PEO, PRANK, REPS, T0, TODAY,
   campOf, ctByName, ctsOf, endDay, fmtWD, isFinal, isoT, nowT, openOf, ownerOf, priOf,
   requestMore, saveOutcome, startDay, syncLog, D, iso, nextBiz, type RepKey,
 } from '@/lib/domain';
@@ -190,7 +190,7 @@ export const TOUR_GO: (() => void)[] = [
 export const TOUR_MAS: [string, () => void][] = [
   ['Contact pool: why each contact is or is not in today’s lists', () => { S.f.pool = 'all'; go('mgr', 'pool'); }],
   ['Reassign what a rep has not called', () => { go('mgr', 'live'); A.reassign('dan'); }],
-  ['905 Arbolada Way: the property record with its three contacts', () => { openProp(LIVE.pB.k, 'cts'); }],
+  ['905 Arbolada Way: the property record with its three contacts', () => { openProp(PROPS.find(p => p.addr === '905 Arbolada Way')!.k, 'cts'); }],
   ['Daily emails: the rep’s morning campaign', () => { S.f.mail = 'rep'; go('mgr', 'mail'); }],
   ['monday sync: what was pushed today', () => { go('mgr', 'sync'); }],
   ['New campaign for tomorrow', () => { go('mgr', 'camp'); A.newcamp(''); }],

@@ -2,6 +2,7 @@
  * Every toast and key text is collected and both transcripts must match. */
 import { expect, test, type Page } from '@playwright/test';
 import { TOASTS, btn, idle, openApp, openArtifact, settle, toastText } from './targets';
+import { reseed } from './db';
 
 async function walk(page: Page, who: string) {
   const log: string[] = [];
@@ -84,6 +85,7 @@ test('artifact and app walk the same', async ({ browser }) => {
   await pa.addInitScript(TOASTS);
   await openArtifact(pa);
   const a = await walk(pa, 'artifact');
+  await reseed();
   const pb = await browser.newPage();
   await pb.addInitScript(TOASTS);
   await openApp(pb, '/');

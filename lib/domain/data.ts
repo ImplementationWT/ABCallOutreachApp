@@ -1,7 +1,7 @@
 /* ===== PROPERTIES AND CONTACTS ===== (artifact/app.html)
  * Collections, factories and lookups. The records are mutable on purpose, as in the artifact:
  * the engine and the actions update them in place and the store re-renders after each action.
- * The seeded content itself is built in world.ts, in the artifact's exact order.
+ * The seeded content is built in world.ts (artifact order); the app loads it from MongoDB (snapshot.ts).
  */
 import { AUDS, type AudKey } from './catalogs';
 import { T0, addDays, iso, p2, getClock, isoT } from './dates';
@@ -38,8 +38,14 @@ export const CALLS: Call[] = [];
 export const LEADS: Lead[] = [];
 export const SYNC: SyncEntry[] = [];
 /** PSEQ, CSEQ, CALLSEQ and LSEQ of the artifact. */
-export const SEQ = { prop: 1001, ct: 5001, call: 90001, lead: 2020 };
+export const SEQ0 = { prop: 1001, ct: 5001, call: 90001, lead: 2020 };
+export const SEQ = { ...SEQ0 };
 const usedPh = new Set<string>();
+/** Empties every collection (before building the seeded world or loading the database). */
+export function resetData() {
+  PROPS.length = 0; CTS.length = 0; CALLS.length = 0; LEADS.length = 0; SYNC.length = 0;
+  Object.assign(SEQ, SEQ0); usedPh.clear();
+}
 
 export function mkPhone(aud: AudKey) {
   let n: string;
