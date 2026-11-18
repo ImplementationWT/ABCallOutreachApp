@@ -198,10 +198,11 @@ function MgrPerf() {
   const kind = S.f.perfp as PeriodKind, anchor = (S.f.perfd as string) || TODAY;
   const days = periodDays(kind, anchor), current = isCurrentPeriod(kind, anchor);
   return <>
-    <PageHeader t="Performance" sub="Calls, connects, conversations and leads by rep, with the rates from Andrew’s daily email. Each number comes from the call log."
-      acts={<>
-        <span className="segs" role="group" aria-label="Period">{PERIODS.map(([k, l]) => <button key={k} className="seg" {...on('perfp', k)} aria-pressed={kind === k}>{l}</button>)}</span>
-        <span className="inline-flex items-center gap-[4px] flex-none" data-period>
+    <PageHeader t="Performance" sub="Calls, connects, conversations and leads by rep, with the rates from Andrew’s daily email. Each number comes from the call log." />
+    {/* Period type on the left, the date and its arrows on the right (same row, so nothing moves) */}
+    <div className="flex items-center gap-[8px] flex-wrap mb-[12px]" data-period-bar>
+      <span className="segs" role="group" aria-label="Period">{PERIODS.map(([k, l]) => <button key={k} className="seg" {...on('perfp', k)} aria-pressed={kind === k}>{l}</button>)}</span>
+      <span className="inline-flex items-center gap-[4px] flex-none ml-auto" data-period>
           <button className="btn sec sm px-[8px]" {...on('perfnav', -1)} aria-label="Previous period"><Icon n="chl" s={15} /></button>
           <b className="w-[160px] text-center text-[13.5px] whitespace-nowrap select-none" data-period-label>{periodLabel(kind, anchor)}</b>
           <button className="btn sec sm px-[8px]" {...on('perfnav', 1)} aria-label="Next period" disabled={current}><Icon n="chr" s={15} /></button>
@@ -209,7 +210,7 @@ function MgrPerf() {
           <button className={`btn ghost sm px-[8px] ${current ? 'invisible' : ''}`} {...on('perfnow')} aria-hidden={current} tabIndex={current ? -1 : 0}
             aria-label={kind === 'day' ? 'Back to today' : `Back to this ${kind}`} title={kind === 'day' ? 'Back to today' : `Back to this ${kind}`}><Icon n="refresh" s={15} /></button>
         </span>
-      </>} />
+    </div>
     <PerfTable days={days} />
     <p className="sm muted mt-[6px]">{days.length ? `${days.length} day${days.length > 1 ? 's' : ''}, ${fmtS(days[0])}${days.length > 1 ? ' – ' + fmtS(days[days.length - 1]) : ''}${current && kind !== 'day' ? ', so far' : ''}.` : 'No days yet in this period.'}</p>
     <div className="grid2 mt-[14px]">
