@@ -122,8 +122,10 @@ compartido con n8n y las demás apps (`~/n8n-production`).
 - `~/outreach/docker-compose.yml`: el contenedor `outreach-app`, en la red `n8n-production_n8n_network`, con 512 MB.
 - `~/outreach/.env`: `MONGODB_URI` y `MONGODB_DB` (fuera de git; permisos 600). Para cambiarlos: editar y
   `docker-compose up -d` en esa carpeta.
-- nginx: el bloque de `deploy/nginx-outreach.conf` va en `~/n8n-production/nginx/https.conf`; el certificado de
-  Let's Encrypt se renueva con el cron que ya existe para los otros subdominios.
+- nginx: el bloque de `deploy/nginx-outreach.conf` está al final de `~/n8n-production/nginx/https.conf` (hay copias
+  `https.conf.bak-*` de antes del cambio). Certificado de Let's Encrypt en `~/n8n-production/letsencrypt`, emitido
+  por webroot; lo renueva el mismo mecanismo que a los otros subdominios (el contenedor `n8n_certbot`).
+- MongoDB Atlas: la IP del servidor (`100.28.122.79`) está en *Network Access*.
 - Volver a una versión anterior: en GitHub, *Actions > CI/CD > Run workflow* sobre el commit deseado, o en la VPS
   `cd ~/outreach && TAG=<sha> docker-compose up -d`.
 

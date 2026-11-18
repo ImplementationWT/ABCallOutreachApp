@@ -9,7 +9,11 @@ const g = globalThis as typeof globalThis & { _mongoClient?: Promise<MongoClient
 function client(): Promise<MongoClient> {
   const uri = process.env.MONGODB_URI;
   if (!uri) throw new Error('MONGODB_URI is not set (add it to .env.local)');
-  if (!g._mongoClient) g._mongoClient = new MongoClient(uri, { appName: 'calloutreach-app' }).connect();
+  if (!g._mongoClient) {
+    // A failed connection is not kept: the next request tries again (e.g. after the server's IP is
+    // added to the Atlas access list), instead of failing until the container restarts.
+    g._mongoClient = new MongoClient(uri, { appName: 'calloutreach-app' }).connect().catch(e => { g._mongoClient = undefined; throw e; });
+  }
   return g._mongoClient;
 }
 
