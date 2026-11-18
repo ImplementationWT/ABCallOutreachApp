@@ -1,0 +1,19 @@
+# The Call Center on the VPS (copied to ~/outreach by the deploy job).
+# It joins the network of the shared nginx (n8n-production), which serves outreach.arzumanbrothers.com
+# and proxies to http://outreach-app:3000. MONGODB_URI and MONGODB_DB live in ~/outreach/.env (not in git).
+services:
+  outreach:
+    image: ghcr.io/implementationwt/abcalloutreachapp:${TAG:-latest}
+    container_name: outreach-app
+    restart: unless-stopped
+    env_file: .env
+    mem_limit: 512m
+    networks: [shared]
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "3" }
+
+networks:
+  shared:
+    external: true
+    name: n8n-production_n8n_network

@@ -1,0 +1,13 @@
+node_modules
+node_modules.nosync
+.next
+.next.nosync
+.git
+.github
+.env*
+test-results
+playwright-report
+playwright
+*.tsbuildinfo
+.DS_Store
+deploy
