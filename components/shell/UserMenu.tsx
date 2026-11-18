@@ -1,6 +1,6 @@
 'use client';
 /* The user's menu in the top bar (not in the artifact, which had separate buttons): Walkthrough,
- * change password (the Account popup) and a light / dark switch. */
+ * change password (the Account popup), a light / dark switch and log out. */
 import { useEffect, useRef, useState } from 'react';
 import { dispatch } from '@/lib/state/actions';
 import { S } from '@/lib/state/store';
@@ -26,6 +26,12 @@ export function UserMenu({ dark, children }: { dark: boolean; children: React.Re
     return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', esc); removeEventListener('resize', shut); };
   }, [pos]);
   const run = (act: string) => { setPos(null); dispatch(act); };
+  const logout = async () => {
+    setPos(null);
+    await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload: no session, no state
+    location.href = '/login';
+  };
 
   return <>
     <button ref={btn} type="button" id="usermenu" className="me click text-left" aria-haspopup="menu" aria-expanded={!!pos} title="Your account" onClick={toggle}>
@@ -45,6 +51,10 @@ export function UserMenu({ dark, children }: { dark: boolean; children: React.Re
           <span aria-hidden="true" className={`ml-auto relative w-[38px] h-[22px] rounded-full transition-colors flex-none ${dark ? 'bg-g500' : 'bg-n200'}`}>
             <span className={`absolute top-[3px] w-[16px] h-[16px] rounded-full bg-white shadow-sh-1 transition-[left] ${dark ? 'left-[19px]' : 'left-[3px]'}`} />
           </span>
+        </button>
+        <div className="border-t border-line my-[6px] mx-[4px]" role="separator" />
+        <button type="button" role="menuitem" className="opt text-r500" data-menu="logout" onClick={logout}>
+          <Icon n="logout" s={17} /><span>Log out</span>
         </button>
       </div>
     </div> : null}

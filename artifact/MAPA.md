@@ -156,8 +156,8 @@ Los tokens también están expuestos a Tailwind en `app/globals.css` (`@theme in
     El top bar queda con la marca, Walkthrough, la cuenta, el tema y el usuario. El CSS de `.appsw` del artifact sigue
     en `01-top-bar.css` sin uso. El indicador de desarrollo de Next está desactivado (`devIndicators: false`).
 18. **Menú del usuario.** Los botones Walkthrough, cuenta (llave) y tema del top bar pasaron a un desplegable que se
-    abre desde el avatar (`components/shell/UserMenu.tsx`): Walkthrough, Change password (el popup Account) y un
-    interruptor de modo oscuro. El top bar queda con la marca y el avatar. El pie del sidebar de Outreach Manager
+    abre desde el avatar (`components/shell/UserMenu.tsx`): Walkthrough, Change password (el popup Account), un
+    interruptor de modo oscuro y Log out. El top bar queda con la marca y el avatar. El pie del sidebar de Outreach Manager
     ("Morning allocation ran at 7:00 AM…") se quitó.
 19. **KPIs, reglas y gráfico.** Las filas de KPIs (`.stats`) usan una cuadrícula de columnas iguales (`KPI_GRID` en
     `components/ui`). En Assignment rules los botones de cada regla quedan en una fila y ya no hay etiquetas

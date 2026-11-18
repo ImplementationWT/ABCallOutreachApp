@@ -46,7 +46,9 @@ test('change the password, log out and sign in with the new one', async ({ page 
   await form.locator('#pw-confirm').fill('n3w-password!');
   await form.locator('button', { hasText: 'Change password' }).click();
   await expect(form.locator('[role=status]')).toHaveText('Password changed. Other sessions of this user were closed.');
-  await page.locator('.modal button', { hasText: 'Log out' }).click();
+  await page.keyboard.press('Escape');
+  await page.locator('#usermenu').click();
+  await page.locator('[role=menu] [data-menu="logout"]').click();
   await expect(page).toHaveURL(/\/login$/);
   await page.goto('/rep/today');
   await expect(page).toHaveURL(/\/login/);
