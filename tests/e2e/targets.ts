@@ -33,7 +33,8 @@ export async function toastText(page: Page) {
 }
 /** Lets a route change land (the app navigates after the click; the artifact re-renders in place). */
 export const idle = (page: Page) => page.waitForTimeout(150);
-export const btn = (page: Page, text: string | RegExp, scope = 'body') => page.locator(scope).locator('button', { hasText: text }).first();
+/** First button with that text (the sidebar's app selector #appsel is skipped: it shows the current app's name). */
+export const btn = (page: Page, text: string | RegExp, scope = 'body') => page.locator(scope).locator('button:not(#appsel)', { hasText: text }).first();
 
 
 const isArtifact = (page: Page) => page.url().startsWith('file:');
@@ -41,13 +42,20 @@ const isArtifact = (page: Page) => page.url().startsWith('file:');
  * "Open as Maya" in The day by rep, which does the same (S.user = may, Rep Workspace). */
 export async function openAsMaya(page: Page) {
   if (isArtifact(page)) { await btn(page, 'Maya Torres').click(); await idle(page); return; }
-  await btn(page, 'Outreach Manager', '#appsw').click(); await idle(page);
+  await switchApp(page, 'Outreach Manager');
   await btn(page, 'The day by rep', '.sb').click(); await idle(page);
   await btn(page, 'Open as Maya').click(); await idle(page);
 }
 /** Andrew's view: the artifact goes back to its picker and picks him; the app opens Outreach Manager. */
 export async function openAsAndrew(page: Page) {
   if (isArtifact(page)) { await page.locator('.me.click').click(); await idle(page); await btn(page, 'Andrew Vaitkevicius').click(); await idle(page); return; }
-  await btn(page, 'Outreach Manager', '#appsw').click(); await idle(page);
+  await switchApp(page, 'Outreach Manager');
   await btn(page, 'The day by rep', '.sb').click(); await idle(page);
+}
+
+/** Opens an app: the artifact's tabs in the top bar, the app's selector at the top of the sidebar. */
+export async function switchApp(page: Page, name: string) {
+  if (isArtifact(page)) { await btn(page, name, '#appsw').click(); await idle(page); return; }
+  await page.locator('#appsel').click();
+  await page.locator('[role=menu] [role=menuitem]', { hasText: name }).click(); await idle(page);
 }

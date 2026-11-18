@@ -1,7 +1,7 @@
 /* The full demo walk, run on the artifact and on the app with the same clicks.
  * Every toast and key text is collected and both transcripts must match. */
 import { expect, test, type Page } from '@playwright/test';
-import { TOASTS, btn, idle, openApp, openArtifact, settle, toastText , openAsAndrew, openAsMaya } from './targets';
+import { TOASTS, btn, idle, openApp, openArtifact, settle, toastText , openAsAndrew, openAsMaya, switchApp } from './targets';
 import { STORAGE, reseed } from './db';
 
 async function walk(page: Page, who: string) {
@@ -60,7 +60,7 @@ async function walk(page: Page, who: string) {
   await note('sync', page.locator('.synclog').textContent());
 
   // Property record
-  await btn(page, 'Properties', '#appsw').click(); await idle(page);
+  await switchApp(page, 'Properties');
   await page.locator('.row', { hasText: '905 Arbolada Way' }).first().click(); await idle(page);
   await settle(page);
   await note('record', page.locator('.op').textContent());
