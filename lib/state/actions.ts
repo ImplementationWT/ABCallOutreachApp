@@ -9,14 +9,14 @@ import type React from 'react';
 import {
   C, CALLS, CAMPS, CFG, DAY, LEAD_OUT, NO_OUT, P, PROPS, PEO, PRANK, REPS, T0, TODAY,
   campOf, ctByName, ctsOf, endDay, fmtWD, isFinal, isoT, nowT, openOf, ownerOf, priOf,
-  requestMore, saveOutcome, startDay, syncLog, D, iso, nextBiz, type RepKey,
+  requestMore, saveOutcome, startDay, syncLog, D, iso, nextBiz, isCurrentPeriod, shiftPeriod, type PeriodKind, type RepKey,
 } from '@/lib/domain';
 import { TOUR } from '@/lib/domain/tour';
 import { go, openProp } from './navigation';
 import { queueSort } from './rep';
 import { APPS, S, bump, store, toast, type AppKey, type ViewKey } from './store';
 import { can } from './auth';
-import type { Perm } from '@/lib/auth/roles';
+import { isLocked, type Perm } from '@/lib/auth/roles';
 
 type Fn = (v: string, el?: HTMLElement, e?: React.SyntheticEvent | Event) => unknown;
 export const A: Record<string, Fn> = {};
@@ -41,6 +41,8 @@ export function dispatch(act: string, v?: string, el?: HTMLElement, e?: React.Sy
   if (!fn) { console.warn('No action', act); return; }
   if (S.pop && !KEEP_POP.includes(act)) S.pop = null;
   if (NEED[act] && !can(NEED[act])) { denied(); bump(); return; }
+  // Locked apps (Calling and AI): no way in, from any button or link
+  if ((act === 'view' || act === 'azgo') && v && isLocked(v.split('|')[0])) { toast('Calling and AI is locked for now'); bump(); return; }
   const r = fn(v as string, el, e);
   if (r !== false || act === 'pick' || act === 'cal' || act === 'calnav') bump();
 }
@@ -165,6 +167,19 @@ IN.cfg = (v, k) => {
   if (!can('mgr.manage')) return; const n = Math.max(0, Number(v) || 0); if (k.startsWith('rc.')) CFG.rc[k.slice(3).replace(/_/g, ' ')] = n; else CFG[k] = n; };
 A.cfgset = v => { const [k, val] = v.split('|'); CFG[k] = val; toast('Rule saved. The next allocation uses it'); };
 
+/* Performance by period (not in the artifact): Day, Week, Month or Year, moved with ‹ ›, back to
+ * the current one, and a bar of the chart opens its day or month. */
+const perfAnchor = () => (S.f.perfd as string) || TODAY;
+A.perfp = v => { S.f.perfp = v; };
+A.perfnav = v => {
+  const kind = S.f.perfp as PeriodKind, dir = Number(v);
+  if (dir > 0 && isCurrentPeriod(kind, perfAnchor())) return false;
+  const next = shiftPeriod(kind, perfAnchor(), dir);
+  S.f.perfd = next > TODAY ? TODAY : next;
+};
+A.perfnow = () => { S.f.perfd = TODAY; };
+A.perfdrill = v => { const [k, d] = v.split('|'); S.f.perfp = k; S.f.perfd = d; };
+
 /* ===== PROPERTIES ===== */
 A.prtab = v => { S.tab.prp = v; };
 A.go_mgr_leads = () => { go('mgr', 'leads'); };
@@ -192,7 +207,7 @@ export const TOUR_GO: (() => void)[] = [
   () => { selMay('Michael Brandt'); },
   () => { selMay('Henry Okafor'); },
   () => { go('mgr', 'rules'); },
-  () => { go('p2', 'call'); },
+  () => { /* "What phase 2 adds": Calling and AI is locked, the step is told from where the presenter is */ },
 ];
 export const TOUR_MAS: [string, () => void][] = [
   ['Contact pool: why each contact is or is not in today’s lists', () => { S.f.pool = 'all'; go('mgr', 'pool'); }],

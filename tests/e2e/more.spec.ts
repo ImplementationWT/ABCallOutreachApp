@@ -159,3 +159,32 @@ test('app: the Performance chart reacts to hover and there are no "To validate" 
   await expect(page.locator('[data-series="none"]')).toHaveClass(/opacity-50/);
   for (const p of ['/mgr/perf', '/mgr/rules']) { await page.goto(p); await page.waitForLoadState('networkidle'); await expect(page.locator('.op')).not.toContainText('To validate'); }
 });
+
+test('app: Performance by day, week, month and year', async ({ page }) => {
+  await openApp(page, '/mgr/perf');
+  const label = page.locator('[data-period-label]');
+  await expect(label).toHaveText('Today, Nov 2');
+  await page.locator('.segs .seg', { hasText: 'Week' }).click();
+  await expect(label).toHaveText('Nov 2 – Nov 8');
+  await expect(page.locator('[aria-label="Next period"]')).toBeDisabled();
+  await page.locator('[aria-label="Previous period"]').click();
+  await expect(label).toHaveText('Oct 26 – Nov 1');
+  await expect(page.locator('.ptbl tr.tot')).toContainText(/Team\s*\d+/);
+  await page.locator('.segs .seg', { hasText: 'Year' }).click();
+  await expect(label).toHaveText('2026');
+  await expect(page.locator('[data-day]')).toHaveCount(12);
+  await page.locator('[data-day="2026-10-01"]').click();
+  await expect(page.locator('.segs .seg[aria-pressed=true]')).toHaveText('Month');
+  await expect(label).toHaveText('October 2026');
+  await page.locator('button', { hasText: 'This month' }).click();
+  await expect(label).toHaveText('November 2026');
+});
+
+test('app: Calling and AI is locked for everyone', async ({ page }) => {
+  await openApp(page, '/p2/call');
+  await expect(page).toHaveURL(/\/mgr\/live$/);
+  await page.locator('#appsel').click();
+  await expect(page.locator('[data-app="p2"]')).toHaveAttribute('aria-disabled', 'true');
+  await page.locator('[data-app="p2"]').click({ force: true });
+  await expect(page).toHaveURL(/\/mgr\/live$/);
+});

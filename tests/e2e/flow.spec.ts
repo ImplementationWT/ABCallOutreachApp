@@ -71,7 +71,8 @@ async function walk(page: Page, who: string) {
   await userMenu(page, 'tour');
   for (let i = 0; i < 8; i++) {
     await note(`tour ${i + 1}`, page.locator('.tourp').textContent());
-    await note(`tour ${i + 1} screen`, page.locator('.op h1, .op h2, .login h1').first().textContent());
+    // The last step went to Calling and AI, which is locked in the app
+    if (i < 7) await note(`tour ${i + 1} screen`, page.locator('.op h1, .op h2, .login h1').first().textContent());
     if (i < 7) await btn(page, /^Next/, '.tourp').click(); await idle(page);
   }
   await btn(page, 'Finish', '.tourp').click(); await idle(page);
