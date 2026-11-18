@@ -7,7 +7,7 @@ import { useId, useLayoutEffect } from 'react';
 import { applyRoute, routeOf, type Route } from '@/lib/state/navigation';
 import { loadState, useData } from '@/lib/state/persist';
 import { useMe } from '@/lib/state/auth';
-import { VIEW_PERM, homeOf } from '@/lib/auth/roles';
+import { canOpen, homeOf } from '@/lib/auth/roles';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { APP_FASE, S, bump, useApp, type AppKey } from '@/lib/state/store';
@@ -62,7 +62,7 @@ export function AppScreen(props: Partial<Route>) {
   const router = useRouter();
   const isHidden = hidden.has(id);
   if (!isHidden) applyRoute(route);
-  const blocked = !isHidden && !!me && !me.perms.includes(VIEW_PERM[S.view]);
+  const blocked = !isHidden && !!me && S.view !== 'in' && !canOpen(me, S.view);
   const home = me ? homeOf(me) : '/';
   // A section the user may not open: back to their home (a rep to their own list)
   useEffect(() => { if (blocked) router.replace(home); }, [blocked, home, router]);

@@ -164,3 +164,9 @@ Los tokens también están expuestos a Tailwind en `app/globals.css` (`@theme in
     "To validate" en ninguna página. El gráfico de Performance es `components/mgr/TeamChart.tsx`: hover por día (tooltip
     y resto atenuado) y por serie desde la leyenda. El sidebar mide 264px en escritorio (244 en el artifact) para que las
     etiquetas entren en una línea.
+20. **Performance por período.** Día, semana (lunes a domingo), mes o año (`lib/domain/periods.ts`), con ‹ › y vuelta al
+    período actual; la tabla suma el período y el gráfico (`TeamChart`) muestra un bucket por día o por mes, con clic
+    para bajar de nivel. El correo diario sigue usando `PerfTable` de un día.
+21. **Calling and AI bloqueada.** `LOCKED_VIEWS` en `lib/auth/roles.ts`: nadie la abre (aparece con candado en el
+    selector, la URL redirige al inicio y los enlaces internos avisan). El paso 8 del Walkthrough ya no navega.
+    Para desbloquearla, quita `'p2'` de `LOCKED_VIEWS`.

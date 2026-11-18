@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CALLS, CAMPS, CFG, CTS, DAY, DAYM, LEADS, PEO, PROPS, SEQ, SYNC, TODAY, addDays, buildWorld, fromDocs, getClock, iso, toDocs } from '../lib/domain';
+import { CALLS, CAMPS, CFG, CTS, DAY, DAYM, LEADS, PEO, PROPS, SEQ, SYNC, TODAY, addDays, buildWorld, fromDocs, getClock, iso, mDay, periodBuckets, periodDays, periodMetrics, periodRange, shiftPeriod, toDocs } from '../lib/domain';
 
 /** The artifact's fixed demo day; the seed is relative to whatever day it runs. */
 const ARTIFACT_DAY = new Date(2026, 10, 2, 8, 20);
@@ -57,5 +57,23 @@ describe('seed relative to the day it runs', () => {
     expect(b.call_log.map((c: { at: string }) => c.at)).toEqual(a.call_log.map((c: { at: string }) => shift(c.at)));
     expect(b.reservations.length).toBe(a.reservations.length);
     expect(b.campaigns.filter((c: { date: string }) => c.date === '2027-03-01').length).toBe(2);
+  });
+});
+
+describe('performance periods', () => {
+  it('weeks start on Monday, months and years cut at today, buckets drill down', () => {
+    buildWorld(ARTIFACT_DAY); // Mon, Nov 2, 2026
+    expect(periodRange('week', TODAY)).toEqual(['2026-11-02', '2026-11-08']);
+    expect(periodDays('month', TODAY)).toEqual(['2026-11-01', '2026-11-02']);
+    expect(shiftPeriod('day', TODAY, -1)).toBe('2026-10-30');
+    expect(shiftPeriod('month', TODAY, -1)).toBe('2026-10-01');
+    const week = periodMetrics(null, 'week', '2026-10-28');
+    const byDay = periodDays('week', '2026-10-28').map(d => mDay(null, d).calls).reduce((a, b) => a + b, 0);
+    expect(week.calls).toBe(byDay);
+    const year = periodBuckets('year', TODAY);
+    expect(year).toHaveLength(12);
+    expect(year[11].future).toBe(true);
+    expect(year[9].drill).toEqual(['month', '2026-10-01']);
+    expect(periodMetrics(null, 'year', TODAY).calls).toBe(year.reduce((a, b) => a + periodMetrics(null, 'month', b.key).calls * (b.future ? 0 : 1), 0));
   });
 });

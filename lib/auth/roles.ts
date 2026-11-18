@@ -6,7 +6,7 @@ export const PERMS = [
   ['mgr.manage', 'Outreach Manager: change', 'Campaigns, assignment rules and reassigning contacts'],
   ['prp.view', 'Properties: see', 'Properties, contacts and their history'],
   ['prp.edit', 'Properties: change', 'Reopen a property, mark construction started, data loads'],
-  ['p2.view', 'Calling and AI', 'The phase 2 screens'],
+  ['p2.view', 'Calling and AI', 'The phase 2 screens (locked for everyone for now)'],
   ['data.view', 'Data', 'Tables, access and the process A to Z'],
   ['users.manage', 'Users', 'Create users, change roles and permissions, reset passwords'],
 ] as const;
@@ -29,6 +29,12 @@ export const REP_PEOPLE = ['may', 'dan', 'pri'] as const;
 /** What the browser and the API know about the signed-in user. */
 export type Me = { id: string; username: string; name: string; role: Role; perms: Perm[]; person: string | null; mustChange: boolean };
 
+/** Apps nobody can open for now, whatever their permissions (Calling and AI waits for the phone provider). */
+export const LOCKED_VIEWS: readonly string[] = ['p2'];
+export const isLocked = (view: string) => LOCKED_VIEWS.includes(view);
+/** Whether a user may open a section: not locked, and with its permission. */
+export const canOpen = (me: Pick<Me, 'perms'>, view: string) => !isLocked(view) && !!VIEW_PERM[view] && me.perms.includes(VIEW_PERM[view]);
+
 /** Section of the app → permission needed to open it. */
 export const VIEW_PERM: Record<string, Perm> = { rep: 'rep.workspace', mgr: 'mgr.view', prp: 'prp.view', p2: 'p2.view', db: 'data.view' };
 /** A rep without Outreach Manager works only in their own list. */
@@ -39,7 +45,6 @@ export function homeOf(me: Pick<Me, 'perms' | 'person'>) {
   if (me.perms.includes('mgr.view')) return '/mgr/live';
   if (me.perms.includes('rep.workspace')) return '/rep/today';
   if (me.perms.includes('prp.view')) return '/prp/props';
-  if (me.perms.includes('p2.view')) return '/p2/call';
   if (me.perms.includes('data.view')) return '/data';
   return '/login';
 }

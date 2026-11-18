@@ -3,7 +3,8 @@
  * sidebar), so only the content is compared; Data now has a sidebar too, so it is not compared.
  * The app's sidebar is 20px wider, so its page is captured 20px wider (same content width).
  * Views redesigned on purpose after the port are left out: KPI grids (The day by rep, Contact pool,
- * Properties), rules without "To validate" labels and the interactive Performance chart.
+ * Properties), rules without "To validate" labels and the interactive Performance chart. Calling and AI
+ * is locked in the app, so its screens are not compared.
  * PNGs land in test-results/compare/<case>-<theme>-{artifact,app,diff}.png */
 import { expect, test } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -19,13 +20,12 @@ const CASES: Case[] = ([
   ...['live', 'pool', 'leads', 'camp', 'rules', 'perf', 'mail', 'sync', 'help'].map(p => ({ n: 'mgr-' + p, art: `vista=mgr&pagina=${p}`, app: `/mgr/${p}` })),
   ...['props', 'cts', 'imp', 'help'].map(p => ({ n: 'prp-' + p, art: `vista=prp&pagina=${p}`, app: `/prp/${p}` })),
   { n: 'prp-record', art: 'vista=prp&pagina=props', artClick: '905 Arbolada Way', app: '/prp/props/P-1003' },
-  ...['call', 'enrich', 'aud', 'prov', 'help'].map(p => ({ n: 'p2-' + p, art: `vista=p2&pagina=${p}`, app: `/p2/${p}` })),
 ] as Case[]).filter(c => !CHANGED.includes(c.n));
 const OUT = join(__dirname, '..', '..', 'test-results', 'compare');
 mkdirSync(OUT, { recursive: true });
 export const results: Record<string, number> = {};
 
-const PHONE = ['rep-today', 'prp-record', 'p2-aud']; // views that fit the phone screen (longer ones are cut at the viewport)
+const PHONE = ['rep-today', 'prp-record']; // views that fit the phone screen (longer ones are cut at the viewport)
 const RUNS = [
   { name: 'light', theme: 'light' as const, viewport: { width: 1440, height: 900 }, cases: CASES },
   { name: 'dark', theme: 'dark' as const, viewport: { width: 1440, height: 900 }, cases: CASES },

@@ -3,7 +3,7 @@
  * Shows the current app; it opens a list with the apps the user may open, each with its count. */
 import { useEffect, useRef, useState } from 'react';
 import { DAY, LEADS, openOf } from '@/lib/domain';
-import { VIEW_PERM } from '@/lib/auth/roles';
+import { VIEW_PERM, isLocked } from '@/lib/auth/roles';
 import { dispatch } from '@/lib/state/actions';
 import { useMe } from '@/lib/state/auth';
 import { APPS, APP_FASE, S, type AppKey, type ViewKey } from '@/lib/state/store';
@@ -54,6 +54,9 @@ export function AppSwitcher({ current }: { current: AppKey | 'db' }) {
     {pos ? <div ref={menu} className="pop" role="menu" aria-label="Apps" style={pos}>
       <div className="ol">{items.map(it => {
         const n = count(it.k);
+        if (isLocked(it.k)) return <button key={it.k} type="button" role="menuitem" className="opt opacity-55 cursor-not-allowed" data-app={it.k} aria-disabled="true" title="Locked for now" onClick={() => {}}>
+          <Tile it={it} /><span>{it.n}</span><span className="ml-auto inline-flex items-center gap-[4px] text-[11.5px] font-bold text-muted"><Icon n="key" s={13} />Locked</span>
+        </button>;
         return <button key={it.k} type="button" role="menuitem" className={`opt ${it.k === current ? 'bg-g50 font-bold' : ''}`} data-app={it.k} aria-current={it.k === current}
           onClick={() => { setOpen(false); dispatch('view', it.k); }}>
           <Tile it={it} on={it.k === current} /><span>{it.n}</span>

@@ -35,7 +35,7 @@ export type State = {
 
 export const S: State = {
   view: 'in', page: { rep: 'today', mgr: 'live', prp: 'props', p2: 'call' }, det: {}, tab: {},
-  f: { pool: 'pool', prst: 'all', praud: 'all', perf: 'last', mail: 'rep', mailrep: 'may', dbm: 'az', script: false, campv: 'today' },
+  f: { pool: 'pool', prst: 'all', praud: 'all', perf: 'last', perfp: 'day', perfd: '', mail: 'rep', mailrep: 'may', dbm: 'az', script: false, campv: 'today' },
   user: 'may', sel: {}, draft: {}, srch: {}, modal: null, pop: null, hl: null, top: false,
   tour: { on: false, i: 0, col: false, list: false, x: null, y: null },
 };

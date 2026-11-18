@@ -3,7 +3,7 @@
  * mgrCamps, mgrRules, perfTable, mgrPerf, mgrMail, mgrSync. Modals are in ./modals.tsx. */
 import type React from 'react';
 import {
-  lastDay, pastDays,
+  lastDay, pastDays, PERIODS, chartTitle, isCurrentPeriod, periodBuckets, periodDays, periodLabel, sumDays, type PeriodKind,
   AUDK, AUDS, C, CALLS, CAMPS, CFG, CTS, D, DAY, LEADS, LEAD_OUT, OUT, OUTK, P, PEO, PRANK, PRI, PROPS, REPS, SYNC, TODAY, WD,
   callsOn, campName, campOf, demoN, docOf, dupCheck, elig, first, fmtS, fmtT, fmtUS, fmtWD, listOf, mDay, mOf, openOf, ownerOf, propStatus, relDay,
   type Metrics, type Pri, type RepKey,
@@ -183,8 +183,10 @@ function MgrRules() {
 }
 
 /* ----- Performance ----- */
-export function PerfTable({ day }: { day: string }) {
-  const rows = REPS.map(r => [r, mDay(r, day)] as const), t = mDay(null, day);
+/** By rep for one day (the daily email) or for a list of days (Performance by period). */
+export function PerfTable({ day, days }: { day?: string; days?: string[] }) {
+  const of = (r: RepKey | null) => days ? sumDays(r, days) : mDay(r, day!);
+  const rows = REPS.map(r => [r, of(r)] as const), t = of(null);
   const tr = (key: string, n: React.ReactNode, m: Metrics, cls = '') => <tr key={key} className={cls}><td>{n}</td><td className="n">{m.calls}</td><td className="n">{m.con}</td><td className="n">{m.conv}</td><td className="n">{m.leads}</td><td className="n">{m.d2c}</td><td className="n">{m.c2v}</td><td className="n">{m.v2l}</td></tr>;
   return <table className="ptbl"><tbody>
     <tr><th>Rep</th><th className="n">Calls Made</th><th className="n">Connects</th><th className="n">Conversations</th><th className="n">New Leads</th><th className="n">Dial to Connect</th><th className="n">Connect to Convo</th><th className="n">Convo to Lead</th></tr>
@@ -193,15 +195,25 @@ export function PerfTable({ day }: { day: string }) {
   </tbody></table>;
 }
 function MgrPerf() {
-  const day = S.f.perf === 'today' ? TODAY : lastDay();
+  const kind = S.f.perfp as PeriodKind, anchor = (S.f.perfd as string) || TODAY;
+  const days = periodDays(kind, anchor), current = isCurrentPeriod(kind, anchor);
   return <>
     <PageHeader t="Performance" sub="Calls, connects, conversations and leads by rep, with the rates from Andrew’s daily email. Each number comes from the call log."
-      acts={<span className="segs"><button className="seg" {...on('filt', 'perf|last')} aria-pressed={S.f.perf !== 'today'}>{fmtWD(lastDay())}</button><button className="seg" {...on('filt', 'perf|today')} aria-pressed={S.f.perf === 'today'}>Today so far</button></span>} />
-    <PerfTable day={day} />
+      acts={<>
+        <span className="segs" role="group" aria-label="Period">{PERIODS.map(([k, l]) => <button key={k} className="seg" {...on('perfp', k)} aria-pressed={kind === k}>{l}</button>)}</span>
+        <span className="inline-flex items-center gap-[4px]" data-period>
+          <button className="btn sec sm px-[8px]" {...on('perfnav', -1)} aria-label="Previous period"><Icon n="chl" s={15} /></button>
+          <b className="min-w-[150px] text-center text-[13.5px]" data-period-label>{periodLabel(kind, anchor)}</b>
+          <button className="btn sec sm px-[8px]" {...on('perfnav', 1)} aria-label="Next period" disabled={current}><Icon n="chr" s={15} /></button>
+          {anchor !== TODAY ? <button className="btn ghost sm" {...on('perfnow')}>{kind === 'day' ? 'Today' : `This ${kind}`}</button> : null}
+        </span>
+      </>} />
+    <PerfTable days={days} />
+    <p className="sm muted mt-[6px]">{days.length ? `${days.length} day${days.length > 1 ? 's' : ''}, ${fmtS(days[0])}${days.length > 1 ? ' – ' + fmtS(days[days.length - 1]) : ''}${current && kind !== 'day' ? ', so far' : ''}.` : 'No days yet in this period.'}</p>
     <div className="grid2 mt-[14px]">
-      <div className="card"><h3><Icon n="chart" s={16} />Team, last 10 business days</h3>
-        <TeamChart />
-        <p className="sm muted mt-[6px]">Past days are sample totals at today’s pace (about 108 calls per rep a day).</p>
+      <div className="card"><h3><Icon n="chart" s={16} />{chartTitle(kind, anchor)}</h3>
+        <TeamChart buckets={periodBuckets(kind, anchor)} />
+        <p className="sm muted mt-[6px]">Days before the app started are sample totals at today’s pace (about 108 calls per rep a day). Click a bar to open its {kind === 'year' ? 'month' : 'day'}.</p>
       </div>
       <div className="card"><h3><Icon n="info" s={16} />How each number is counted</h3>
         <div className="sm">
