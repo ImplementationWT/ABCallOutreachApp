@@ -1,5 +1,5 @@
 'use client';
-/* Account modal: who is signed in, change the password, log out. */
+/* Account modal: who is signed in and change the password (log out is in the user menu). */
 import { useEffect, useState } from 'react';
 import { MIN_PASSWORD } from '@/lib/db/auth-rules';
 
@@ -25,13 +25,10 @@ export function AccountPanel() {
     } catch { setMsg({ ok: false, t: 'Could not reach the server' }); }
     setBusy(false);
   };
-  // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload on purpose (fresh session and state)
-  const logout = async () => { await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {}); location.href = '/login'; };
 
   return <>
     <div className="nextstep grey"><span className="ic"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" /></svg></span>
-      <div><b>Signed in as {user || '…'}</b><small>The session lasts 7 days on this browser.</small></div>
-      <div className="acts"><button type="button" className="btn sec sm" onClick={logout}>Log out</button></div></div>
+      <div><b>Signed in as {user || '…'}</b><small>The session lasts 7 days on this browser.</small></div></div>
     <form onSubmit={change}>
       <h3 className="text-[15.5px]">Change password</h3>
       <label className="lbl" htmlFor="pw-current">Current password <em>*</em></label>
