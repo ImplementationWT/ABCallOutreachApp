@@ -43,7 +43,9 @@ test('team users: Andrew manages, Maya works her own list only', async ({ browse
   await expect(maya).toHaveURL(/\/rep\/today$/);
   expect((await maya.request.get('/api/users')).status()).toBe(403);
   expect((await maya.request.post('/api/state', { data: { changes: { rules: { upsert: [] } } } })).status()).toBe(403);
-  await maya.locator('.me.click').click();
+  await maya.locator('#usermenu').click();
+  await expect(maya.locator('[role=menu] [role^=menuitem]')).toHaveText(['Walkthrough', 'Change password', 'Dark mode']);
+  await maya.locator('[role=menu] [data-menu="password"]').click();
   await expect(maya.locator('.modal')).toContainText('Signed in as maya');
 
   // Andrew: lands on The day by rep, has Users in Outreach Manager

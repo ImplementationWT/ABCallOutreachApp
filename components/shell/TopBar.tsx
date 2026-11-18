@@ -1,14 +1,14 @@
 'use client';
 /* Top bar (renderTop in artifact/app.html): brand with a name you rename by double click, the app
- * Walkthrough, account, light or dark, and the user. The app tabs moved to the sidebar (AppSwitcher). */
+ * user menu (Walkthrough, change password, dark mode). The app tabs moved to the sidebar (AppSwitcher). */
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
 import { PEO, type PersonKey } from '@/lib/domain';
-import { on } from '@/lib/state/actions';
 import { routeOf } from '@/lib/state/navigation';
 import { getMe, useMe } from '@/lib/state/auth';
 import { EMP0, S, brand, bump, store, useApp } from '@/lib/state/store';
-import { Avatar, Icon } from '@/components/ui';
+import { Avatar } from '@/components/ui';
+import { UserMenu } from './UserMenu';
 
 const noop = () => () => {};
 /** The person shown in the avatar: the rep whose list is open, else the signed-in user's person (the
@@ -60,12 +60,11 @@ export function TopBar() {
         </div>
       </div>
       <div className="tools" id="tools">
-        <button className={`tbtn ${S.tour.on ? 'on' : ''}`} {...on('tour')} title="Presenter walkthrough"><Icon n="compass" s={16} />Walkthrough</button>
-        <button className="ib" {...on('account')} title="Account and password" data-auth="account"><Icon n="key" s={17} /></button>
-        <button className="ib" {...on('theme')} title="Light or dark mode"><Icon n={dark ? 'sun' : 'moon'} s={17} /></button>
-        {me && !me.person && view !== 'rep'
-          ? <div className="me click" {...on('signout')} title="Account"><span className="av" title={me.name}>{me.name.split(' ').map(x => x[0]).join('').slice(0, 2).toUpperCase()}</span><div><b>{me.name}</b><small>{me.username}</small></div></div>
-          : <div className="me click" {...on('signout')} title="Account"><Avatar k={w} /><div><b>{p.n}</b><small>{p.r}</small></div></div>}
+        <UserMenu dark={dark}>
+          {me && !me.person && view !== 'rep'
+            ? <><span className="av" title={me.name}>{me.name.split(' ').map(x => x[0]).join('').slice(0, 2).toUpperCase()}</span><div><b>{me.name}</b><small>{me.username}</small></div></>
+            : <><Avatar k={w} /><div><b>{p.n}</b><small>{p.r}</small></div></>}
+        </UserMenu>
       </div>
     </header>
   );

@@ -59,3 +59,16 @@ export async function switchApp(page: Page, name: string) {
   await page.locator('#appsel').click();
   await page.locator('[role=menu] [role=menuitem]', { hasText: name }).click(); await idle(page);
 }
+
+/** Walkthrough, change password or dark mode: the artifact's top bar buttons, the app's user menu. */
+export async function userMenu(page: Page, item: 'tour' | 'password' | 'theme') {
+  if (isArtifact(page)) {
+    if (item === 'tour') await btn(page, 'Walkthrough', '#tools').click();
+    if (item === 'theme') await page.locator('button[data-act="theme"]').click();
+    if (item === 'password') throw new Error('The artifact has no account');
+    await idle(page); return;
+  }
+  await page.locator('#usermenu').click();
+  await page.locator(`[role=menu] [data-menu="${item}"]`).click(); await idle(page);
+  if (item === 'theme') { await page.keyboard.press('Escape'); await idle(page); }
+}

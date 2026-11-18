@@ -1,7 +1,7 @@
 /* The full demo walk, run on the artifact and on the app with the same clicks.
  * Every toast and key text is collected and both transcripts must match. */
 import { expect, test, type Page } from '@playwright/test';
-import { TOASTS, btn, idle, openApp, openArtifact, settle, toastText , openAsAndrew, openAsMaya, switchApp } from './targets';
+import { TOASTS, btn, idle, openApp, openArtifact, settle, toastText , openAsAndrew, openAsMaya, switchApp, userMenu } from './targets';
 import { STORAGE, reseed } from './db';
 
 async function walk(page: Page, who: string) {
@@ -68,7 +68,7 @@ async function walk(page: Page, who: string) {
   await note('history', page.locator('.op .card').textContent());
 
   // Walkthrough, start to end
-  await btn(page, 'Walkthrough', '#tools').click(); await idle(page);
+  await userMenu(page, 'tour');
   for (let i = 0; i < 8; i++) {
     await note(`tour ${i + 1}`, page.locator('.tourp').textContent());
     await note(`tour ${i + 1} screen`, page.locator('.op h1, .op h2, .login h1').first().textContent());

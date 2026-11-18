@@ -1,6 +1,6 @@
 /* A second walk over the actions the first one does not touch, again on both targets. */
 import { expect, test, type Page } from '@playwright/test';
-import { TOASTS, btn, idle, openApp, openArtifact, toastText , openAsAndrew, openAsMaya, switchApp } from './targets';
+import { TOASTS, btn, idle, openApp, openArtifact, toastText , openAsAndrew, openAsMaya, switchApp, userMenu } from './targets';
 import { STORAGE, reseed } from './db';
 
 test.beforeEach(async () => { await reseed(); });
@@ -80,7 +80,7 @@ async function walk(page: Page) {
   await note('as daniel detail', text('.wdet .dh'));
 
   // Walkthrough list and "if there is time", collapse; theme
-  await btn(page, 'Walkthrough', '#tools').click(); await idle(page);
+  await userMenu(page, 'tour');
   await page.locator('.tourp button[data-act="tourlist"]').click(); await idle(page);
   await note('tour list', text('.tourp .tb'));
   await page.locator('.tourp button[data-act="tourgo"]').nth(1).click(); await idle(page);
@@ -88,7 +88,7 @@ async function walk(page: Page) {
   await note('tour collapsed', String(await page.locator('.tourp.col').count()));
   await page.keyboard.press('Escape'); await idle(page);
   await page.locator('.tourp button[data-act="tour"]').first().click(); await idle(page);
-  await page.locator('button[data-act="theme"]').click(); await idle(page);
+  await userMenu(page, 'theme');
   await note('theme', page.evaluate(() => document.documentElement.dataset.theme || ''));
   return log;
 }
@@ -126,7 +126,7 @@ test('app: old #vista links, back button and the rename', async ({ page }) => {
 });
 
 async function drag(page: Page) {
-  await page.locator('#tools button', { hasText: 'Walkthrough' }).click();
+  await userMenu(page, 'tour');
   const box = async () => { const b = (await page.locator('.tourp').boundingBox())!; return [Math.round(b.x), Math.round(b.y)]; };
   const h = (await page.locator('.tourp .th').boundingBox())!;
   const before = await box();
