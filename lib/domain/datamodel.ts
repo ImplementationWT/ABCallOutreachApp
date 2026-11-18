@@ -1,5 +1,5 @@
 /* ===== DATA ===== (artifact/app.html) tables behind the apps, access by app and the A to Z process. */
-import { CALLS, CTS, LEADS, PROPS } from './data';
+import { CALLS, CTS, LEADS, PROPS, owners } from './data';
 import { pastDays } from './metrics';
 import { REPS } from './people';
 import { CAMPS } from './campaigns';
@@ -8,8 +8,8 @@ export const DGR: Record<string, [string, string]> = { base: ['The base', 'tg'],
 export type Table = { k: string; n: string; g: string; d: string; f: [string, string][]; c: () => number; ex?: boolean };
 export const DBS: Table[] = [
   { k: 'props', n: 'Properties', g: 'base', d: '1 row = property', f: [['Address', 'Text'], ['Audience', 'Dropdown'], ['Outreach status', 'Status, from its contacts'], ['Permit status and date', 'Dropdown, date'], ['Construction started', 'Dropdown'], ['Informative columns', 'From the data load'], ['Contacts', '→ Contacts']], c: () => PROPS.length },
-  { k: 'cts', n: 'Contacts', g: 'base', d: '1 row = contact of a property', f: [['Name', 'Text'], ['Property', '→ Properties'], ['Role', 'Dropdown'], ['Email', 'Email'], ['Last outcome and date', 'Dropdown, date'], ['Next eligible call', 'Date'], ['Attempts', 'Number'], ['Original rep', '→ Reps'], ['Removed because', 'Text']], c: () => CTS.length },
-  { k: 'phones', n: 'Phone Numbers', g: 'base', d: '1 row = phone of a contact', f: [['Number', 'Phone'], ['Contact', '→ Contacts'], ['Status', 'Dropdown: worked, not tried, wrong']], c: () => CTS.reduce((a, c) => a + c.phones.length, 0) },
+  { k: 'cts', n: 'Contacts', g: 'base', d: '1 row = contact of a property', f: [['Name', 'Text'], ['Property', '→ Properties'], ['Role', 'Dropdown'], ['Email', 'Email'], ['Last outcome and date', 'Dropdown, date'], ['Next eligible call', 'Date'], ['Attempts', 'Number'], ['Original rep', '→ Reps'], ['Removed because', 'Text']], c: () => owners().length },
+  { k: 'phones', n: 'Phone Numbers', g: 'base', d: '1 row = phone of a contact', f: [['Number', 'Phone'], ['Contact', '→ Contacts'], ['Status', 'Dropdown: worked, not tried, wrong']], c: () => owners().reduce((a, c) => a + c.phones.length, 0) },
   { k: 'camps', n: 'Campaigns', g: 'work', d: '1 row = campaign of a day', f: [['Date', 'Date'], ['Audiences', 'Dropdown'], ['Reps', '→ Reps'], ['Goal', 'Number']], c: () => CAMPS.length },
   { k: 'res', n: 'Daily Reservations', g: 'work', d: '1 row = contact reserved for a rep on a day', f: [['Contact', '→ Contacts'], ['Rep', '→ Reps'], ['Date', 'Date'], ['Priority', 'Dropdown'], ['Batch', 'Morning or requested']], c: () => CTS.filter(c => c.res).length },
   { k: 'calls', n: 'Call Log', g: 'work', d: '1 row = call', f: [['Contact', '→ Contacts'], ['Rep', '→ Reps'], ['Phone', '→ Phone Numbers'], ['Outcome', 'Dropdown'], ['Notes', 'Long text'], ['Follow-up date', 'Date'], ['Provider data', 'Phase 2']], c: () => CALLS.length },
@@ -17,7 +17,7 @@ export const DBS: Table[] = [
   { k: 'reps', n: 'Reps', g: 'cfg', d: '1 row = user with a login', f: [['Name', 'Text'], ['Role', 'Dropdown'], ['Scheduled days', 'Dropdown']], c: () => REPS.length + 1 },
   { k: 'rules', n: 'Rules', g: 'cfg', d: 'Andrew’s settings', f: [['Allocation, request more', 'Numbers'], ['Waiting time by outcome', 'Numbers'], ['Max attempts', 'Number'], ['Refresh, end of day', 'Dropdown']], c: () => 1 },
   { k: 'mprops', n: 'Fire Rebuild Properties', g: 'mon', d: 'monday board, updated by the sync', f: [['Address', 'Name'], ['Outreach Status', 'Status'], ['Permit Status', 'Dropdown'], ['Construction Started', 'Dropdown'], ['Contacts', 'Connection']], c: () => PROPS.length },
-  { k: 'mcts', n: 'Fire Rebuild Contacts', g: 'mon', d: 'monday board, updated by the sync', f: [['Name', 'Name'], ['Last Call Outcome', 'Dropdown'], ['Last Call Date, Next Eligible Call', 'Dates'], ['Call Attempts', 'Numbers'], ['Property', 'Connection']], c: () => CTS.length },
+  { k: 'mcts', n: 'Fire Rebuild Contacts', g: 'mon', d: 'monday board, updated by the sync', f: [['Name', 'Name'], ['Last Call Outcome', 'Dropdown'], ['Last Call Date, Next Eligible Call', 'Dates'], ['Call Attempts', 'Numbers'], ['Property', 'Connection']], c: () => owners().length },
   { k: 'mleads', n: 'AB Leads', g: 'mon', ex: true, d: 'Existing AB board for the sales team', f: [['Lead', 'Name'], ['Source', 'Dropdown'], ['Property and contact', 'Connections'], ['Call history', 'Long text']], c: () => LEADS.length },
   { k: 'mmet', n: 'Outreach Daily Metrics', g: 'mon', d: 'monday board for the dashboards: 1 row = rep and day', f: [['Rep and day', 'Name'], ['Calls, connects, conversations, leads', 'Numbers'], ['Rates', 'Formula']], c: () => pastDays().length * REPS.length },
 ];

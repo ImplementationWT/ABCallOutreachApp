@@ -19,13 +19,23 @@ const PEOPLE = [...REPS, 'and', 'off'];
 const obj = (required: string[], properties: Schema): Schema => ({ bsonType: 'object', required: ['_id', ...required], properties });
 
 export const SCHEMAS: Record<CollectionName, Schema> = {
+  // lot, prior, built and since are null when the data load did not have them. sourceId and the rest
+  // after `lead` come from the New Property Database load (scripts/import-properties.mts).
   properties: obj(['aud', 'addr', 'permit', 'started', 'lot', 'prior', 'built', 'since', 'src'], {
     _id: str, aud: enumOf(AUDK), addr: str, permit: enumOf(['None', 'Plans Submitted', 'Permit Issued']), permitDate: date,
-    started: enumOf(['Yes', 'No']), lot: num, prior: num, built: num, since: num, src: str, inPipe: strN, lead: strN,
+    started: enumOf(['Yes', 'No']), lot: numN, prior: numN, built: numN, since: numN, src: str, inPipe: strN, lead: strN,
+    owner: strN, sourceId: num, city: str, state: str, zip: str, outreachStatus: str, propType: str, purchaseDate: { bsonType: ['string', 'null'], pattern: date.pattern },
+    purchaseType: strN, purchaseAmount: numN, mortgageAmount: numN, cashBuyer: bool, possibleDup: bool,
   }),
+  // One document per person. `props`: every property they own (`prop`, the first, holds the top-level
+  // outreach state; `pst` holds the state of the others, by property). ownerKey: owner name and mailing
+  // address, normalized, so a load never creates the same owner twice.
   contacts: obj(['prop', 'n', 'role', 'email', 'att', 'dnc', 'supp'], {
     _id: str, prop: str, n: str, role: str, other: str, email: str, out: enumOf(OUTK, true), lastAt: strN, nextAt: strN,
     att: num, rep: enumOf(PEOPLE, true), dnc: bool, supp: bool, stop: { bsonType: ['object', 'null'] }, note: str,
+    props: { bsonType: 'array', minItems: 1, items: str }, pst: { bsonType: 'object' }, ownerKey: str,
+    firstName: strN, lastName: strN, emails: { bsonType: 'array', items: str },
+    mailAddr: strN, mailCity: strN, mailState: strN, mailZip: strN,
   }),
   phone_numbers: obj(['ct', 'idx', 'n', 'st'], { _id: str, ct: str, idx: num, n: str, st: enumOf(['untested', 'ok', 'bad']) }),
   campaigns: obj(['date', 'auds', 'reps', 'goal', 'pos'], { _id: str, date, auds: { bsonType: 'array', items: enumOf(AUDK) }, reps: { bsonType: 'array', items: enumOf(REPS) }, goal: num, past: bool, pos: num }),
@@ -41,8 +51,14 @@ export const SCHEMAS: Record<CollectionName, Schema> = {
 };
 
 export const INDEXES: Partial<Record<CollectionName, IndexDescription[]>> = {
-  properties: [{ key: { aud: 1 } }, { key: { addr: 1 } }],
-  contacts: [{ key: { prop: 1 } }, { key: { rep: 1, nextAt: 1 } }],
+  properties: [
+    { key: { aud: 1 } }, { key: { addr: 1 } }, { key: { addr: 1, zip: 1 }, name: 'addr_zip' }, { key: { owner: 1 } },
+    { key: { sourceId: 1 }, name: 'sourceId_unique', unique: true, partialFilterExpression: { sourceId: { $exists: true } } },
+  ],
+  contacts: [
+    { key: { prop: 1 } }, { key: { rep: 1, nextAt: 1 } }, { key: { props: 1 } }, { key: { n: 1 } }, { key: { email: 1 } }, { key: { emails: 1 } },
+    { key: { ownerKey: 1 }, name: 'ownerKey_unique', unique: true, partialFilterExpression: { ownerKey: { $exists: true } } },
+  ],
   phone_numbers: [{ key: { ct: 1, idx: 1 }, unique: true }, { key: { n: 1 } }],
   reservations: [{ key: { date: 1, rep: 1, order: 1 } }, { key: { ct: 1 } }],
   workdays: [{ key: { date: 1, rep: 1 }, unique: true }],

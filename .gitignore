@@ -23,3 +23,6 @@ npm-debug.log*
 .vercel
 .claude/settings.local.json
 !.env.example
+
+# Personal data of the property import (never commit)
+/property-data/

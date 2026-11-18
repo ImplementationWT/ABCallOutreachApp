@@ -10,11 +10,22 @@ import { pick, rint } from './seed';
 
 export type PhoneSt = 'untested' | 'ok' | 'bad';
 export type Phone = { n: string; st: PhoneSt };
+/** lot, prior, built and since are null when the data load did not have them (shown as "—").
+ * The fields after `ext` come from the New Property Database load (scripts/import-properties.mts);
+ * `owner` is the contact that owns it (that contact lists it in `props`). */
 export type Property = {
   k: string; aud: AudKey; addr: string; permit: string; permitDate?: string; started: string;
-  lot: number; prior: number; built: number; since: number; src: string;
+  lot: number | null; prior: number | null; built: number | null; since: number | null; src: string;
   inPipe: string | null; lead: string | null; ext: null;
+  owner?: string | null; sourceId?: number; city?: string; state?: string; zip?: string; outreachStatus?: string; propType?: string;
+  purchaseDate?: string | null; purchaseType?: string | null; purchaseAmount?: number | null; mortgageAmount?: number | null;
+  cashBuyer?: boolean; possibleDup?: boolean;
 };
+/** One contact per person. An owner of several properties is ONE document with `props` (all of them,
+ * `prop` first); in memory it is opened into one entry per property (a "slot", see snapshot.ts):
+ * `k` = the document id for `prop`, `<id>@<property>` for the others, with `base` = the document id.
+ * Slots share the person (name, phones, emails, dnc) and keep their own outreach state, so a
+ * "Not Interested" stays with the property it was said about. */
 export type Contact = {
   k: string; prop: string; n: string; role: string; other?: string;
   phones: Phone[]; email: string; out: string | null; lastAt: string | null; nextAt: string | null;
@@ -23,7 +34,13 @@ export type Contact = {
   res: { rep: RepKey; date: string } | null;
   note: string;
   callPh?: number | null; calling?: string | false;
+  base?: string; props?: string[];
+  ownerKey?: string; firstName?: string | null; lastName?: string | null; emails?: string[];
+  mailAddr?: string | null; mailCity?: string | null; mailState?: string | null; mailZip?: string | null;
 };
+/** The outreach state a slot keeps for its own property (the rest of the contact is the person). */
+export const SLOT_KEYS = ['out', 'lastAt', 'nextAt', 'att', 'rep', 'stop', 'note'] as const;
+export type SlotState = Pick<Contact, (typeof SLOT_KEYS)[number]>;
 export type Call = { id: number; ct: string; rep: PersonKey; at: string; out: string; note: string; ph: string; live?: boolean; fx?: string[] };
 export type Lead = { k: string; prop: string; ct: string; rep: PersonKey; at: string; out: string; note: string; src: string; fresh?: boolean };
 export type SyncEntry = { at: string; board: string; item: string; what: string };
@@ -44,8 +61,27 @@ const usedPh = new Set<string>();
 /** Empties every collection (before building the seeded world or loading the database). */
 export function resetData() {
   PROPS.length = 0; CTS.length = 0; CALLS.length = 0; LEADS.length = 0; SYNC.length = 0;
-  Object.assign(SEQ, SEQ0); usedPh.clear();
+  Object.assign(SEQ, SEQ0); usedPh.clear(); gen++;
 }
+
+/* Lookups by key. PROPS and CTS only grow (push) until the next resetData(), so an index is rebuilt
+ * when the generation or the length changed. With thousands of records a linear find per lookup
+ * made the engine (thousands of lookups per allocation) far too slow. */
+let gen = 0;
+function indexed<T, V>(arr: T[], build: (arr: T[]) => V) {
+  let g = -1, len = -1, v: V;
+  return () => { if (g !== gen || len !== arr.length) { v = build(arr); g = gen; len = arr.length; } return v; };
+}
+const propIx = indexed(PROPS, a => new Map(a.map(p => [p.k, p])));
+const ctIx = indexed(CTS, a => {
+  const byK = new Map<string, Contact>(), byProp = new Map<string, Contact[]>(), byOwner = new Map<string, Contact[]>();
+  for (const c of a) {
+    byK.set(c.k, c);
+    const ps = byProp.get(c.prop); if (ps) ps.push(c); else byProp.set(c.prop, [c]);
+    const ow = c.base || c.k, os = byOwner.get(ow); if (os) os.push(c); else byOwner.set(ow, [c]);
+  }
+  return { byK, byProp, byOwner };
+});
 
 export function mkPhone(aud: AudKey) {
   let n: string;
@@ -75,10 +111,16 @@ export function mkCt(p: Property, o: Partial<Contact> = {}) {
   if (!c.email) c.email = c.n.toLowerCase().replace(/[^a-z ]/g, '').split(' ').join('.') + pick(['@gmail.com', '@icloud.com', '@outlook.com', '@yahoo.com']);
   CTS.push(c); return c;
 }
-export const P = (k: string) => PROPS.find(p => p.k === k)!;
-export const C = (k: string) => CTS.find(c => c.k === k)!;
-export const ctsOf = (pk: string) => CTS.filter(c => c.prop === pk);
+export const P = (k: string) => propIx().get(k)!;
+export const C = (k: string) => ctIx().byK.get(k)!;
+export const ctsOf = (pk: string) => (ctIx().byProp.get(pk) || []).slice();
+/** Every slot of the same person (the contact itself included), one per property they own. */
+export const slotsOf = (c: Contact) => ctIx().byOwner.get(c.base || c.k) || [c];
+/** The people: one entry per contact document (the first slot of each owner). */
+export const owners = () => CTS.filter(c => !c.base);
 export const ctByName = (n: string) => CTS.find(c => c.n === n)!;
-export const fullAddr = (p: Property) => `${p.addr}, ${AUDS[p.aud].city}`;
+export const fullAddr = (p: Property) => `${p.addr || 'No address'}, ${p.city || AUDS[p.aud].city}`;
+/** A number for display, or "—" when the data load did not have it. */
+export const numOr = (n: number | null | undefined, unit = '') => n == null ? '—' : n.toLocaleString('en-US') + unit;
 
 export function syncLog(board: string, item: string, what: string) { SYNC.unshift({ at: isoT(getClock()), board, item, what }); }

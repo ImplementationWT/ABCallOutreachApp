@@ -3,8 +3,8 @@
 import type React from 'react';
 import {
   T0, addDays,
-  AUDK, AUDS, C, CALLS, CFG, CTS, LEADS, NO_OUT, PROPS, TODAY,
-  ctsOf, elig, first, fmtD, fmtS, propStatus, relDay, type Status,
+  AUDK, AUDS, C, CALLS, CFG, LEADS, NO_OUT, PROPS, TODAY,
+  P, ctsOf, elig, first, numOr, owners, fmtD, fmtS, propStatus, relDay, type Status,
 } from '@/lib/domain';
 import { denied, inp, on } from '@/lib/state/actions';
 import { can } from '@/lib/state/auth';
@@ -15,7 +15,7 @@ import { HistList } from '@/components/rep';
 
 export function PrpSide() {
   return <Sidebar k="prp" items={[['Records'], ['props', 'Properties', 'home'], ['cts', 'Contacts', 'users'], ['Data'], ['imp', 'Data loads', 'upload']]}
-    foot={<><b>{PROPS.length} properties, {CTS.length} contacts</b>Loaded from PropertyRadar. A property has 1 to 4 contacts.</>} />;
+    foot={<><b>{PROPS.length} properties, {owners().length} contacts</b>One contact per owner; an owner can have several properties.</>} />;
 }
 
 const STS: Status[] = ['Not Contacted', 'Contacted', 'Potential Lead', 'Not Interested'];
@@ -25,7 +25,7 @@ const PROW = 'grid-cols-[minmax(0,1.3fr)_170px_110px_150px_160px_150px]';
 function PrpList() {
   const f = S.f.prst, fa = S.f.praud, q = (S.srch.prp || '').toLowerCase();
   const all = PROPS.filter(p => fa === 'all' || p.aud === fa);
-  const rows = all.filter(p => (f === 'all' || propStatus(p) === f) && (!q || p.addr.toLowerCase().includes(q) || ctsOf(p.k).some(c => c.n.toLowerCase().includes(q))));
+  const rows = all.filter(p => (f === 'all' || propStatus(p) === f) && (!q || p.addr.toLowerCase().includes(q) || (p.zip || '').includes(q) || ctsOf(p.k).some(c => c.n.toLowerCase().includes(q))));
   const lastOf = (pk: string) => CALLS.filter(x => ctsOf(pk).some(c => c.k === x.ct)).sort((a, b) => b.at.localeCompare(a.at))[0];
   return <>
     <PageHeader t="Properties" sub="Every property with its outreach status. The status comes from what its contacts said, with the most advanced one winning." />
@@ -40,7 +40,7 @@ function PrpList() {
       {rows.map(p => {
         const cs = ctsOf(p.k), l = lastOf(p.k), r = cs.find(c => c.res && c.res.date === TODAY);
         return <div key={p.k} className={`row ${PROW}`} {...on('openprop', p.k)}>
-          <div className="t"><b>{p.addr}</b><small>{AUDS[p.aud].n}</small></div>
+          <div className="t"><b>{p.addr || 'No address'}</b><small>{AUDS[p.aud].n}{p.zip ? ' ' + p.zip : ''}{p.possibleDup ? ', possible duplicate' : ''}</small></div>
           <div className="cell"><PermitPill p={p} /></div>
           <div className="cell">{cs.length} contact{cs.length > 1 ? 's' : ''}</div>
           <div className="cell"><StPill s={propStatus(p)} /></div>
@@ -63,7 +63,8 @@ export function PrpRecord({ k }: { k: string }) {
     const e = elig(c, true);
     return <div key={c.k} className="card" data-hl={c.k}>
       <h3><Icon n="user" s={16} />{c.n}<span className="r"><OutPill o={c.out} /></span></h3>
-      <p className="sm muted m-[-4px_0_8px]">{c.role === 'Other' ? c.other || 'Other' : c.role}, {c.email}</p>
+      <p className="sm muted m-[-4px_0_8px]">{[c.role === 'Other' ? c.other || 'Other' : c.role, c.email].filter(Boolean).join(', ')}{(c.props?.length ?? 1) > 1 ? `. Owns ${c.props!.length} properties` : ''}</p>
+      {c.phones.length ? null : <p className="sm muted">No phone yet: out of the call lists until a number is added.</p>}
       <div className="phones">{c.phones.map((x, i) => <div key={i} className={`ph-r ${x.st === 'bad' ? 'bad' : ''}`}><div><b>{x.n}</b><small>{x.st === 'bad' ? 'Wrong number' : x.st === 'ok' ? 'Worked before' : 'Not tried yet'}</small></div></div>)}</div>
       <div className="grid3 mt-[10px]">
         <Kv l="Attempts" v={c.att + ' of ' + CFG.maxAtt} />
@@ -77,14 +78,20 @@ export function PrpRecord({ k }: { k: string }) {
   if (tab === 'hist') body = <div className="card"><HistList pk={p.k} /></div>;
   if (tab === 'info') body = <>
     <div className="grid4">
-      <Kv l="Address" v={p.addr} sub={AUDS[p.aud].city} />
+      <Kv l="Address" v={p.addr || "No address"} sub={AUDS[p.aud].city} />
       <Kv l="Audience" v={AUDS[p.aud].n} />
       <Kv l="Permit status" v={p.permit === 'None' ? 'No permit yet' : p.permit} sub={p.permitDate ? fmtD(p.permitDate) : ''} />
       <Kv l="Construction started" v={p.started} />
-      <Kv l="Lot size" v={p.lot.toLocaleString('en-US') + ' sq ft'} />
-      <Kv l="Home before the fire" v={p.prior.toLocaleString('en-US') + ' sq ft'} sub={'built ' + p.built} />
-      <Kv l="Owner since" v={p.since} />
-      <Kv l="Source" v={p.src} sub={`last load ${fmtS(loadDay())}`} />
+      <Kv l="Lot size" v={numOr(p.lot, ' sq ft')} />
+      <Kv l="Home before the fire" v={numOr(p.prior, ' sq ft')} sub={'built ' + (p.built ?? '—')} />
+      <Kv l="Owner since" v={p.since ?? '—'} sub={p.purchaseType || ''} />
+      <Kv l="Source" v={p.src} sub={p.sourceId != null ? `row ${p.sourceId} of the load` : `last load ${fmtS(loadDay())}`} />
+      {p.sourceId != null ? <>
+        <Kv l="Purchase price" v={numOr(p.purchaseAmount) === '—' ? '—' : '$' + numOr(p.purchaseAmount)} sub={p.purchaseDate ? fmtD(p.purchaseDate) : ''} />
+        <Kv l="First mortgage" v={numOr(p.mortgageAmount) === '—' ? '—' : '$' + numOr(p.mortgageAmount)} sub={p.cashBuyer ? 'Cash buyer' : ''} />
+        <Kv l="ZIP" v={p.zip || '—'} sub={[p.city, p.state].filter(Boolean).join(', ')} />
+        <Kv l="Possible duplicate" v={p.possibleDup ? 'Yes' : 'No'} sub={p.possibleDup ? 'Another row has the same address' : ''} />
+      </> : null}
     </div>
     <p className="sm muted mt-[10px]">Informative columns from the data load. Which ones matter for the script or the priority is to be confirmed with Andrew.</p>
   </>;
@@ -104,9 +111,9 @@ export function PrpRecord({ k }: { k: string }) {
         : null;
   const tabs: [string, string, number?][] = [['cts', 'Contacts', cs.length], ['hist', 'Call history', ncalls], ['info', 'Property data'], ['mon', 'monday']];
   return <>
-    <div className="crumb"><button {...on('pg_prp', 'props')}>Properties</button><Icon n="chr" s={14} /><span>{p.addr}</span></div>
+    <div className="crumb"><button {...on('pg_prp', 'props')}>Properties</button><Icon n="chr" s={14} /><span>{p.addr || "No address"}</span></div>
     <div className="rh">
-      <div><h1>{p.addr}</h1><p>{AUDS[p.aud].city}</p><div className="pills"><StPill s={propStatus(p)} /><AudPill a={p.aud} /><PermitPill p={p} /><Pill t={'Construction started: ' + p.started} cls={p.started === 'Yes' ? 'red' : ''} /></div></div>
+      <div><h1>{p.addr || "No address"}</h1><p>{AUDS[p.aud].city}</p><div className="pills"><StPill s={propStatus(p)} /><AudPill a={p.aud} /><PermitPill p={p} /><Pill t={'Construction started: ' + p.started} cls={p.started === 'Yes' ? 'red' : ''} /></div></div>
       <div className="acts">{p.started === 'No' ? <button className="btn sec sm" {...on('started', p.k)}>Mark construction started</button> : null}</div>
     </div>
     {ns}
@@ -118,18 +125,20 @@ export function PrpRecord({ k }: { k: string }) {
 const CROW = 'grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_160px_150px_90px_140px]';
 function PrpContacts() {
   const q = (S.srch.cts || '').toLowerCase();
-  const rows = CTS.filter(c => { const p = PROPS.find(x => x.k === c.prop)!; return !q || (c.n + ' ' + p.addr + ' ' + c.phones.map(x => x.n).join(' ')).toLowerCase().includes(q); });
+  // One row per person; an owner of several properties shows the first one and how many more
+  const people = owners();
+  const rows = people.filter(c => !q || (c.n + ' ' + (c.props || [c.prop]).map(k => P(k)?.addr).join(' ') + ' ' + c.phones.map(x => x.n).join(' ') + ' ' + (c.email || '')).toLowerCase().includes(q));
   return <>
     <PageHeader t="Contacts" sub="Owners and other contacts of each property. A contact can have more than one phone; the app remembers which one worked." />
     <div className="toolbar"><div className="search"><Icon n="search" s={15} /><input id="srcts" placeholder="Search name, address or phone" defaultValue={S.srch.cts || ''} {...inp('srch.cts')} /></div><span className="sp" /><span className="sm muted">{rows.length} contacts</span></div>
     <div className="rows">
       <div className={`row head ${CROW}`}><span>Contact</span><span>Property</span><span>Phones</span><span>Last result</span><span>Attempts</span><span>Next eligible</span></div>
       {rows.map(c => {
-        const p = PROPS.find(x => x.k === c.prop)!;
+        const p = P(c.prop), np = c.props?.length ?? 1;
         return <div key={c.k} className={`row ${CROW}`} {...on('openct', c.k)}>
           <div className="t"><b>{c.n}</b><small>{c.role === 'Other' ? c.other || 'Other' : c.role}</small></div>
-          <div className="t"><b className="font-semibold">{p.addr}</b><small>{AUDS[p.aud].s}</small></div>
-          <div className="cell">{c.phones[0].n}<small>{c.phones.length > 1 ? '+' + (c.phones.length - 1) + ' more' : ''}{c.phones.some(x => x.st === 'bad') ? ' (one wrong)' : ''}</small></div>
+          <div className="t"><b className="font-semibold">{p.addr || 'No address'}</b><small>{AUDS[p.aud].s}{np > 1 ? `, +${np - 1} more propert${np > 2 ? 'ies' : 'y'}` : ''}</small></div>
+          <div className="cell">{c.phones[0]?.n ?? <span className="muted">No phone yet</span>}<small>{c.phones.length > 1 ? '+' + (c.phones.length - 1) + ' more' : ''}{c.phones.some(x => x.st === 'bad') ? ' (one wrong)' : ''}</small></div>
           <div className="cell"><OutPill o={c.out} /></div>
           <div className="cell">{c.att}</div>
           <div className="cell">{c.nextAt ? fmtS(c.nextAt) : ''}</div>

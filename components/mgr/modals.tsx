@@ -20,7 +20,7 @@ export const MODALS: Record<string, (m: Modal) => ModalDef> = {
         const p = P(c.prop), dn = DAY[r].done[c.k], cl = dn && CALLS.find(x => x.id === dn);
         return <div key={c.k} className="row grid-cols-[40px_minmax(0,1.3fr)_minmax(0,1fr)_170px]">
           <span><PrTag pr={priOf(c)} sm /></span>
-          <div className="t"><b>{c.n}</b><small>{p.addr}, {AUDS[p.aud].s}</small></div>
+          <div className="t"><b>{c.n}</b><small>{p.addr || "No address"}, {AUDS[p.aud].s}</small></div>
           <div className="cell">{PRI[priOf(c)].n}<small>{ownerOf(c) === r ? 'Own, goes back to ' + first(r) : 'Any rep'}</small></div>
           <div className="cell">{cl ? <OutPill o={cl.out} /> : c.stop ? <Pill t="Removed" cls="red" /> : <Pill t="To call" />}</div>
         </div>;

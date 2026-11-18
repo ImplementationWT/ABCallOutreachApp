@@ -48,7 +48,7 @@ function MgrLive() {
     <div className="grid2">
       <div className="card"><h3><Icon n="cal" s={16} />Today’s campaigns</h3>{CAMPS.filter(c => !c.past && c.date === TODAY).map(c => <div key={c.k} className="mrow"><b>{fmtUS(c.date)}</b><span>{c.auds.map(a => AUDS[a].n).join(', ')}</span><span className="ml-auto flex gap-[4px]">{c.reps.map(r => <Avatar key={r} k={r} sm />)}</span></div>)}</div>
       <div className="card"><h3><Icon n="hand" s={16} />Hand-offs to sales today<span className="r"><button className="btn ghost sm" {...on('pg_mgr', 'leads')}>All</button></span></h3>
-        {today.length ? today.map(l => <div key={l.k} className="mrow cursor-pointer" {...on('openprop', l.prop)}><b>{C(l.ct).n}</b><span className="muted">{P(l.prop).addr}</span><span className="ml-auto"><Pill t={l.out} cls="green" /></span></div>)
+        {today.length ? today.map(l => <div key={l.k} className="mrow cursor-pointer" {...on('openprop', l.prop)}><b>{C(l.ct).n}</b><span className="muted">{P(l.prop).addr || "No address"}</span><span className="ml-auto"><Pill t={l.out} cls="green" /></span></div>)
           : <p className="sm muted">None yet today. When a rep marks Interested or Working on Plans, it shows here and in the AB Leads board in monday.</p>}
       </div>
     </div>
@@ -76,7 +76,7 @@ function MgrPool() {
         return <div key={c.k} className={`row ${POOL_COLS}`} {...on('openprop', p.k)}>
           {e.pri ? <PrTag pr={e.pri} sm /> : <span />}
           <div className="t"><b>{c.n}</b><small>{c.role === 'Other' ? c.other || 'Other' : c.role}, attempt {c.att}</small></div>
-          <div className="t"><b className="font-semibold">{p.addr}</b><small>{AUDS[p.aud].s}, {p.permit === 'None' ? 'no permit' : p.permit}</small></div>
+          <div className="t"><b className="font-semibold">{p.addr || "No address"}</b><small>{AUDS[p.aud].s}, {p.permit === 'None' ? 'no permit' : p.permit}</small></div>
           <div className="cell"><OutPill o={c.out} /><small>{c.lastAt ? fmtS(c.lastAt) + (c.rep ? ' by ' + first(c.rep) : '') : ''}</small></div>
           <div className="cell">{c.nextAt ? <><b>{fmtWD(c.nextAt)}</b><small>{relDay(c.nextAt)}</small></> : <span className="muted">Any day</span>}</div>
           <div className="cell"><Pill t={e.why.length > 46 ? e.why.slice(0, 44) + '...' : e.why} cls={e.tone} /></div>
@@ -98,7 +98,7 @@ function MgrLeads() {
         const p = P(x.prop), c = C(x.ct);
         return <div key={x.k} className={`row ${x.fresh ? 'alert bg-g25' : ''} ${LEAD_COLS}`} {...on('openprop', p.k)}>
           <div className="cell"><b>{x.k}</b></div>
-          <div className="t"><b>{p.addr}</b><small>{AUDS[p.aud].s}, {p.permit === 'None' ? 'no permit' : p.permit}</small></div>
+          <div className="t"><b>{p.addr || "No address"}</b><small>{AUDS[p.aud].s}, {p.permit === 'None' ? 'no permit' : p.permit}</small></div>
           <div className="t"><b className="font-semibold">{c.n}</b><small>{x.out}</small></div>
           <div className="cell">{x.src === 'Inbound' ? <Pill t="Inbound, office" cls="blue" /> : <Pill t={'Outbound, ' + first(x.rep)} cls="green" />}<small>In AB Leads (monday)</small></div>
           <div className="cell">{fmtS(x.at)}<small>{fmtT(x.at)}</small></div>

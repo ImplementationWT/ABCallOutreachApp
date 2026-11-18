@@ -4,7 +4,7 @@
  */
 import { campOf } from './campaigns';
 import { LEAD_OUT, NO_OUT, OUT, PRANK, ST_RANK, type Pri, type Status } from './catalogs';
-import { C, CALLS, CTS, LEADS, P, SEQ, ctsOf, syncLog, type Call, type Contact, type Property } from './data';
+import { C, CALLS, CTS, LEADS, P, SEQ, ctsOf, slotsOf, syncLog, type Call, type Contact, type Property } from './data';
 import { Dx, T0, TODAY, addBiz, addDays, fmtD, fmtS, fmtT, fmtWD, iso, isoT, nextBiz, nowT } from './dates';
 import { PEO, REPS, type PersonKey, type RepKey } from './people';
 import { CFG, demoN } from './rules';
@@ -12,8 +12,8 @@ import { CFG, demoN } from './rules';
 /* Past call: writes the log and the contact state */
 export function pastCall(c: Contact, rep: PersonKey, at: string, out: string, note = '') {
   const ph = c.phones.find(x => x.st !== 'bad') || c.phones[0];
-  if (OUT[out].g !== 'none') ph.st = 'ok';
-  CALLS.push({ id: SEQ.call++, ct: c.k, rep, at, out, note, ph: ph.n });
+  if (ph && OUT[out].g !== 'none') ph.st = 'ok';
+  CALLS.push({ id: SEQ.call++, ct: c.k, rep, at, out, note, ph: ph?.n || '' });
   c.att++; c.out = out; c.lastAt = at; c.rep = c.rep || rep; c.note = note;
   c.nextAt = nextFor(out, at, c);
 }
@@ -42,7 +42,13 @@ export const DAY: Record<RepKey, DayState> = {
 export function resetDays() {
   for (const r of Object.keys(DAY) as RepKey[]) DAY[r] = { st: 'reserved', list: [], done: {}, batches: [] };
 }
+/** Has a number that can be dialed. A contact without any phone (none in phone_numbers) is on hold and
+ * never allocated; once a number is added it comes into the allocation with no other change. */
 export const callable = (c: Contact) => c.phones.some(x => x.st !== 'bad');
+/** Another slot of the same person (another of their properties) is in someone's list today: one
+ * call per person a day, so the person is not called twice. */
+export const ownerBusy = (c: Contact) =>
+  (!!c.base || (c.props?.length ?? 0) > 1) && slotsOf(c).some(x => x !== c && x.res?.date === TODAY);
 export const isFinal = (c: Contact) => c.out === 'Already Building / Done' || c.out === 'Do Not Contact';
 export function priOf(c: Contact): Pri {
   const p = P(c.prop);
@@ -88,7 +94,7 @@ export function freeGroups(rep: RepKey) {
   const gs: Record<string, Group> = {};
   for (const c of CTS) {
     const e = elig(c);
-    if (!e.ok || e.k === 'res') continue;
+    if (!e.ok || e.k === 'res' || ownerBusy(c)) continue;
     const p = P(c.prop);
     const own = ownerOf(c);
     const inAud = cp && cp.auds.includes(p.aud);
@@ -107,7 +113,7 @@ export function freeGroups(rep: RepKey) {
 }
 export function reserve(g: Group, rep: RepKey) {
   const d = DAY[rep];
-  for (const c of g.cs) { c.res = { rep, date: TODAY }; if (!d.list.includes(c.k)) d.list.push(c.k); }
+  for (const c of g.cs) { if (ownerBusy(c)) continue; c.res = { rep, date: TODAY }; if (!d.list.includes(c.k)) d.list.push(c.k); }
 }
 export const load = (rep: RepKey) => DAY[rep].list.length;
 /* Morning allocation: owned follow-ups first, then the rest to whoever has the lowest load */
@@ -157,7 +163,9 @@ export function endDay(rep: RepKey) {
   return left.length;
 }
 
-export const phIdx = (c: Contact) => { const i = c.phones.findIndex(x => x.st !== 'bad'); return i < 0 ? 0 : i; };
+/** The person's slots for their other properties that are still in outreach. */
+const otherSlots = (c: Contact) => slotsOf(c).filter(x => x !== c && !x.stop && !isFinal(x));
+export const phIdx =(c: Contact) => { const i = c.phones.findIndex(x => x.st !== 'bad'); return i < 0 ? 0 : i; };
 /* What a result will do, written from the rules (same text before and after saving) */
 export function effectsOf(c: Contact, out: string, fu?: string | null) {
   const p = P(c.prop), sib = ctsOf(p.k).filter(x => x !== c && !x.stop && !isFinal(x) && !x.dnc);
@@ -174,6 +182,9 @@ export function effectsOf(c: Contact, out: string, fu?: string | null) {
     if (out === 'Not Interested') fx.push(`${c.n} can be called again on ${fmtD(nx)} (${CFG.rc['Not Interested']} days)`);
     else fx.push(`${c.n} is never called again`);
     if (out === 'Already Building / Done') fx.push('Construction Started changes to Yes on the property');
+    const more = otherSlots(c).length;
+    if (out === 'Do Not Contact' && more) fx.push(`${c.n} also owns ${more} other propert${more > 1 ? 'ies' : 'y'}: ${more > 1 ? 'they leave' : 'it leaves'} the lists too`);
+    if (out === 'Not Interested' && more) fx.push(`Only this property: ${c.n}’s other ${more} propert${more > 1 ? 'ies stay' : 'y stays'} in outreach`);
   } else if (out === 'Wrong Number') {
     const other = c.phones.find((x, i) => i !== phIdx(c) && x.st !== 'bad');
     fx.push(other ? `This number is marked wrong. Next call goes to ${other.n} on ${fmtWD(nx!)}` : 'On hold until there is a new number (phase 2: automatic number search)');
@@ -193,10 +204,11 @@ export function saveOutcome(ck: string, rep: RepKey, out: string, note: string, 
   const fx = effectsOf(c, out, fu);
   const at = isoT(nowT(4));
   const ix = c.callPh != null ? c.callPh : phIdx(c);
-  const call: Call = { id: SEQ.call++, ct: c.k, rep, at, out, note, ph: c.phones[ix].n, live: true };
+  const ph = c.phones[ix];
+  const call: Call = { id: SEQ.call++, ct: c.k, rep, at, out, note, ph: ph?.n || '', live: true };
   CALLS.push(call);
-  if (out === 'Wrong Number') c.phones[ix].st = 'bad';
-  else if (out !== 'Not Contacted' && out !== 'Left VM') c.phones[ix].st = 'ok';
+  if (ph && out === 'Wrong Number') ph.st = 'bad';
+  else if (ph && out !== 'Not Contacted' && out !== 'Left VM') ph.st = 'ok';
   c.att++; c.out = out; c.lastAt = at; c.note = note || c.note;
   if (!c.rep || out === 'Follow Up' || out === 'Undecided') c.rep = c.rep || rep;
   c.nextAt = nextFor(out, at, c, fu);
@@ -213,6 +225,9 @@ export function saveOutcome(ck: string, rep: RepKey, out: string, note: string, 
     sibs.forEach(x => { x.stop = { why: `${c.n} said ${out}`, by: c.k }; });
     if (out === 'Already Building / Done') p.started = 'Yes';
   }
+  // "Do Not Contact" is about the person: their other properties leave the lists too.
+  // "Not Interested" and the rest stay with this property only.
+  if (out === 'Do Not Contact') otherSlots(c).forEach(x => { x.stop = { why: `${c.n} asked not to be contacted`, by: c.k }; });
   syncLog('Fire Rebuild Properties', p.addr, `Outreach Status: ${propStatus(p)}` + (p.started === 'Yes' ? ', Construction Started: Yes' : ''));
   return fx;
 }

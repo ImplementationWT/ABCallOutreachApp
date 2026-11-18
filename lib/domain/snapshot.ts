@@ -7,7 +7,7 @@
  * Pure: no driver, no DOM.
  */
 import { CAMPS, resetCampaigns, type Campaign } from './campaigns';
-import { CALLS, CTS, LEADS, PROPS, SEQ, SYNC, resetData, type Call, type Contact, type Lead, type Phone, type PhoneSt, type Property, type SyncEntry } from './data';
+import { C, CALLS, CTS, LEADS, PROPS, SEQ, SLOT_KEYS, SYNC, resetData, type Call, type Contact, type Lead, type Phone, type PhoneSt, type Property, type SlotState, type SyncEntry } from './data';
 import { TODAY } from './dates';
 import { DAY, resetDays, type DayState } from './engine';
 import { DAYM, resetDaym } from './metrics';
@@ -24,7 +24,9 @@ export type Snapshot = Record<CollectionName, Doc[]>;
 
 /* ----- Document shapes ----- */
 export type PropertyDoc = Omit<Property, 'k'> & { _id: string };
-export type ContactDoc = Omit<Contact, 'k' | 'phones' | 'res'> & { _id: string };
+/** `pst`: the outreach state of the owner's other properties (`props` after the first), by property. */
+export type ContactDoc = Omit<Contact, 'k' | 'phones' | 'res' | 'base'> & { _id: string; pst?: Record<string, SlotState> };
+const SLOT0: SlotState = { out: null, lastAt: null, nextAt: null, att: 0, rep: null, stop: null, note: '' };
 export type PhoneDoc = { _id: string; ct: string; idx: number; n: string; st: PhoneSt };
 export type CampaignDoc = Omit<Campaign, 'k'> & { _id: string; pos: number };
 /** One contact reserved for one rep on one day (the rep's list, in order, and whether it was documented). */
@@ -52,10 +54,19 @@ export function toDocs(): Snapshot {
   }
   const metrics: MetricDoc[] = [];
   for (const day of Object.keys(DAYM)) for (const r of Object.keys(DAYM[day]) as RepKey[]) metrics.push({ _id: `${day}:${r}`, day, rep: r, ...DAYM[day][r] });
+  // The slots of an owner go back into their one document: their state by property in `pst`
+  const pst: Record<string, Record<string, SlotState>> = {};
+  for (const c of CTS) if (c.base) (pst[c.base] ||= {})[c.prop] = Object.fromEntries(SLOT_KEYS.map(k => [k, c[k]])) as SlotState;
+  const people = CTS.filter(c => !c.base);
   return clean({
     properties: PROPS.map(({ k, ...p }) => ({ _id: k, ...p })),
-    contacts: CTS.map(c => { const d: Record<string, unknown> = { _id: c.k, ...c }; delete d.k; delete d.phones; delete d.res; return d; }),
-    phone_numbers: CTS.flatMap(c => c.phones.map((p, idx): PhoneDoc => ({ _id: `${c.k}#${idx}`, ct: c.k, idx, n: p.n, st: p.st }))),
+    contacts: people.map(c => {
+      const d: Record<string, unknown> = { _id: c.k, ...c };
+      delete d.k; delete d.phones; delete d.res; delete d.base;
+      if (pst[c.k]) d.pst = pst[c.k];
+      return d;
+    }),
+    phone_numbers: people.flatMap(c => c.phones.map((p, idx): PhoneDoc => ({ _id: `${c.k}#${idx}`, ct: c.k, idx, n: p.n, st: p.st }))),
     campaigns: CAMPS.map(({ k, ...c }, pos) => ({ _id: k, ...c, pos })),
     reservations,
     workdays,
@@ -78,7 +89,12 @@ export function fromDocs(s: Snapshot) {
   const phones: Record<string, Phone[]> = {};
   for (const p of (s.phone_numbers as PhoneDoc[]).slice().sort((a, b) => a.idx - b.idx)) (phones[p.ct] ||= []).push({ n: p.n, st: p.st });
   for (const d of (s.properties as PropertyDoc[]).slice().sort((a, b) => byNum(a._id) - byNum(b._id))) PROPS.push({ k: d._id, ...strip(d) } as Property);
-  for (const d of (s.contacts as ContactDoc[]).slice().sort((a, b) => byNum(a._id) - byNum(b._id))) CTS.push({ k: d._id, ...strip(d), phones: phones[d._id] || [], res: null } as Contact);
+  for (const d of (s.contacts as ContactDoc[]).slice().sort((a, b) => byNum(a._id) - byNum(b._id))) {
+    const c = { k: d._id, ...strip(d, 'pst'), phones: phones[d._id] || [], res: null } as Contact;
+    CTS.push(c);
+    // One slot per other property of the same owner: same person (and the same phones array), own state
+    for (const pk of c.props || []) if (pk !== c.prop) CTS.push({ ...c, ...SLOT0, ...d.pst?.[pk], k: `${d._id}@${pk}`, prop: pk, base: d._id, res: null });
+  }
   CAMPS.length = 0;
   for (const d of (s.campaigns as CampaignDoc[]).slice().sort((a, b) => a.pos - b.pos)) CAMPS.push({ k: d._id, ...strip(d, 'pos') } as Campaign);
   for (const d of (s.call_log as CallDoc[]).slice().sort((a, b) => a._id - b._id)) CALLS.push({ id: d._id, ...strip(d) } as Call);
@@ -98,7 +114,7 @@ export function fromDocs(s: Snapshot) {
   for (const r of (s.reservations as ReservationDoc[]).filter(r => r.date === TODAY).sort((a, b) => a.order - b.order)) {
     DAY[r.rep].list.push(r.ct);
     if (r.done != null) DAY[r.rep].done[r.ct] = r.done;
-    const c = CTS.find(x => x.k === r.ct);
+    const c = C(r.ct);
     if (c) c.res = { rep: r.rep, date: r.date };
   }
   const meta = (s.app_meta as MetaDoc[]).find(m => m._id === 'state');

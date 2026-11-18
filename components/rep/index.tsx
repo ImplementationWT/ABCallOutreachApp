@@ -59,7 +59,7 @@ function QItem({ c, u, cur }: { c: Contact; u: RepKey; cur: boolean }) {
   const left = removed ? <span className="pr ok bg-r50 text-r500"><Icon n="ban" s={14} /></span> : done ? <span className="pr ok"><Icon n="check" s={15} /></span> : <PrTag pr={pr} />;
   const sub = done ? `${call!.out} at ${fmtT(call!.at)}` : removed ? (c.stop ? c.stop.why : 'Property handed to sales') : `${c.out ? c.out + ' ' + fmtS(c.lastAt) : 'Never called'}, attempt ${c.att + 1}`;
   const tags = done || removed ? null : <div className="tags">{ownerOf(c) === u ? <Pill t={pr === 'P1' ? 'Your follow-up' : 'Your undecided'} cls={pr === 'P1' ? 'red' : 'violet'} /> : null}{p.permit === 'Permit Issued' ? <Pill t="Permit issued" cls="green" /> : p.permit === 'Plans Submitted' ? <Pill t="Plans submitted" cls="amber" /> : null}<Pill t={AUDS[p.aud].s} /></div>;
-  return <button className={`qi ${done || removed ? 'done' : ''}`} {...on('qsel', c.k)} aria-current={cur} data-hl={c.k}>{left}<span className="min-w-0"><b>{c.n}</b><small>{p.addr}</small><small>{sub}</small>{tags}</span><span /></button>;
+  return <button className={`qi ${done || removed ? 'done' : ''}`} {...on('qsel', c.k)} aria-current={cur} data-hl={c.k}>{left}<span className="min-w-0"><b>{c.n}</b><small>{p.addr || "No address"}</small><small>{sub}</small>{tags}</span><span /></button>;
 }
 function RepWork() {
   const u = S.user, d = DAY[u];
@@ -119,7 +119,7 @@ function RepDetail({ c }: { c: Contact }) {
             {dr.out ? <div className="effect"><b>When you save</b><ul>{effectsOf(c, dr.out, dr.fu).map((x, i) => <li key={i}>{x}</li>)}</ul></div> : null}
             <div className="savebar"><span className="sm muted">{dr.out ? '' : 'Pick a result to save.'}{dr.out === 'Follow Up' && !dr.fu ? 'Pick the call back date.' : ''}</span><span className="sp" /><button className="btn pri" {...on('saveout', c.k)} disabled={!(dr.out && fuOk)}><Icon n="check" s={15} />Save and next</button></div></div>
         </>}
-    <div className="dcard"><h3><Icon n="home" s={16} />The property<span className="r"><StPill s={propStatus(p)} /></span></h3><div className="grid4"><Kv l="Permit" v={p.permit === 'None' ? 'No permit yet' : p.permit} sub={p.permitDate ? fmtD(p.permitDate) : ''} /><Kv l="Construction started" v={p.started} /><Kv l="Audience" v={AUDS[p.aud].s} /><Kv l="Owner since" v={p.since} /></div>
+    <div className="dcard"><h3><Icon n="home" s={16} />The property<span className="r"><StPill s={propStatus(p)} /></span></h3><div className="grid4"><Kv l="Permit" v={p.permit === 'None' ? 'No permit yet' : p.permit} sub={p.permitDate ? fmtD(p.permitDate) : ''} /><Kv l="Construction started" v={p.started} /><Kv l="Audience" v={AUDS[p.aud].s} /><Kv l="Owner since" v={p.since ?? "—"} /></div>
       <div className="lbl mt-[12px]">Other contacts at this property</div>{sibs.length ? <div className="octs">{sibs.map(x => <SibRow key={x.k} x={x} u={u} />)}</div> : <p className="sm muted">No other contacts.</p>}</div>
     <div className="dcard"><h3><Icon n="clock" s={16} />History at this property</h3><HistList pk={p.k} /></div>
     <div className="dcard"><h3><Icon n="file" s={16} />Script: {AUDS[p.aud].n}<span className="r"><button className="btn ghost sm" {...on('togscript')}>{S.f.script ? 'Hide' : 'Show'}</button></span></h3>{S.f.script ? <><div className="script">{scriptFor(c, p, u)}</div><p className="sm muted mt-[6px]">Draft script written for the demo. AB sets the real one per campaign.</p></> : <p className="sm muted">The campaign script, with the contact’s name and address filled in.</p>}</div>
@@ -147,13 +147,13 @@ export function HistList({ pk }: { pk: string }) {
 function scriptFor(c: Contact, p: Property, u: RepKey) {
   const fn = c.n.split(' ')[0];
   const bg = { pp: 'Pacific Palisades', sm: 'Sunset Mesa', mb: 'Malibu', ad: 'Altadena' }[p.aud];
-  return `Hi ${fn}, this is ${first(u)} with Arzuman Brothers. We are a design-build firm rebuilding homes in ${bg} after the January 2025 fires, and we are building in your neighborhood right now.\n\nI am calling about ${p.addr}. ${p.permit === 'Permit Issued' ? 'I saw your permit was issued, congratulations. Do you already have a builder for the construction?' : p.permit === 'Plans Submitted' ? 'I saw your plans are submitted. Where are you in the process?' : 'Have you started planning the rebuild?'}\n\nWe handle everything from plans and permits to construction. Would it help to have someone from our team walk you through how that works and what it could cost?\n\nIf yes: set the result to Interested and note the best time and email.\nIf not now: ask when it would make sense to call back and set a Follow Up.`;
+  return `Hi ${fn}, this is ${first(u)} with Arzuman Brothers. We are a design-build firm rebuilding homes in ${bg} after the January 2025 fires, and we are building in your neighborhood right now.\n\nI am calling about ${p.addr || "your property"}. ${p.permit === 'Permit Issued' ? 'I saw your permit was issued, congratulations. Do you already have a builder for the construction?' : p.permit === 'Plans Submitted' ? 'I saw your plans are submitted. Where are you in the process?' : 'Have you started planning the rebuild?'}\n\nWe handle everything from plans and permits to construction. Would it help to have someone from our team walk you through how that works and what it could cost?\n\nIf yes: set the result to Interested and note the best time and email.\nIf not now: ask when it would make sense to call back and set a Follow Up.`;
 }
 
 function RepFollowUps() {
   const u = S.user;
   const l = myFollowUps(u).sort((a, b) => a.nextAt!.localeCompare(b.nextAt!));
-  const row = (c: Contact) => { const p = P(c.prop), pr = priOf(c); return <div key={c.k} className="row grid-cols-[40px_minmax(0,1.4fr)_minmax(0,1fr)_150px_130px]" {...on('openprop', p.k)}><PrTag pr={pr} sm /><div className="t"><b>{c.n}</b><small>{p.addr}, {AUDS[p.aud].s}</small></div><div className="cell">{c.note || ''}</div><div className="cell"><OutPill o={c.out} /><small>{fmtS(c.lastAt)}</small></div><div className="cell"><b>{fmtWD(c.nextAt!)}</b><small>{relDay(c.nextAt!)}</small></div></div>; };
+  const row = (c: Contact) => { const p = P(c.prop), pr = priOf(c); return <div key={c.k} className="row grid-cols-[40px_minmax(0,1.4fr)_minmax(0,1fr)_150px_130px]" {...on('openprop', p.k)}><PrTag pr={pr} sm /><div className="t"><b>{c.n}</b><small>{p.addr || "No address"}, {AUDS[p.aud].s}</small></div><div className="cell">{c.note || ''}</div><div className="cell"><OutPill o={c.out} /><small>{fmtS(c.lastAt)}</small></div><div className="cell"><b>{fmtWD(c.nextAt!)}</b><small>{relDay(c.nextAt!)}</small></div></div>; };
   const g = (t: string, arr: Contact[]) => arr.length ? <div className="grp" key={t}><div className="grp-h"><i />{t}<span className="n">{arr.length}</span></div><div className="rows">{arr.map(row)}</div></div> : null;
   const wk = iso(addDays(T0, 6));
   return <>
@@ -166,7 +166,7 @@ function RepCalls() {
   return <>
     <PageHeader t="My calls today" sub={fmtWD(TODAY)} />
     <div className="grid4 mb-[14px]"><Kv l="Calls made" v={m.calls} /><Kv l="Connects" v={m.con} sub={m.d2c + ' of calls'} /><Kv l="Conversations" v={m.conv} sub={m.c2v + ' of connects'} /><Kv l="New leads" v={m.leads} sub={m.v2l + ' of conversations'} /></div>
-    {cl.length ? <div className="rows">{cl.map(x => { const c = C(x.ct), p = P(c.prop); return <div key={x.id} className="row grid-cols-[90px_minmax(0,1fr)_190px_minmax(0,1fr)]" {...on('openprop', p.k)}><div className="cell"><b>{fmtT(x.at)}</b></div><div className="t"><b>{c.n}</b><small>{p.addr}, {x.ph}</small></div><div className="cell"><OutPill o={x.out} /></div><div className="cell muted">{x.note || ''}</div></div>; })}</div> : <div className="empty">No calls yet today. Start your workday on My Outbound Dashboard.</div>}
+    {cl.length ? <div className="rows">{cl.map(x => { const c = C(x.ct), p = P(c.prop); return <div key={x.id} className="row grid-cols-[90px_minmax(0,1fr)_190px_minmax(0,1fr)]" {...on('openprop', p.k)}><div className="cell"><b>{fmtT(x.at)}</b></div><div className="t"><b>{c.n}</b><small>{p.addr || "No address"}, {x.ph}</small></div><div className="cell"><OutPill o={x.out} /></div><div className="cell muted">{x.note || ''}</div></div>; })}</div> : <div className="empty">No calls yet today. Start your workday on My Outbound Dashboard.</div>}
   </>;
 }
 
