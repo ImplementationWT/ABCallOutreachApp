@@ -93,7 +93,7 @@ jobs:
         run: |
           # The job's short-lived token is used to pull, then the server logs out of the registry
           printf '%s' "$TOKEN" | ssh -i ~/.ssh/deploy ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-            "docker login ghcr.io -u ${{ github.actor }} --password-stdin >/dev/null && cd ~/outreach && TAG=${{ github.sha }} docker compose pull && TAG=${{ github.sha }} docker compose up -d --remove-orphans; s=\$?; docker logout ghcr.io >/dev/null; exit \$s"
+            "docker login ghcr.io -u ${{ github.actor }} --password-stdin >/dev/null && cd ~/outreach && TAG=${{ github.sha }} docker-compose pull && TAG=${{ github.sha }} docker-compose up -d --remove-orphans; s=\$?; docker logout ghcr.io >/dev/null; exit \$s"
       - name: Check it answers
         run: |
           ssh -i ~/.ssh/deploy ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} '
