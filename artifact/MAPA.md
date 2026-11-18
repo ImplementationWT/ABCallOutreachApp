@@ -72,7 +72,8 @@ Los tokens también están expuestos a Tailwind en `app/globals.css` (`@theme in
 | `sbar` | `components/shell/Sidebar.tsx` |
 | `toast` | `lib/state/store.ts` + `components/shell/Toast.tsx` |
 | `NAVIGATION` (`go`, `openProp`) | `lib/state/navigation.ts` (más el mapeo S ↔ URL) |
-| `RENDER`: `whoNow`, `badges`, `renderTop` | `components/shell/TopBar.tsx` |
+| `RENDER`: `whoNow`, `renderTop` | `components/shell/TopBar.tsx` (sin las pestañas de apps) |
+| `RENDER`: pestañas de apps de `renderTop` y `badges` | `components/shell/AppSwitcher.tsx` (desplegable arriba del sidebar) |
 | `renderApp`, `render` | `components/shell/AppScreen.tsx`; scroll arriba, `S.hl`, `document.title` en `components/shell/Shell.tsx` |
 | `renderLayer`, `popHtml` | `components/shell/Layer.tsx` |
 | `GENERIC ACTIONS` | `lib/state/actions.ts` |
@@ -150,3 +151,7 @@ Los tokens también están expuestos a Tailwind en `app/globals.css` (`@theme in
 16. **Sin selector de usuario.** La pantalla "Sign in to the Call Center" (`loginPage`) y `A.signin` no existen: el
     login real decide quién es cada uno. El avatar ("Switch user" en el artifact) abre Account. Un manager abre la lista
     de un rep con "Open as" en The day by rep. Si una versión nueva del artifact cambia `loginPage`, no hay nada que portar.
+17. **Apps en el sidebar.** Las pestañas de apps del top bar (`.appsw`) pasaron a un desplegable arriba del sidebar
+    (`AppSwitcher`), con los mismos conteos y solo las apps permitidas. Data también tiene sidebar, con el selector.
+    El top bar queda con la marca, Walkthrough, la cuenta, el tema y el usuario. El CSS de `.appsw` del artifact sigue
+    en `01-top-bar.css` sin uso. El indicador de desarrollo de Next está desactivado (`devIndicators: false`).

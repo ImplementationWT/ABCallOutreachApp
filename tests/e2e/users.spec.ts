@@ -34,7 +34,9 @@ test('team users: Andrew manages, Maya works her own list only', async ({ browse
   const maya = await signIn(browser, 'maya', pw.maya, 'maya-own-pass1');
   await expect(maya).toHaveURL(/\/rep\/today$/);
   await expect(maya.locator('.me b')).toHaveText('Maya Torres');
-  await expect(maya.locator('#appsw button')).toHaveText([/^Rep Workspace/, /^Properties/, /^Calling and AI/]);
+  await maya.locator('#appsel').click();
+  await expect(maya.locator('[role=menu] [role=menuitem]')).toHaveText([/^Rep Workspace/, /^Properties/, /^Calling and AI/]);
+  await maya.keyboard.press('Escape');
   await maya.goto('/mgr/live'); await maya.waitForLoadState('networkidle');
   await expect(maya).toHaveURL(/\/rep\/today$/);
   await maya.goto('/'); await maya.waitForLoadState('networkidle');
@@ -72,7 +74,9 @@ test('team users: Andrew manages, Maya works her own list only', async ({ browse
   await andrew.locator('.modal button', { hasText: 'Done' }).click();
   await expect(andrew.locator('tr[data-user="harut"]')).toContainText('Viewer');
   const harut = await signIn(browser, 'harut', harutPw, 'harut-own-pass1');
-  await expect(harut.locator('#appsw button')).toHaveText([/^Outreach Manager/, /^Properties/, /^Calling and AI/, /^Data/]);
+  await harut.locator('#appsel').click();
+  await expect(harut.locator('[role=menu] [role=menuitem]')).toHaveText([/^Outreach Manager/, /^Properties/, /^Calling and AI/, /^Data/]);
+  await harut.keyboard.press('Escape');
   await harut.goto('/mgr/rules'); await harut.waitForLoadState('networkidle');
   await expect(harut.locator('#cfg-maxAtt')).toHaveAttribute('readonly', '');
   await harut.goto('/mgr/camp'); await harut.waitForLoadState('networkidle');

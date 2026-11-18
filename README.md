@@ -8,8 +8,8 @@ login real ni sincronización con monday todavía.
 ## Cómo correrlo
 
 Si el repo está en una carpeta sincronizada con iCloud (`~/Documents`), iCloud puede borrar archivos de `node_modules`
-y `.next`. Para evitarlo, muévelos a carpetas `*.nosync` y deja un enlace: `mv node_modules node_modules.nosync && ln -s node_modules.nosync node_modules`
-(igual con `.next`). Ambas están en `.gitignore`.
+y `.next` y crear copias como `package 2.json`. Márcalas para que iCloud las ignore (macOS 13 o posterior):
+`xattr -w 'com.apple.fileprovider.ignore#P' 1 node_modules .next`. Lo más seguro es tener el repo fuera de iCloud.
 
 ```bash
 npm install
@@ -122,7 +122,7 @@ Los enlaces antiguos del artifact (`/#vista=mgr&pagina=rules`) redirigen a su ru
 
 ```
 app/                 rutas (cada página renderiza <AppScreen> con sus params)
-components/shell/    TopBar, Sidebar, AppScreen, Layer (modal y popovers), Toast, Tour, HelpPage, Shell
+components/shell/    TopBar, Sidebar con el selector de apps (AppSwitcher), AppScreen, Layer (modal y popovers), Toast, Tour, HelpPage, Shell
 components/ui/       Icon (mapa IC), Pill y variantes, Avatar, PageHeader, Kv, Bar, StatFilter, Picker, DateField
 components/rep|mgr|prp|p2|data|signin/   una pieza por cada función de página del artifact
 lib/domain/          dominio puro y tipado, sin DOM: fechas, semilla, catálogos, reglas, datos, motor, métricas,

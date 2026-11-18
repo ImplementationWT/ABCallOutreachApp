@@ -1,6 +1,6 @@
 /* A second walk over the actions the first one does not touch, again on both targets. */
 import { expect, test, type Page } from '@playwright/test';
-import { TOASTS, btn, idle, openApp, openArtifact, toastText , openAsAndrew, openAsMaya } from './targets';
+import { TOASTS, btn, idle, openApp, openArtifact, toastText , openAsAndrew, openAsMaya, switchApp } from './targets';
 import { STORAGE, reseed } from './db';
 
 test.beforeEach(async () => { await reseed(); });
@@ -58,7 +58,7 @@ async function walk(page: Page) {
   await note('reopen', toastText(page));
 
   // Data modes
-  await btn(page, 'Data', '#appsw').click(); await idle(page);
+  await switchApp(page, 'Data');
   for (const m of ['Tables', 'Access by app', 'Where it runs']) { await btn(page, m, '.toolbar').click(); await idle(page); await note(m, text('.dbw')); }
   await btn(page, 'Process A to Z', '.toolbar').click(); await idle(page);
   await page.locator('.azr').first().click(); await idle(page);

@@ -4,15 +4,16 @@
  * the artifact, so an action that navigates shows its result before the URL push lands. */
 import type React from 'react';
 import { useId, useLayoutEffect } from 'react';
-import { applyRoute, type Route } from '@/lib/state/navigation';
+import { applyRoute, routeOf, type Route } from '@/lib/state/navigation';
 import { loadState, useData } from '@/lib/state/persist';
 import { useMe } from '@/lib/state/auth';
 import { VIEW_PERM, homeOf } from '@/lib/auth/roles';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { APP_FASE, S, bump, useApp, type AppKey } from '@/lib/state/store';
 import { PhaseBanner } from '@/components/ui';
 import { HelpPage } from './HelpPage';
+import { AppSwitcher } from './AppSwitcher';
 import { RepSide, RepPages } from '@/components/rep';
 import { MgrSide, MgrPages } from '@/components/mgr';
 import { PrpSide, PrpPages, PrpRecord } from '@/components/prp';
@@ -43,8 +44,11 @@ function renderApp(k: AppKey) {
 const hidden = new Set<string>();
 const setHidden = (id: string, h: boolean) => { if (h) hidden.add(id); else hidden.delete(id); bump(); };
 
-export function AppScreen(route: Route) {
+/** Without props, the route comes from the URL (dynamic pages do not read `params`, so they stay instant). */
+export function AppScreen(props: Partial<Route>) {
   const id = useId();
+  const pathname = usePathname() ?? '/';
+  const route: Route = props.view ? (props as Route) : routeOf(pathname) ?? { view: S.view };
   useLayoutEffect(() => {
     if (hidden.has(id)) setHidden(id, false);
     return () => setHidden(id, true);
@@ -66,6 +70,6 @@ export function AppScreen(route: Route) {
   </div></div></section>;
   const v = S.view;
   if (v === 'in') return null; // no section yet: / sends each user to their home
-  if (v === 'db') return <section className="view" key="db"><div id="dbview"><DataPage /></div></section>;
+  if (v === 'db') return <section className="view" key="db"><div className="oapp"><aside className="sb"><AppSwitcher current="db" /></aside><div id="dbview" className="min-w-0"><DataPage /></div></div></section>;
   return <section className="view" key={v} id={'v-' + v}>{renderApp(v)}</section>;
 }
