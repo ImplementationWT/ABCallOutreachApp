@@ -30,7 +30,8 @@ test('change the password, log out and sign in with the new one', async ({ page 
   await signIn(page, 'admin', 'adminmaster123');
   await expect(page).toHaveURL(/\/mgr\/live$/);
   await expect(page.locator('.op-h h1')).toHaveText('The day by rep');
-  await page.locator('button[data-auth="account"]').click();
+  await page.locator('#usermenu').click();
+  await page.locator('[role=menu] [data-menu="password"]').click();
   await expect(page.locator('.modal')).toContainText('Signed in as admin');
   const form = page.locator('.modal form');
   await form.locator('#pw-current').fill('nope-nope');
