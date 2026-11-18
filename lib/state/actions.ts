@@ -14,7 +14,7 @@ import {
 import { TOUR } from '@/lib/domain/tour';
 import { go, openProp } from './navigation';
 import { queueSort } from './rep';
-import { APPS, S, bump, store, toast, type AppKey, type ViewKey } from './store';
+import { APPS, PAGE_SIZES, S, bump, store, toast, type AppKey, type ViewKey } from './store';
 import { can } from './auth';
 import { isLocked, type Perm } from '@/lib/auth/roles';
 
@@ -73,7 +73,7 @@ export const inp = (spec: string) => ({
 
 /* ===== GENERIC ACTIONS ===== */
 A.view = v => { S.view = v as ViewKey; S.top = true; };
-A.filt = v => { const [k, val] = v.split('|'); S.f[k] = val; };
+A.filt = v => { const [k, val] = v.split('|'); S.f[k] = val; firstPages(); };
 A.mclose = () => { S.modal = null; };
 A.mscrim = (v, t, e) => { if (e && e.target === t) S.modal = null; else return false; };
 A.theme = () => {
@@ -153,7 +153,11 @@ A.radone = () => {
   syncLog('Fire Rebuild Contacts', 'Reassign', `${moved} contacts moved from ${PEO[from].n} to ${PEO[to].n}`);
   S.modal = null; toast(`${moved} contacts moved to ${PEO[to].n}`);
 };
-IN.srch = (v, k) => { S.srch[k] = v; };
+IN.srch = (v, k) => { S.srch[k] = v; firstPages(); };
+/* Tables: page (‹ ›) and rows per page (20, 30 or 50). A new filter or search goes back to page 1. */
+const firstPages = () => { for (const k of Object.keys(S.pg)) S.pg[k].i = 0; };
+A.pgo = v => { const [k, i] = v.split('|'); (S.pg[k] ||= { i: 0, n: PAGE_SIZES[0] }).i = Math.max(0, Number(i) || 0); };
+A.pgn = v => { const [k, n] = v.split('|'); S.pg[k] = { i: 0, n: PAGE_SIZES.includes(Number(n)) ? Number(n) : PAGE_SIZES[0] }; };
 A.newcamp = () => { S.modal = { k: 'newcamp', date: iso(nextBiz(T0)), auds: ['pp'], reps: ['may', 'dan'], goal: 1 }; };
 A.ncaud = v => { const a: string[] = S.modal!.auds; S.modal!.auds = a.includes(v) ? a.filter(x => x !== v) : a.concat(v); };
 A.ncrep = v => { const a: string[] = S.modal!.reps; S.modal!.reps = a.includes(v) ? a.filter(x => x !== v) : a.concat(v); };

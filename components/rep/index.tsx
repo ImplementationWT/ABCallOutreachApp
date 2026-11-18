@@ -13,7 +13,7 @@ import { inp, on } from '@/lib/state/actions';
 import { myFollowUps, queueSort } from '@/lib/state/rep';
 import { S } from '@/lib/state/store';
 import { Sidebar } from '@/components/shell/Sidebar';
-import { AudPill, Bar, DateField, Icon, Kv, OutPill, P2Tag, PageHeader, Pill, PrTag, StPill } from '@/components/ui';
+import { AudPill, Bar, DateField, Icon, Kv, OutPill, P2Tag, PageHeader, Pill, PrTag, StPill, paged } from '@/components/ui';
 
 const repCamp = () => campOf(S.user);
 /* Render-time writes to S, as in the artifact (default selection and the draft of a contact). */
@@ -154,7 +154,7 @@ function RepFollowUps() {
   const u = S.user;
   const l = myFollowUps(u).sort((a, b) => a.nextAt!.localeCompare(b.nextAt!));
   const row = (c: Contact) => { const p = P(c.prop), pr = priOf(c); return <div key={c.k} className="row grid-cols-[40px_minmax(0,1.4fr)_minmax(0,1fr)_150px_130px]" {...on('openprop', p.k)}><PrTag pr={pr} sm /><div className="t"><b>{c.n}</b><small>{p.addr || "No address"}, {AUDS[p.aud].s}</small></div><div className="cell">{c.note || ''}</div><div className="cell"><OutPill o={c.out} /><small>{fmtS(c.lastAt)}</small></div><div className="cell"><b>{fmtWD(c.nextAt!)}</b><small>{relDay(c.nextAt!)}</small></div></div>; };
-  const g = (t: string, arr: Contact[]) => arr.length ? <div className="grp" key={t}><div className="grp-h"><i />{t}<span className="n">{arr.length}</span></div><div className="rows">{arr.map(row)}</div></div> : null;
+  const g = (t: string, arr: Contact[]) => { if (!arr.length) return null; const pg = paged('fu:' + t, arr); return <div className="grp" key={t}><div className="grp-h"><i />{t}<span className="n">{arr.length}</span></div><div className="rows">{pg.rows.map(row)}</div>{pg.pager}</div>; };
   const wk = iso(addDays(T0, 6));
   return <>
     <PageHeader t="My follow-ups" sub="Follow Up (P1) and Undecided (P3) contacts always come back to you, on the date you set or after the waiting time in the rules." />
@@ -162,11 +162,11 @@ function RepFollowUps() {
   </>;
 }
 function RepCalls() {
-  const u = S.user, cl = callsOn(u, TODAY).slice().reverse(), m = mOf(callsOn(u, TODAY));
+  const u = S.user, cl = callsOn(u, TODAY).slice().reverse(), m = mOf(callsOn(u, TODAY)), pg = paged('calls', cl);
   return <>
     <PageHeader t="My calls today" sub={fmtWD(TODAY)} />
     <div className="grid4 mb-[14px]"><Kv l="Calls made" v={m.calls} /><Kv l="Connects" v={m.con} sub={m.d2c + ' of calls'} /><Kv l="Conversations" v={m.conv} sub={m.c2v + ' of connects'} /><Kv l="New leads" v={m.leads} sub={m.v2l + ' of conversations'} /></div>
-    {cl.length ? <div className="rows">{cl.map(x => { const c = C(x.ct), p = P(c.prop); return <div key={x.id} className="row grid-cols-[90px_minmax(0,1fr)_190px_minmax(0,1fr)]" {...on('openprop', p.k)}><div className="cell"><b>{fmtT(x.at)}</b></div><div className="t"><b>{c.n}</b><small>{p.addr || "No address"}, {x.ph}</small></div><div className="cell"><OutPill o={x.out} /></div><div className="cell muted">{x.note || ''}</div></div>; })}</div> : <div className="empty">No calls yet today. Start your workday on My Outbound Dashboard.</div>}
+    {cl.length ? <><div className="rows">{pg.rows.map(x => { const c = C(x.ct), p = P(c.prop); return <div key={x.id} className="row grid-cols-[90px_minmax(0,1fr)_190px_minmax(0,1fr)]" {...on('openprop', p.k)}><div className="cell"><b>{fmtT(x.at)}</b></div><div className="t"><b>{c.n}</b><small>{p.addr || "No address"}, {x.ph}</small></div><div className="cell"><OutPill o={x.out} /></div><div className="cell muted">{x.note || ''}</div></div>; })}</div>{pg.pager}</> : <div className="empty">No calls yet today. Start your workday on My Outbound Dashboard.</div>}
   </>;
 }
 

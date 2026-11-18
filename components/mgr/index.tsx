@@ -15,7 +15,7 @@ import { UsersPage } from './users';
 import { TeamChart } from './TeamChart';
 import type { SbItem } from '@/components/shell/Sidebar';
 import { Sidebar } from '@/components/shell/Sidebar';
-import { Avatar, Bar, Icon, KPI_GRID, Kv, OutPill, PageHeader, Pill, PrTag, StatFilter } from '@/components/ui';
+import { Avatar, Bar, Icon, KPI_GRID, Kv, OutPill, PageHeader, Pill, PrTag, StatFilter, paged } from '@/components/ui';
 
 export function MgrSide() {
   return <Sidebar k="mgr" items={[['Today'], ['live', 'The day by rep', 'target'], ['pool', 'Contact pool', 'users'], ['leads', 'Hand-offs to sales', 'hand', LEADS.filter(l => l.fresh).length], ['Plan'], ['camp', 'Campaigns', 'cal'], ['rules', 'Assignment rules', 'gear'], ['Results'], ['perf', 'Performance', 'chart'], ['mail', 'Daily emails', 'mail'], ['monday'], ['sync', 'monday sync', 'sync'], ...(can('users.manage') ? [['Admin'], ['users', 'Users', 'key']] as SbItem[] : [])]} />;
@@ -65,13 +65,14 @@ function MgrPool() {
   const rk = (p?: Pri) => p ? PRANK[p] : 9;
   const rows = E.filter(([c, e]) => (f === 'all' || e.k === f) && (!q || (c.n + ' ' + P(c.prop).addr).toLowerCase().includes(q)))
     .sort((a, b) => rk(a[1].pri) - rk(b[1].pri) || (a[0].nextAt || '').localeCompare(b[0].nextAt || ''));
+  const pg = paged('pool', rows);
   return <>
     <PageHeader t="Contact pool" sub="Every contact and why it is, or is not, in today’s lists. The rules run in this order: handed to sales, Do Not Call and suppression, already in AB’s pipeline, closed, removed by another contact, no valid phone, max attempts, not due yet." />
     <div className={`stats ${KPI_GRID}`}>{POOLF.map(([k, l, cl]) => <StatFilter key={k} fk="pool" val={k} label={l} n={cnt(k)} cls={cl} />)}</div>
     <div className="toolbar"><div className="search"><Icon n="search" s={15} /><input id="srpool" placeholder="Search name or address" defaultValue={S.srch.pool || ''} {...inp('srch.pool')} /></div><span className="sp" /><span className="sm muted">{rows.length} contacts</span></div>
     <div className="rows">
       <div className={`row head ${POOL_COLS}`}><span /><span>Contact</span><span>Property</span><span>Last result</span><span>Next eligible</span><span>Status</span></div>
-      {rows.slice(0, 120).map(([c, e]) => {
+      {pg.rows.map(([c, e]) => {
         const p = P(c.prop);
         return <div key={c.k} className={`row ${POOL_COLS}`} {...on('openprop', p.k)}>
           {e.pri ? <PrTag pr={e.pri} sm /> : <span />}
@@ -83,18 +84,19 @@ function MgrPool() {
         </div>;
       })}
     </div>
+    {pg.pager}
   </>;
 }
 
 /* ----- Hand-offs to sales ----- */
 const LEAD_COLS = 'grid-cols-[80px_minmax(0,1.2fr)_minmax(0,1fr)_150px_130px_minmax(0,1.4fr)]';
 function MgrLeads() {
-  const l = LEADS.slice().sort((a, b) => b.at.localeCompare(a.at));
+  const l = LEADS.slice().sort((a, b) => b.at.localeCompare(a.at)), pg = paged('leads', l);
   return <>
     <PageHeader t="Hand-offs to sales" sub="The rep’s job is to find interest and pass it on. Every Potential Lead becomes an item in the AB Leads board in monday, with the call history, for the internal team. Inbound calls taken by the office are there too, and their properties stay out of outbound lists." />
     <div className="rows">
       <div className={`row head ${LEAD_COLS}`}><span>Lead</span><span>Property</span><span>Contact</span><span>Source</span><span>Date</span><span>Note</span></div>
-      {l.map(x => {
+      {pg.rows.map(x => {
         const p = P(x.prop), c = C(x.ct);
         return <div key={x.k} className={`row ${x.fresh ? 'alert bg-g25' : ''} ${LEAD_COLS}`} {...on('openprop', p.k)}>
           <div className="cell"><b>{x.k}</b></div>
@@ -106,6 +108,7 @@ function MgrLeads() {
         </div>;
       })}
     </div>
+    {pg.pager}
   </>;
 }
 
@@ -126,10 +129,11 @@ function CampRow({ c }: { c: (typeof CAMPS)[number] }) {
 }
 function MgrCamps() {
   const cur = CAMPS.filter(c => !c.past && c.date >= TODAY).sort((a, b) => a.date.localeCompare(b.date)), past = CAMPS.filter(c => c.past || c.date < TODAY);
+  const pc = paged('camp-cur', cur), pp = paged('camp-past', past);
   return <>
     <PageHeader t="Campaigns" sub="A campaign is a date, one or more audiences and the reps scheduled for it. The engine allocates each rep from the audiences of their campaign." acts={<button className="btn pri" {...on('newcamp')}><Icon n="plus" s={15} />New campaign</button>} />
-    <div className="grp"><div className="grp-h"><i className="bg-g500" />Today and upcoming<span className="n">{cur.length}</span></div><div className="rows">{cur.map(c => <CampRow key={c.k} c={c} />)}</div></div>
-    <div className="grp"><div className="grp-h"><i />Past<span className="n">{past.length}</span></div><div className="rows">{past.map(c => <CampRow key={c.k} c={c} />)}</div></div>
+    <div className="grp"><div className="grp-h"><i className="bg-g500" />Today and upcoming<span className="n">{cur.length}</span></div><div className="rows">{pc.rows.map(c => <CampRow key={c.k} c={c} />)}</div>{pc.pager}</div>
+    <div className="grp"><div className="grp-h"><i />Past<span className="n">{past.length}</span></div><div className="rows">{pp.rows.map(c => <CampRow key={c.k} c={c} />)}</div>{pp.pager}</div>
     <div className="card"><h3><Icon n="users" s={16} />Audiences</h3>
       <div className="grid4">{AUDK.map(a => { const ps = PROPS.filter(p => p.aud === a); return <Kv key={a} l={AUDS[a].n} v={ps.length + ' properties'} sub={`${ps.filter(p => propStatus(p) === 'Potential Lead').length} potential leads, ${ps.filter(p => p.permit === 'Permit Issued').length} with permit`} />; })}</div>
       <p className="sm muted mt-[8px]">One zone is still to be loaded from PropertyRadar. New audiences by trigger (property sold, new permits) are phase 2.</p>
@@ -269,12 +273,14 @@ Calls attempted $`;
 
 /* ----- monday sync ----- */
 function MgrSync() {
+  const sy = paged('sync', SYNC);
   const boards: [string, string, number][] = [['Fire Rebuild Properties', 'Outreach Status, Permit, Construction Started', PROPS.length], ['Fire Rebuild Contacts', 'Last Call Outcome, Last Call Date, Next Eligible Call, Call Attempts', CTS.length], ['AB Leads', 'Potential Leads with their call history', LEADS.length], ['Outreach Daily Metrics', 'Calls, connects, conversations and leads by rep and day', pastDays().length * REPS.length]];
   return <>
     <PageHeader t="monday sync" sub="The engine and the app run outside monday; monday stays where AB sees the information. Every result, hand-off and daily total is pushed to these boards." />
     <div className="grid4 mb-[14px]">{boards.map(([n, d, c]) => <div key={n} className="kv"><small>{n}</small><b>{c} items</b><span className="sub">{d}</span></div>)}</div>
     <div className="card synclog"><h3><Icon n="sync" s={16} />Today’s pushes<span className="r"><Pill t="Connected" cls="green dot" /></span></h3>
-      {SYNC.slice(0, 40).map((s, i) => <div key={i} className="mrow"><span className="muted w-[70px]">{fmtT(s.at)}</span><b>{s.board}</b><span>{s.item}</span><span className="muted ml-auto text-right">{s.what}</span></div>)}
+      {sy.rows.map((s, i) => <div key={i} className="mrow"><span className="muted w-[70px]">{fmtT(s.at)}</span><b>{s.board}</b><span>{s.item}</span><span className="muted ml-auto text-right">{s.what}</span></div>)}
+      {sy.pager}
     </div>
   </>;
 }

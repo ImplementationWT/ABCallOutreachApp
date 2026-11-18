@@ -1,13 +1,13 @@
 /* A second walk over the actions the first one does not touch, again on both targets. */
 import { expect, test, type Page } from '@playwright/test';
-import { TOASTS, btn, idle, openApp, openArtifact, toastText , openAsAndrew, openAsMaya, switchApp, userMenu } from './targets';
+import { TOASTS, noPager, btn, idle, openApp, openArtifact, toastText , openAsAndrew, openAsMaya, switchApp, userMenu } from './targets';
 import { STORAGE, reseed } from './db';
 
 test.beforeEach(async () => { await reseed(); });
 
 async function walk(page: Page) {
   const log: string[] = [];
-  const note = async (label: string, v: Promise<string | null> | string | null) => { log.push(`${label}: ${(await v)?.replace(/\s+/g, '').replace(/\d{1,2}:\d{2}(AM|PM)/g, 'T')}`); };
+  const note = async (label: string, v: Promise<string | null> | string | null) => { log.push(`${label}: ${noPager((await v)?.replace(/\s+/g, '').replace(/\d{1,2}:\d{2}(AM|PM)/g, 'T') ?? '')}`); };
   const text = (sel: string) => page.locator(sel).first().textContent();
 
   // Rep: dial, follow up with the calendar, script

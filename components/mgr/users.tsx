@@ -7,7 +7,7 @@ import { PERMS, PEOPLE, ROLES, ROLE_KEYS, type Perm, type Role } from '@/lib/aut
 import { PEO, fmtDT, isoT, type PersonKey } from '@/lib/domain';
 import { getMe } from '@/lib/state/auth';
 import { toast } from '@/lib/state/store';
-import { Icon, PageHeader, Pill } from '@/components/ui';
+import { Icon, PageHeader, Pill, paged } from '@/components/ui';
 
 type User = { _id: string; username: string; name: string; role: Role; perms: Perm[]; person: string | null; active: boolean; mustChange: boolean; locked: boolean; createdAt: string; lastLoginAt: string | null };
 type Form = { id?: string; username: string; name: string; role: Role; perms: Perm[]; person: string | null; active: boolean };
@@ -44,7 +44,7 @@ export function UsersPage() {
     {!users ? <div className="empty">Loading users…</div> :
       <table className="ptbl">
         <thead><tr><th>User</th><th>Role</th><th>Works as</th><th>Permissions</th><th>Status</th><th>Last sign-in</th><th></th></tr></thead>
-        <tbody>{users.map(u => <tr key={u._id} data-user={u.username}>
+        <tbody>{paged('users', users).rows.map(u => <tr key={u._id} data-user={u.username}>
           <td><b>{u.name}</b><br /><span className="sm muted">{u.username}{u._id === me?.id ? ' (you)' : ''}</span></td>
           <td><Pill t={ROLES[u.role].n} cls={ROLE_TONE[u.role]} /></td>
           <td className="sm">{personName(u.person)}</td>
@@ -57,6 +57,7 @@ export function UsersPage() {
           </td>
         </tr>)}</tbody>
       </table>}
+    {users ? paged('users', users).pager : null}
     <div className="grid2 mt-[14px]">
       <div className="card"><h3><Icon n="shield" s={16} />Roles</h3>{ROLE_KEYS.map(r => <div key={r} className="mrow"><Pill t={ROLES[r].n} cls={ROLE_TONE[r]} /><span className="sm muted">{ROLES[r].perms.length === PERMS.length ? 'Everything' : ROLES[r].perms.map(p => PERMS.find(x => x[0] === p)![1]).join(', ')}</span></div>)}
         <p className="sm muted mt-[8px]">The role presets the permissions; each user’s permissions can be adjusted one by one.</p></div>

@@ -9,7 +9,7 @@ import {
 import { denied, inp, on } from '@/lib/state/actions';
 import { can } from '@/lib/state/auth';
 import { S, toast } from '@/lib/state/store';
-import { KPI_GRID, AudPill, Icon, Kv, OutPill, P2Tag, PageHeader, PermitPill, Pill, StPill, StatFilter } from '@/components/ui';
+import { KPI_GRID, paged, AudPill, Icon, Kv, OutPill, P2Tag, PageHeader, PermitPill, Pill, StPill, StatFilter } from '@/components/ui';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { HistList } from '@/components/rep';
 
@@ -26,6 +26,7 @@ function PrpList() {
   const f = S.f.prst, fa = S.f.praud, q = (S.srch.prp || '').toLowerCase();
   const all = PROPS.filter(p => fa === 'all' || p.aud === fa);
   const rows = all.filter(p => (f === 'all' || propStatus(p) === f) && (!q || p.addr.toLowerCase().includes(q) || (p.zip || '').includes(q) || ctsOf(p.k).some(c => c.n.toLowerCase().includes(q))));
+  const pg = paged('props', rows);
   const lastOf = (pk: string) => CALLS.filter(x => ctsOf(pk).some(c => c.k === x.ct)).sort((a, b) => b.at.localeCompare(a.at))[0];
   return <>
     <PageHeader t="Properties" sub="Every property with its outreach status. The status comes from what its contacts said, with the most advanced one winning." />
@@ -37,7 +38,7 @@ function PrpList() {
     </div>
     <div className="rows">
       <div className={`row head ${PROW}`}><span>Property</span><span>Permit</span><span>Contacts</span><span>Outreach status</span><span>Last call</span><span>Today</span></div>
-      {rows.map(p => {
+      {pg.rows.map(p => {
         const cs = ctsOf(p.k), l = lastOf(p.k), r = cs.find(c => c.res && c.res.date === TODAY);
         return <div key={p.k} className={`row ${PROW}`} {...on('openprop', p.k)}>
           <div className="t"><b>{p.addr || 'No address'}</b><small>{AUDS[p.aud].n}{p.zip ? ' ' + p.zip : ''}{p.possibleDup ? ', possible duplicate' : ''}</small></div>
@@ -49,6 +50,7 @@ function PrpList() {
         </div>;
       })}
     </div>
+    {pg.pager}
   </>;
 }
 
@@ -128,12 +130,13 @@ function PrpContacts() {
   // One row per person; an owner of several properties shows the first one and how many more
   const people = owners();
   const rows = people.filter(c => !q || (c.n + ' ' + (c.props || [c.prop]).map(k => P(k)?.addr).join(' ') + ' ' + c.phones.map(x => x.n).join(' ') + ' ' + (c.email || '')).toLowerCase().includes(q));
+  const pg = paged('cts', rows);
   return <>
     <PageHeader t="Contacts" sub="Owners and other contacts of each property. A contact can have more than one phone; the app remembers which one worked." />
     <div className="toolbar"><div className="search"><Icon n="search" s={15} /><input id="srcts" placeholder="Search name, address or phone" defaultValue={S.srch.cts || ''} {...inp('srch.cts')} /></div><span className="sp" /><span className="sm muted">{rows.length} contacts</span></div>
     <div className="rows">
       <div className={`row head ${CROW}`}><span>Contact</span><span>Property</span><span>Phones</span><span>Last result</span><span>Attempts</span><span>Next eligible</span></div>
-      {rows.map(c => {
+      {pg.rows.map(c => {
         const p = P(c.prop), np = c.props?.length ?? 1;
         return <div key={c.k} className={`row ${CROW}`} {...on('openct', c.k)}>
           <div className="t"><b>{c.n}</b><small>{c.role === 'Other' ? c.other || 'Other' : c.role}</small></div>
@@ -145,6 +148,7 @@ function PrpContacts() {
         </div>;
       })}
     </div>
+    {pg.pager}
   </>;
 }
 
@@ -162,13 +166,15 @@ function PrpImport() {
     if (el.files && el.files.length) toast(`${el.files[0].name} received. In the app it is matched by address and phone before loading`);
     el.value = '';
   };
+  const imp = paged('imp', LOADS());
   return <>
     <PageHeader t="Data loads" sub="How properties and contacts get into the app. Phase 1 loads PropertyRadar exports; phase 2 adds a daily feed and new audiences by trigger."
       acts={<label className="btn pri"><Icon n="upload" s={15} />Load a PropertyRadar file<input type="file" accept=".csv,.xlsx" data-up="imp" style={{ display: 'none' }} onChange={onFile} /></label>} />
     <div className="rows">
       <div className={`row head ${IROW}`}><span>Date</span><span>File</span><span>Properties</span><span>Contacts</span><span>Duplicates</span><span>Note</span></div>
-      {LOADS().map((r, i) => <div key={i} className={`row ${IROW}`}><div className="cell"><b>{r[0]}</b></div><div className="t"><b>{r[1]}</b></div><div className="cell">{r[2]}</div><div className="cell">{r[3]}</div><div className="cell">{r[4]} merged</div><div className="cell muted">{r[5]}</div></div>)}
+      {imp.rows.map((r, i) => <div key={i} className={`row ${IROW}`}><div className="cell"><b>{r[0]}</b></div><div className="t"><b>{r[1]}</b></div><div className="cell">{r[2]}</div><div className="cell">{r[3]}</div><div className="cell">{r[4]} merged</div><div className="cell muted">{r[5]}</div></div>)}
     </div>
+    {imp.pager}
     <div className="grid2 mt-[14px]">
       <div className="card"><h3><Icon n="check" s={16} />What a load does</h3><ul className="sm m-0 pl-[18px]"><li>Matches each row to an existing property by address, and each contact by phone, so nothing is loaded twice.</li><li>Keeps every phone of a contact as its own number, so a wrong one does not lose the others.</li><li>Leaves the call history untouched.</li><li>Pushes new properties and contacts to monday.</li></ul></div>
       <div className="card border-dashed"><h3><Icon n="layers" s={16} />Phase 2 <P2Tag /></h3><ul className="sm m-0 pl-[18px]"><li>Daily automatic feed instead of manual files.</li><li>Batch enrichment for contacts without a phone, before lists are built.</li><li>New audiences by trigger: property sold, new permit issued, priority contacts.</li><li>One zone still to load: AB confirms which one.</li></ul></div>

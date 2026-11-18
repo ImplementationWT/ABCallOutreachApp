@@ -3,7 +3,7 @@
 import type React from 'react';
 import { P, elig, owners } from '@/lib/domain';
 import { on } from '@/lib/state/actions';
-import { Icon, Kv, PageHeader, Pill } from '@/components/ui';
+import { Icon, Kv, PageHeader, Pill, paged } from '@/components/ui';
 import { Sidebar } from '@/components/shell/Sidebar';
 
 export function P2Side() {
@@ -37,15 +37,15 @@ Rep: Great, someone from our team will email you both this week.`}</div>
 }
 
 function P2Enrich() {
-  // One row per person (an owner of several properties waits for one number), the first 200 shown
-  const hold = owners().filter(c => elig(c).k === 'hold');
+  // One row per person (an owner of several properties waits for one number)
+  const hold = owners().filter(c => elig(c).k === 'hold'), pg = paged('hold', hold);
   const steps = ['The rep marks Wrong Number. That number is flagged, never the contact.', 'If the contact has another number, it comes back tomorrow with that one.', 'If not, the enrichment service looks for a new number (for example the one Andrew uses today, or monday’s native enrichment).', 'A new number puts the contact back in the pool with its priority.'];
   return <>
     <PageHeader t="Enrich and wrong numbers" sub="Many PropertyRadar contacts have no phone, and some numbers are wrong. Phase 2 looks for numbers on its own." />
     <div className="grid2">
       <div className="card">
         <h3><Icon n="alert" s={16} />Waiting for a number<span className="r"><Pill t={hold.length + ' on hold'} cls="amber" /></span></h3>
-        {hold.length ? hold.slice(0, 200).map(c => <div key={c.k} className="mrow"><b>{c.n}</b><span className="muted">{P(c.prop).addr || "No address"}</span><span className="ml-auto"><button className="btn p2 sm" {...on('nop')}><Icon n="search" s={13} />Enrich</button></span></div>)
+        {hold.length ? pg.rows.map(c => <div key={c.k} className="mrow"><b>{c.n}</b><span className="muted">{P(c.prop).addr || "No address"}</span><span className="ml-auto"><button className="btn p2 sm" {...on('nop')}><Icon n="search" s={13} />Enrich</button></span></div>).concat(<div key="pager">{pg.pager}</div>)
           : <p className="sm muted">No contacts on hold right now. Mark a Wrong Number on a contact with one phone to see it here.</p>}
       </div>
       <div className="card">

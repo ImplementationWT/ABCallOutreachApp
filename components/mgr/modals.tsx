@@ -4,7 +4,7 @@ import type React from 'react';
 import { AUDK, AUDS, CALLS, DAY, P, PEO, PRANK, PRI, REPS, first, listOf, openOf, ownerOf, priOf, type Contact, type RepKey } from '@/lib/domain';
 import { inp, on } from '@/lib/state/actions';
 import { S, type Modal } from '@/lib/state/store';
-import { DateField, OutPill, Pill, PrTag } from '@/components/ui';
+import { DateField, OutPill, Pill, PrTag, paged } from '@/components/ui';
 import { AccountPanel } from '@/components/auth/AccountPanel';
 
 export type ModalDef = { t: string; s?: string; wide?: boolean; body: React.ReactNode; foot?: React.ReactNode };
@@ -13,10 +13,10 @@ export const MODALS: Record<string, (m: Modal) => ModalDef> = {
   /* Not in the artifact: the signed-in user's account (change password, log out). */
   account: () => ({ t: 'Account', s: 'Your user for the Call Center', body: <AccountPanel /> }),
   replist: m => {
-    const r = m.r as RepKey, l = listOf(r);
+    const r = m.r as RepKey, l = listOf(r), pg = paged('replist', l);
     return {
       t: `${PEO[r].n}: today’s list`, s: `${l.length} contacts reserved, in the order the engine gave them`, wide: true,
-      body: <div className="rows">{l.map((c: Contact) => {
+      body: <><div className="rows">{pg.rows.map((c: Contact) => {
         const p = P(c.prop), dn = DAY[r].done[c.k], cl = dn && CALLS.find(x => x.id === dn);
         return <div key={c.k} className="row grid-cols-[40px_minmax(0,1.3fr)_minmax(0,1fr)_170px]">
           <span><PrTag pr={priOf(c)} sm /></span>
@@ -24,7 +24,7 @@ export const MODALS: Record<string, (m: Modal) => ModalDef> = {
           <div className="cell">{PRI[priOf(c)].n}<small>{ownerOf(c) === r ? 'Own, goes back to ' + first(r) : 'Any rep'}</small></div>
           <div className="cell">{cl ? <OutPill o={cl.out} /> : c.stop ? <Pill t="Removed" cls="red" /> : <Pill t="To call" />}</div>
         </div>;
-      })}</div>,
+      })}</div>{pg.pager}</>,
       foot: <button className="btn sec" {...on('mclose')}>Close</button>,
     };
   },

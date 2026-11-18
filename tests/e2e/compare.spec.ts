@@ -3,7 +3,8 @@
  * sidebar), so only the content is compared; Data now has a sidebar too, so it is not compared.
  * The app's sidebar is 20px wider, so its page is captured 20px wider (same content width).
  * Views redesigned on purpose after the port are left out: KPI grids (The day by rep, Contact pool,
- * Properties), rules without "To validate" labels and the interactive Performance chart. Calling and AI
+ * Properties), rules without "To validate" labels, the interactive Performance chart and the tables whose
+ * pager (20, 30 or 50 rows per page) changes the height: Contacts and Campaigns. Calling and AI
  * is locked in the app, so its screens are not compared.
  * PNGs land in test-results/compare/<case>-<theme>-{artifact,app,diff}.png */
 import { expect, test } from '@playwright/test';
@@ -14,7 +15,7 @@ import { PNG } from 'pngjs';
 import { openApp, openArtifact, settle } from './targets';
 
 type Case = { n: string; art: string; app: string; artClick?: string };
-const CHANGED = ['mgr-live', 'mgr-pool', 'mgr-rules', 'mgr-perf', 'prp-props'];
+const CHANGED = ['mgr-live', 'mgr-pool', 'mgr-rules', 'mgr-perf', 'prp-props', 'prp-cts', 'mgr-camp'];
 const CASES: Case[] = ([
   ...['today', 'fu', 'calls', 'help'].map(p => ({ n: 'rep-' + p, art: `vista=rep&pagina=${p}`, app: `/rep/${p}` })),
   ...['live', 'pool', 'leads', 'camp', 'rules', 'perf', 'mail', 'sync', 'help'].map(p => ({ n: 'mgr-' + p, art: `vista=mgr&pagina=${p}`, app: `/mgr/${p}` })),

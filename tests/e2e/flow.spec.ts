@@ -1,7 +1,7 @@
 /* The full demo walk, run on the artifact and on the app with the same clicks.
  * Every toast and key text is collected and both transcripts must match. */
 import { expect, test, type Page } from '@playwright/test';
-import { TOASTS, btn, idle, openApp, openArtifact, settle, toastText , openAsAndrew, openAsMaya, switchApp, userMenu } from './targets';
+import { TOASTS, noPager, btn, idle, openApp, openArtifact, settle, toastText , openAsAndrew, openAsMaya, switchApp, userMenu } from './targets';
 import { STORAGE, reseed } from './db';
 
 async function walk(page: Page, who: string) {
@@ -93,7 +93,8 @@ test('artifact and app walk the same', async ({ browser }) => {
   // Whitespace is left out: the artifact's template strings put line breaks between tags, JSX does not
   // (the screenshot comparison covers how it looks).
   // Times too: the artifact's clock moved a minute per action, the app's is fixed (real time, frozen by the test).
-  const bare = (s?: string) => s?.replace(/\s+/g, '').replace(/\d{1,2}:\d{2}(AM|PM)/g, 'T');
+  // And the app's table pager, which the artifact does not have.
+  const bare = (s?: string) => noPager(s?.replace(/\s+/g, '').replace(/\d{1,2}:\d{2}(AM|PM)/g, 'T') ?? '');
   expect(b.length).toBe(a.length);
   for (let i = 0; i < a.length; i++) expect(bare(b[i]), `step ${i}: ${a[i].slice(0, 40)}`).toBe(bare(a[i]));
 });

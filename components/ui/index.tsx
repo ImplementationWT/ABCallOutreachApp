@@ -4,7 +4,7 @@
 import type React from 'react';
 import { AUDS, OUT, PEO, PRI, ST_TONE, fmtS, fmtWD, type AudKey, type PersonKey, type Pri, type Property, type Status } from '@/lib/domain';
 import { on, registerDate, registerPick, type PickOpt } from '@/lib/state/actions';
-import { S } from '@/lib/state/store';
+import { PAGE_SIZES, S } from '@/lib/state/store';
 import { IC } from './icons';
 
 export function Icon({ n, s = 18 }: { n: string; s?: number }) {
@@ -53,4 +53,29 @@ export function DateField({ k, value, onSet, ph = 'Pick a date' }: { k: string; 
 }
 export function PhaseBanner() {
   return <div className="phase-ban"><span className="pi"><Icon n="layers" s={17} /></span><div><b>Phase 2</b>Calling and AI is phase 2. It starts when AB picks its phone provider: any provider works as long as it offers an API or webhooks for call data, and a transcript if AB wants AI summaries. Phase 1 already works without it: click to call, and the rep records the result.</div></div>;
+}
+
+/* ----- Pagination -----
+ * Every table shows one page of its rows (20, 30 or 50, picked under the table) instead of all of
+ * them: with thousands of properties, drawing every row made the lists slow to open and to search.
+ * `paged(k, rows)` gives the rows of the current page and the pager to put under the table; the
+ * state lives in S.pg[k], so it survives re-renders, and a new filter or search goes back to page 1. */
+export function paged<T>(k: string, rows: T[]) {
+  const st = S.pg[k] || { i: 0, n: PAGE_SIZES[0] };
+  const pages = Math.max(1, Math.ceil(rows.length / st.n));
+  const i = Math.min(st.i, pages - 1);
+  return { rows: rows.slice(i * st.n, (i + 1) * st.n), pager: <Pager k={k} total={rows.length} i={i} n={st.n} pages={pages} /> };
+}
+export function Pager({ k, total, i, n, pages }: { k: string; total: number; i: number; n: number; pages: number }) {
+  if (!total) return null;
+  const from = i * n + 1, to = Math.min(total, (i + 1) * n);
+  return <div className="flex flex-wrap items-center gap-[8px] mt-[10px] text-[13px] text-muted" data-pager={k}>
+    <span className="tabular-nums">{from.toLocaleString('en-US')}–{to.toLocaleString('en-US')} of {total.toLocaleString('en-US')}</span>
+    <span className="sp flex-1" />
+    <span>Rows per page</span>
+    {PAGE_SIZES.map(s => <button key={s} className="seg" {...on('pgn', `${k}|${s}`)} aria-pressed={n === s}>{s}</button>)}
+    <button className="btn sec sm" {...on('pgo', `${k}|${i - 1}`)} disabled={i === 0} aria-label="Previous page"><Icon n="chl" s={14} /></button>
+    <span className="tabular-nums">Page {i + 1} of {pages}</span>
+    <button className="btn sec sm" {...on('pgo', `${k}|${i + 1}`)} disabled={i >= pages - 1} aria-label="Next page"><Icon n="chr" s={14} /></button>
+  </div>;
 }

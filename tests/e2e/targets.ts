@@ -23,6 +23,9 @@ export async function settle(page: Page) {
 }
 
 /** Every toast shown, in order (both write the toast's content anew on each call). */
+/** The app's table pager ("1–20 of 96 Rows per page 20 30 50 Page 1 of 5", whitespace already removed):
+ * the artifact has none, so it is left out when texts are compared. */
+export const noPager = (s: string) => s.replace(/[\d,]+–[\d,]+of[\d,]+Rowsperpage203050Page\d+of\d+/g, '');
 export const TOASTS = `window.__toasts = []; new MutationObserver(ms => { for (const m of ms) { const t = (m.target).closest && (m.target).closest('#toast'); if (t && m.type === 'childList' && t.textContent) { window.__toasts.push(t.textContent.trim()); return; } } }).observe(document, { subtree: true, childList: true });`;
 const seen = new WeakMap<Page, number>();
 export async function toastText(page: Page) {

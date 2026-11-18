@@ -31,13 +31,19 @@ export type State = {
   hl: string | null;
   top: boolean;
   tour: { on: boolean; i: number; col: boolean; list: boolean; x: number | null; y: number | null };
+  /** Pagination of each table: page index and rows per page (components/ui Pager). */
+  pg: Record<string, { i: number; n: number }>;
 };
+
+/** Rows per page a table can show; the first is the default. */
+export const PAGE_SIZES = [20, 30, 50];
 
 export const S: State = {
   view: 'in', page: { rep: 'today', mgr: 'live', prp: 'props', p2: 'call' }, det: {}, tab: {},
   f: { pool: 'pool', prst: 'all', praud: 'all', perf: 'last', perfp: 'day', perfd: '', mail: 'rep', mailrep: 'may', dbm: 'az', script: false, campv: 'today' },
   user: 'may', sel: {}, draft: {}, srch: {}, modal: null, pop: null, hl: null, top: false,
   tour: { on: false, i: 0, col: false, list: false, x: null, y: null },
+  pg: {},
 };
 
 /* ===== STORE ===== localStorage with the artifact's prefix */
