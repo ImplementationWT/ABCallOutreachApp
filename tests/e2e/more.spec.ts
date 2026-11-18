@@ -176,7 +176,7 @@ test('app: Performance by day, week, month and year', async ({ page }) => {
   await page.locator('[data-day="2026-10-01"]').click();
   await expect(page.locator('.segs .seg[aria-pressed=true]')).toHaveText('Month');
   await expect(label).toHaveText('October 2026');
-  await page.locator('button', { hasText: 'This month' }).click();
+  await page.locator('[aria-label="Back to this month"]').click();
   await expect(label).toHaveText('November 2026');
 });
 

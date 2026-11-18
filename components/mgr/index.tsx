@@ -201,11 +201,13 @@ function MgrPerf() {
     <PageHeader t="Performance" sub="Calls, connects, conversations and leads by rep, with the rates from Andrew’s daily email. Each number comes from the call log."
       acts={<>
         <span className="segs" role="group" aria-label="Period">{PERIODS.map(([k, l]) => <button key={k} className="seg" {...on('perfp', k)} aria-pressed={kind === k}>{l}</button>)}</span>
-        <span className="inline-flex items-center gap-[4px]" data-period>
+        <span className="inline-flex items-center gap-[4px] flex-none" data-period>
           <button className="btn sec sm px-[8px]" {...on('perfnav', -1)} aria-label="Previous period"><Icon n="chl" s={15} /></button>
-          <b className="min-w-[150px] text-center text-[13.5px]" data-period-label>{periodLabel(kind, anchor)}</b>
+          <b className="w-[160px] text-center text-[13.5px] whitespace-nowrap select-none" data-period-label>{periodLabel(kind, anchor)}</b>
           <button className="btn sec sm px-[8px]" {...on('perfnav', 1)} aria-label="Next period" disabled={current}><Icon n="chr" s={15} /></button>
-          {anchor !== TODAY ? <button className="btn ghost sm" {...on('perfnow')}>{kind === 'day' ? 'Today' : `This ${kind}`}</button> : null}
+          {/* Always takes its place (hidden on the current period), so changing the date never moves the page */}
+          <button className={`btn ghost sm px-[8px] ${current ? 'invisible' : ''}`} {...on('perfnow')} aria-hidden={current} tabIndex={current ? -1 : 0}
+            aria-label={kind === 'day' ? 'Back to today' : `Back to this ${kind}`} title={kind === 'day' ? 'Back to today' : `Back to this ${kind}`}><Icon n="refresh" s={15} /></button>
         </span>
       </>} />
     <PerfTable days={days} />
