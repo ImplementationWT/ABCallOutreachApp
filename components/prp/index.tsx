@@ -9,7 +9,7 @@ import {
 import { denied, inp, on } from '@/lib/state/actions';
 import { can } from '@/lib/state/auth';
 import { S, toast } from '@/lib/state/store';
-import { AudPill, Icon, Kv, OutPill, P2Tag, PageHeader, PermitPill, Pill, StPill, StatFilter } from '@/components/ui';
+import { KPI_GRID, AudPill, Icon, Kv, OutPill, P2Tag, PageHeader, PermitPill, Pill, StPill, StatFilter } from '@/components/ui';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { HistList } from '@/components/rep';
 
@@ -29,7 +29,7 @@ function PrpList() {
   const lastOf = (pk: string) => CALLS.filter(x => ctsOf(pk).some(c => c.k === x.ct)).sort((a, b) => b.at.localeCompare(a.at))[0];
   return <>
     <PageHeader t="Properties" sub="Every property with its outreach status. The status comes from what its contacts said, with the most advanced one winning." />
-    <div className="stats"><StatFilter fk="prst" val="all" label="All" n={all.length} />{STS.map(s => <StatFilter key={s} fk="prst" val={s} label={s} n={all.filter(p => propStatus(p) === s).length} cls={STCLS[s] || ''} />)}</div>
+    <div className={`stats ${KPI_GRID}`}><StatFilter fk="prst" val="all" label="All" n={all.length} />{STS.map(s => <StatFilter key={s} fk="prst" val={s} label={s} n={all.filter(p => propStatus(p) === s).length} cls={STCLS[s] || ''} />)}</div>
     <div className="toolbar">
       <div className="search"><Icon n="search" s={15} /><input id="srprp" placeholder="Search address or contact" defaultValue={S.srch.prp || ''} {...inp('srch.prp')} /></div>
       {(['all', ...AUDK] as string[]).map(a => <button key={a} className="seg" {...on('filt', `praud|${a}`)} aria-pressed={fa === a}>{a === 'all' ? 'All audiences' : AUDS[a as keyof typeof AUDS].s}</button>)}

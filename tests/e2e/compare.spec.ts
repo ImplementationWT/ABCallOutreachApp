@@ -1,6 +1,9 @@
 /* Screenshot of each view's content (.op) in the artifact and in the app, same state, light and dark,
  * with a pixel diff. The top bar and the sidebar changed on purpose (apps moved to a selector in the
  * sidebar), so only the content is compared; Data now has a sidebar too, so it is not compared.
+ * The app's sidebar is 20px wider, so its page is captured 20px wider (same content width).
+ * Views redesigned on purpose after the port are left out: KPI grids (The day by rep, Contact pool,
+ * Properties), rules without "To validate" labels and the interactive Performance chart.
  * PNGs land in test-results/compare/<case>-<theme>-{artifact,app,diff}.png */
 import { expect, test } from '@playwright/test';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -10,18 +13,19 @@ import { PNG } from 'pngjs';
 import { openApp, openArtifact, settle } from './targets';
 
 type Case = { n: string; art: string; app: string; artClick?: string };
-const CASES: Case[] = [
+const CHANGED = ['mgr-live', 'mgr-pool', 'mgr-rules', 'mgr-perf', 'prp-props'];
+const CASES: Case[] = ([
   ...['today', 'fu', 'calls', 'help'].map(p => ({ n: 'rep-' + p, art: `vista=rep&pagina=${p}`, app: `/rep/${p}` })),
   ...['live', 'pool', 'leads', 'camp', 'rules', 'perf', 'mail', 'sync', 'help'].map(p => ({ n: 'mgr-' + p, art: `vista=mgr&pagina=${p}`, app: `/mgr/${p}` })),
   ...['props', 'cts', 'imp', 'help'].map(p => ({ n: 'prp-' + p, art: `vista=prp&pagina=${p}`, app: `/prp/${p}` })),
   { n: 'prp-record', art: 'vista=prp&pagina=props', artClick: '905 Arbolada Way', app: '/prp/props/P-1003' },
   ...['call', 'enrich', 'aud', 'prov', 'help'].map(p => ({ n: 'p2-' + p, art: `vista=p2&pagina=${p}`, app: `/p2/${p}` })),
-];
+] as Case[]).filter(c => !CHANGED.includes(c.n));
 const OUT = join(__dirname, '..', '..', 'test-results', 'compare');
 mkdirSync(OUT, { recursive: true });
 export const results: Record<string, number> = {};
 
-const PHONE = ['rep-today', 'mgr-live', 'mgr-rules', 'prp-props', 'prp-record'];
+const PHONE = ['rep-today', 'prp-record', 'p2-aud']; // views that fit the phone screen (longer ones are cut at the viewport)
 const RUNS = [
   { name: 'light', theme: 'light' as const, viewport: { width: 1440, height: 900 }, cases: CASES },
   { name: 'dark', theme: 'dark' as const, viewport: { width: 1440, height: 900 }, cases: CASES },
@@ -35,6 +39,7 @@ for (const { name: theme, theme: colorScheme, viewport, cases } of RUNS) {
         await openArtifact(page, c.art);
         if (c.artClick) { await page.locator('.row', { hasText: c.artClick }).first().click(); await settle(page); }
         const a = PNG.sync.read(await page.locator('.op').first().screenshot({ animations: 'disabled' }));
+        if (viewport.width > 900) await page.setViewportSize({ width: viewport.width + 20, height: viewport.height });
         await openApp(page, c.app);
         const b = PNG.sync.read(await page.locator('.op').first().screenshot({ animations: 'disabled' }));
         expect([b.width, b.height], `${c.n} ${theme}: content size`).toEqual([a.width, a.height]);

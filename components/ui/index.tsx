@@ -19,6 +19,8 @@ export function Avatar({ k, sm }: { k: PersonKey; sm?: boolean }) {
 export function PageHeader({ t, sub, acts }: { t: string; sub?: React.ReactNode; acts?: React.ReactNode }) {
   return <div className="op-h"><div><h1>{t}</h1>{sub ? <p>{sub}</p> : null}</div>{acts ? <div className="acts">{acts}</div> : null}</div>;
 }
+/** KPI rows: equal columns that fill the width and line up when they wrap to a second row. */
+export const KPI_GRID = 'grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))]';
 export function StatFilter({ fk, val, label, n, cls = '' }: { fk: string; val: string; label: string; n: number; cls?: string }) {
   return <button className={`stat ${cls}`} {...on('filt', `${fk}|${val}`)} aria-pressed={S.f[fk] === val}><small>{label}</small><b>{n}</b></button>;
 }

@@ -159,3 +159,8 @@ Los tokens también están expuestos a Tailwind en `app/globals.css` (`@theme in
     abre desde el avatar (`components/shell/UserMenu.tsx`): Walkthrough, Change password (el popup Account) y un
     interruptor de modo oscuro. El top bar queda con la marca y el avatar. El pie del sidebar de Outreach Manager
     ("Morning allocation ran at 7:00 AM…") se quitó.
+19. **KPIs, reglas y gráfico.** Las filas de KPIs (`.stats`) usan una cuadrícula de columnas iguales (`KPI_GRID` en
+    `components/ui`). En Assignment rules los botones de cada regla quedan en una fila y ya no hay etiquetas
+    "To validate" en ninguna página. El gráfico de Performance es `components/mgr/TeamChart.tsx`: hover por día (tooltip
+    y resto atenuado) y por serie desde la leyenda. El sidebar mide 264px en escritorio (244 en el artifact) para que las
+    etiquetas entren en una línea.

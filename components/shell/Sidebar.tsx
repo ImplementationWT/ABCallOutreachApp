@@ -16,7 +16,7 @@ export function Sidebar({ k, items, foot }: { k: AppKey; items: SbItem[]; foot?:
       if (it.length === 1) return <div key={i} className="sb-sec">{it[0]}</div>;
       const [pg, label, icon, cnt, soft] = it;
       return <button key={i} className="nav" {...on(pageAct(k), pg)} aria-current={S.page[k] === pg}>
-        <span className="ni"><Icon n={icon} s={16} /></span>{label}{cnt ? <span className={`cnt ${soft ? 'soft' : ''}`}>{cnt}</span> : null}
+        <span className="ni"><Icon n={icon} s={16} /></span><span className="min-w-0 truncate" title={label}>{label}</span>{cnt ? <span className={`cnt ${soft ? 'soft' : ''}`}>{cnt}</span> : null}
       </button>;
     })}
     <div className="sb-sec">Help</div>

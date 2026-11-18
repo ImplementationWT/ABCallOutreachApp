@@ -145,3 +145,17 @@ test('the walkthrough panel drags the same', async ({ browser }) => {
   expect(b).toEqual(a);
   expect(b[1][0]).toBeLessThan(b[0][0]);
 });
+
+test('app: the Performance chart reacts to hover and there are no "To validate" labels', async ({ page }) => {
+  await openApp(page, '/mgr/perf');
+  const day = page.locator('[data-day]').nth(3);
+  await day.hover();
+  await expect(page.locator('[data-chart-tip]')).toContainText('Calls');
+  await expect(page.locator('[data-chart-tip]')).toContainText('Dial to connect');
+  await expect(page.locator('[data-day]').nth(0)).toHaveClass(/opacity-35/);
+  await page.mouse.move(0, 0);
+  await expect(page.locator('[data-chart-tip]')).toHaveCount(0);
+  await page.locator('[data-series="conv"]').hover();
+  await expect(page.locator('[data-series="none"]')).toHaveClass(/opacity-50/);
+  for (const p of ['/mgr/perf', '/mgr/rules']) { await page.goto(p); await page.waitForLoadState('networkidle'); await expect(page.locator('.op')).not.toContainText('To validate'); }
+});
