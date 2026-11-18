@@ -3,19 +3,21 @@
  * switcher with badges (phase 2 app dashed), Data, Walkthrough, light or dark, and the user. */
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useSyncExternalStore } from 'react';
-import { DAY, LEADS, PEO, openOf } from '@/lib/domain';
+import { DAY, LEADS, PEO, openOf, type PersonKey } from '@/lib/domain';
 import { on } from '@/lib/state/actions';
 import { routeOf } from '@/lib/state/navigation';
-import { useMe } from '@/lib/state/auth';
+import { getMe, useMe } from '@/lib/state/auth';
 import { VIEW_PERM } from '@/lib/auth/roles';
 import { APPS, APP_FASE, EMP0, S, brand, bump, store, useApp, type AppKey } from '@/lib/state/store';
 import { Avatar, Icon } from '@/components/ui';
 
 const noop = () => () => {};
+/** The person shown in the avatar: the rep whose list is open, else the signed-in user's person (the
+ * artifact showed Andrew outside the Rep Workspace). */
 function whoNow(view: string) {
   if (view === 'rep') return S.user;
-  if (view === 'in') return null;
-  return 'and' as const;
+  const p = getMe()?.person;
+  return (p && p in PEO ? p : 'and') as PersonKey;
 }
 function badges(): Record<AppKey, number> {
   const u = S.user;
@@ -37,7 +39,7 @@ export function TopBar() {
   // Only the sections the user may open (all of them until the user is known, as in the artifact)
   const allowed = (k: string) => !me || me.perms.includes(VIEW_PERM[k]);
   const b = badges();
-  const w = whoNow(view), p = w ? PEO[w] : null;
+  const w = whoNow(view), p = PEO[w];
   const de = mounted ? document.documentElement : null;
   const dark = !!de && (de.dataset.theme === 'dark' || (!de.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches));
 
@@ -78,9 +80,9 @@ export function TopBar() {
         <button className={`tbtn ${S.tour.on ? 'on' : ''}`} {...on('tour')} title="Presenter walkthrough"><Icon n="compass" s={16} />Walkthrough</button>
         <button className="ib" {...on('account')} title="Account and password" data-auth="account"><Icon n="key" s={17} /></button>
         <button className="ib" {...on('theme')} title="Light or dark mode"><Icon n={dark ? 'sun' : 'moon'} s={17} /></button>
-        {p && w
-          ? <div className="me click" {...on('signout')} title="Switch user"><Avatar k={w} /><div><b>{p.n}</b><small>{p.r}</small></div></div>
-          : <button className="tbtn" {...on('signout')}><Icon n="user" s={16} />Sign in</button>}
+        {me && !me.person && view !== 'rep'
+          ? <div className="me click" {...on('signout')} title="Account"><span className="av" title={me.name}>{me.name.split(' ').map(x => x[0]).join('').slice(0, 2).toUpperCase()}</span><div><b>{me.name}</b><small>{me.username}</small></div></div>
+          : <div className="me click" {...on('signout')} title="Account"><Avatar k={w} /><div><b>{p.n}</b><small>{p.r}</small></div></div>}
       </div>
     </header>
   );

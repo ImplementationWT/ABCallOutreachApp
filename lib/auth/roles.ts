@@ -30,13 +30,13 @@ export const REP_PEOPLE = ['may', 'dan', 'pri'] as const;
 export type Me = { id: string; username: string; name: string; role: Role; perms: Perm[]; person: string | null; mustChange: boolean };
 
 /** Section of the app → permission needed to open it. */
-export const VIEW_PERM: Record<string, Perm> = { rep: 'rep.workspace', mgr: 'mgr.view', prp: 'prp.view', p2: 'p2.view', db: 'data.view', in: 'mgr.view' };
+export const VIEW_PERM: Record<string, Perm> = { rep: 'rep.workspace', mgr: 'mgr.view', prp: 'prp.view', p2: 'p2.view', db: 'data.view' };
 /** A rep without Outreach Manager works only in their own list. */
 export const isLockedRep = (me: Pick<Me, 'perms' | 'person'>) => !!me.person && (REP_PEOPLE as readonly string[]).includes(me.person) && !me.perms.includes('mgr.view');
 /** Where a user lands after signing in. */
 export function homeOf(me: Pick<Me, 'perms' | 'person'>) {
   if (isLockedRep(me)) return '/rep/today';
-  if (me.perms.includes('mgr.view')) return '/';
+  if (me.perms.includes('mgr.view')) return '/mgr/live';
   if (me.perms.includes('rep.workspace')) return '/rep/today';
   if (me.perms.includes('prp.view')) return '/prp/props';
   if (me.perms.includes('p2.view')) return '/p2/call';

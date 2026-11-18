@@ -35,3 +35,19 @@ export async function toastText(page: Page) {
 export const idle = (page: Page) => page.waitForTimeout(150);
 export const btn = (page: Page, text: string | RegExp, scope = 'body') => page.locator(scope).locator('button', { hasText: text }).first();
 
+
+const isArtifact = (page: Page) => page.url().startsWith('file:');
+/** Maya's list: the artifact picks her in its user picker; the app (signed in as admin) uses
+ * "Open as Maya" in The day by rep, which does the same (S.user = may, Rep Workspace). */
+export async function openAsMaya(page: Page) {
+  if (isArtifact(page)) { await btn(page, 'Maya Torres').click(); await idle(page); return; }
+  await btn(page, 'Outreach Manager', '#appsw').click(); await idle(page);
+  await btn(page, 'The day by rep', '.sb').click(); await idle(page);
+  await btn(page, 'Open as Maya').click(); await idle(page);
+}
+/** Andrew's view: the artifact goes back to its picker and picks him; the app opens Outreach Manager. */
+export async function openAsAndrew(page: Page) {
+  if (isArtifact(page)) { await page.locator('.me.click').click(); await idle(page); await btn(page, 'Andrew Vaitkevicius').click(); await idle(page); return; }
+  await btn(page, 'Outreach Manager', '#appsw').click(); await idle(page);
+  await btn(page, 'The day by rep', '.sb').click(); await idle(page);
+}

@@ -9,7 +9,6 @@ import { openApp, openArtifact, settle } from './targets';
 
 type Case = { n: string; art: string; app: string; artClick?: string };
 const CASES: Case[] = [
-  { n: 'signin', art: '', app: '/' },
   ...['today', 'fu', 'calls', 'help'].map(p => ({ n: 'rep-' + p, art: `vista=rep&pagina=${p}`, app: `/rep/${p}` })),
   ...['live', 'pool', 'leads', 'camp', 'rules', 'perf', 'mail', 'sync', 'help'].map(p => ({ n: 'mgr-' + p, art: `vista=mgr&pagina=${p}`, app: `/mgr/${p}` })),
   ...['props', 'cts', 'imp', 'help'].map(p => ({ n: 'prp-' + p, art: `vista=prp&pagina=${p}`, app: `/prp/${p}` })),
@@ -21,7 +20,7 @@ const OUT = join(__dirname, '..', '..', 'test-results', 'compare');
 mkdirSync(OUT, { recursive: true });
 export const results: Record<string, number> = {};
 
-const PHONE = ['signin', 'rep-today', 'mgr-live', 'mgr-rules', 'prp-props', 'prp-record', 'data'];
+const PHONE = ['rep-today', 'mgr-live', 'mgr-rules', 'prp-props', 'prp-record', 'data'];
 const RUNS = [
   { name: 'light', theme: 'light' as const, viewport: { width: 1440, height: 900 }, cases: CASES },
   { name: 'dark', theme: 'dark' as const, viewport: { width: 1440, height: 900 }, cases: CASES },

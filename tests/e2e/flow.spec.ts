@@ -1,7 +1,7 @@
 /* The full demo walk, run on the artifact and on the app with the same clicks.
  * Every toast and key text is collected and both transcripts must match. */
 import { expect, test, type Page } from '@playwright/test';
-import { TOASTS, btn, idle, openApp, openArtifact, settle, toastText } from './targets';
+import { TOASTS, btn, idle, openApp, openArtifact, settle, toastText , openAsAndrew, openAsMaya } from './targets';
 import { STORAGE, reseed } from './db';
 
 async function walk(page: Page, who: string) {
@@ -9,7 +9,7 @@ async function walk(page: Page, who: string) {
   const note = async (label: string, v: Promise<string | null> | string | null) => { log.push(`${label}: ${(await v)?.replace(/\s+/g, ' ').trim()}`); console.log(who, log[log.length - 1].slice(0, 140)); };
 
   // Rep: Maya
-  await btn(page, 'Maya Torres').click(); await idle(page);
+  await openAsMaya(page);
   await note('rep header', page.locator('.op-h h1').textContent());
   await btn(page, 'Start Workday').click(); await idle(page);
   await note('start', toastText(page));
@@ -35,8 +35,7 @@ async function walk(page: Page, who: string) {
   await note('ended', page.locator('.startw').textContent());
 
   // Manager: Andrew
-  await page.locator('.me.click').click(); await idle(page);
-  await btn(page, 'Andrew Vaitkevicius').click(); await idle(page);
+  await openAsAndrew(page);
   await note('live', page.locator('.op').textContent());
   await page.locator('button[data-act="reassign"]:not([disabled])').first().click(); await idle(page);
   await note('reassign modal', page.locator('.modal').textContent());

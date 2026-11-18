@@ -15,7 +15,7 @@ import { TOUR } from '@/lib/domain/tour';
 import { go, openProp } from './navigation';
 import { queueSort } from './rep';
 import { APPS, S, bump, store, toast, type AppKey, type ViewKey } from './store';
-import { can, lockedRep } from './auth';
+import { can } from './auth';
 import type { Perm } from '@/lib/auth/roles';
 
 type Fn = (v: string, el?: HTMLElement, e?: React.SyntheticEvent | Event) => unknown;
@@ -33,7 +33,7 @@ const KEEP_POP = ['pick', 'cal', 'calnav', 'pickset', 'calpick'];
 /** Actions that need a permission (the server checks the same when saving). */
 const NEED: Record<string, Perm> = {
   newcamp: 'mgr.manage', ncsave: 'mgr.manage', reassign: 'mgr.manage', radone: 'mgr.manage', cfgset: 'mgr.manage',
-  reopen: 'prp.edit', started: 'prp.edit', viewas: 'mgr.view', signin: 'mgr.view', replist: 'mgr.view',
+  reopen: 'prp.edit', started: 'prp.edit', viewas: 'mgr.view', replist: 'mgr.view',
 };
 export const denied = () => toast('You do not have permission for this');
 export function dispatch(act: string, v?: string, el?: HTMLElement, e?: React.SyntheticEvent | Event) {
@@ -86,16 +86,11 @@ A.calnav = v => { if (S.pop?.t !== 'cal') return false; const m = new Date(S.pop
 A.calpick = v => { const fn = S.pop && DK[S.pop.key]; S.pop = null; if (fn) fn(v); };
 A.nop = () => false;
 A.account = () => { S.modal = { k: 'account' }; };
-/* "Switch user" goes to the demo's user picker; a rep (who cannot switch) gets their Account. */
-A.signout = () => { if (lockedRep() || !can('mgr.view')) { S.modal = { k: 'account' }; return; } S.view = 'in'; S.top = true; };
+/* The avatar: the artifact's "Switch user" went to the demo's user picker; with the real login it opens Account
+ * (change password, log out). A manager opens a rep's list with "Open as" in The day by rep. */
+A.signout = () => { S.modal = { k: 'account' }; };
 A.openprop = v => { openProp(v); };
 IN.popq = v => { if (S.pop?.t === 'pick') { S.pop.q = v; S.pop.kb = 0; } };
-
-/* ===== SIGN IN ===== */
-A.signin = v => {
-  if (v === 'and') { go('mgr', 'live'); return; }
-  S.user = v as RepKey; go('rep', 'today');
-};
 
 /* ===== REP WORKSPACE ===== */
 A.startday = () => {
