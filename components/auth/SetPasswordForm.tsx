@@ -1,13 +1,15 @@
 'use client';
-/* Choose your own password (after a temporary one), in the login's style. */
+/* Choose your own password (after a temporary one), in the login's frame. */
 import { useState } from 'react';
 import { MIN_PASSWORD } from '@/lib/db/auth-rules';
 import { homeOf, type Me } from '@/lib/auth/roles';
 import { safeNext } from './LoginForm';
+import { AIcon, AuthError, AuthField, AuthLayout, AuthSubmit } from './AuthLayout';
 
 export function SetPasswordForm() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [pw, setPw] = useState({ next: '', confirm: '' });
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = new FormData(e.currentTarget);
@@ -26,20 +28,18 @@ export function SetPasswordForm() {
     } catch { setError('Could not reach the server'); }
     setBusy(false);
   };
-  return <div className="main h-full">
-    <div className="login max-w-[440px]">
-      <h1>Choose your password</h1>
-      <p>You signed in with a temporary password. Choose your own to continue; at least {MIN_PASSWORD} characters.</p>
-      <form className="card p-[18px_20px]" onSubmit={submit}>
-        <label className="lbl mt-0" htmlFor="pw-current">Temporary password</label>
-        <input className="fld" id="pw-current" name="current" type="password" autoComplete="current-password" required autoFocus />
-        <label className="lbl" htmlFor="pw-next">New password</label>
-        <input className="fld" id="pw-next" name="next" type="password" autoComplete="new-password" minLength={MIN_PASSWORD} required />
-        <label className="lbl" htmlFor="pw-confirm">Repeat the new password</label>
-        <input className="fld" id="pw-confirm" name="confirm" type="password" autoComplete="new-password" minLength={MIN_PASSWORD} required />
-        {error ? <div className="note mt-[12px] text-r500" role="alert">{error}</div> : null}
-        <button className="btn pri mt-[16px] w-full justify-center h-[42px]" disabled={busy}>{busy ? 'Saving…' : 'Save and continue'}</button>
-      </form>
-    </div>
-  </div>;
+  const checks = [
+    { ok: pw.next.length >= MIN_PASSWORD, t: `At least ${MIN_PASSWORD} characters` },
+    { ok: !!pw.next && pw.next === pw.confirm, t: 'Both passwords match' },
+  ];
+  return <AuthLayout title="Choose your password" sub="You signed in with a temporary password. Choose your own to continue.">
+    <form className="auth-form" onSubmit={submit}>
+      <AuthField id="pw-current" name="current" label="Temporary password" icon="key" type="password" autoComplete="current-password" required autoFocus />
+      <AuthField id="pw-next" name="next" label="New password" icon="lock" type="password" autoComplete="new-password" minLength={MIN_PASSWORD} required onChange={e => setPw(p => ({ ...p, next: e.target.value }))} />
+      <AuthField id="pw-confirm" name="confirm" label="Repeat the new password" icon="lock" type="password" autoComplete="new-password" minLength={MIN_PASSWORD} required onChange={e => setPw(p => ({ ...p, confirm: e.target.value }))} />
+      <ul className="auth-checks">{checks.map(c => <li key={c.t} className={c.ok ? 'ok' : ''}><AIcon n="check" s={14} />{c.t}</li>)}</ul>
+      <AuthError t={error} />
+      <AuthSubmit busy={busy} label="Save and continue" busyLabel="Saving…" />
+    </form>
+  </AuthLayout>;
 }

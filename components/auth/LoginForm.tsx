@@ -1,8 +1,8 @@
 'use client';
-/* The login screen, in the artifact's style (.login, .card, .fld, .btn). */
+/* The login screen (AuthLayout: brand panel + form). */
 import { useState } from 'react';
-import { brand } from '@/lib/state/store';
 import { homeOf, type Me } from '@/lib/auth/roles';
+import { AuthError, AuthField, AuthLayout, AuthSubmit } from './AuthLayout';
 
 /** A local path to go back to after signing in, or `home`. */
 export const safeNext = (n: string | null, home = '/') => (n && n.startsWith('/') && !n.startsWith('//') && !n.startsWith('/login') && !n.startsWith('/password') ? n : home);
@@ -27,22 +27,13 @@ export function LoginForm() {
     } catch { setError('Could not reach the server'); }
     setBusy(false);
   };
-  return <div className="main h-full">
-    <div className="login max-w-[440px]">
-      <div className="brand mb-[22px]">
-        <div className="mark"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6M21 19a2 2 0 0 1-2 2h-1v-6h3zM3 19a2 2 0 0 0 2 2h1v-6H3z" /></svg></div>
-        <div><b>{brand.emp}</b><small>Call Center</small></div>
-      </div>
-      <h1>Sign in</h1>
-      <p>Enter your user and password to open the Call Center.</p>
-      <form className="card p-[18px_20px]" onSubmit={submit}>
-        <label className="lbl mt-0" htmlFor="username">User</label>
-        <input className="fld" id="username" name="username" autoComplete="username" autoFocus required />
-        <label className="lbl" htmlFor="password">Password</label>
-        <input className="fld" id="password" name="password" type="password" autoComplete="current-password" required />
-        {error ? <div className="note mt-[12px] text-r500" role="alert">{error}</div> : null}
-        <button className="btn pri mt-[16px] w-full justify-center h-[42px]" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
-      </form>
-    </div>
-  </div>;
+  return <AuthLayout title="Welcome back" sub="Sign in with the user and password your manager gave you.">
+    <form className="auth-form" onSubmit={submit}>
+      <AuthField id="username" label="User" icon="user" autoComplete="username" autoCapitalize="none" spellCheck={false} placeholder="Your user name" autoFocus required />
+      <AuthField id="password" label="Password" icon="lock" type="password" autoComplete="current-password" placeholder="Your password" required />
+      <AuthError t={error} />
+      <AuthSubmit busy={busy} label="Sign in" busyLabel="Signing in…" />
+    </form>
+    <p className="auth-help">Forgot your password? Ask your manager to reset it: you get a temporary one and choose your own when you sign in.</p>
+  </AuthLayout>;
 }

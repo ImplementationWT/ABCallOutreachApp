@@ -1,0 +1,69 @@
+/* /login and /password (components/auth/AuthLayout.tsx). Not from the artifact: the sign-in screen is the repo's own. */
+@layer components {
+.auth{display:grid; grid-template-columns:minmax(360px,44%) 1fr; min-height:100%}
+
+/* Brand panel: fixed deep greens so it reads the same in light and dark */
+.auth-side{position:relative; overflow:hidden; display:flex; flex-direction:column; justify-content:space-between; gap:40px; padding:40px 48px; color:#EAF6EF;
+  background:radial-gradient(120% 80% at 0% 0%, #1E8A55 0%, transparent 60%), radial-gradient(90% 70% at 100% 100%, #0B4A2C 0%, transparent 70%), linear-gradient(160deg, #157246 0%, #0E5734 55%, #093D24 100%)}
+.auth-side::after{content:""; position:absolute; right:-180px; bottom:-180px; width:520px; height:520px; border-radius:50%; pointer-events:none;
+  background:repeating-radial-gradient(circle, rgba(255,255,255,.07) 0 1.5px, transparent 1.5px 34px)}
+.auth-side > *{position:relative; z-index:1}
+.auth-brand{display:flex; align-items:center; gap:12px}
+.auth-brand b{display:block; font-size:16px; font-weight:700; letter-spacing:-.01em}
+.auth-brand small{display:block; font-size:12.5px; opacity:.75}
+.auth-mark{width:40px; height:40px; border-radius:13px; display:grid; place-items:center; flex:none; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.22); color:#fff}
+.auth-pitch h2{font-size:clamp(28px,3vw,38px); line-height:1.12; letter-spacing:-.03em; font-weight:800; margin:0 0 28px; max-width:16ch; color:#fff}
+.auth-pitch ul{list-style:none; margin:0; padding:0; display:grid; gap:18px}
+.auth-pitch li{display:flex; gap:14px; align-items:flex-start}
+.auth-pitch li > span{width:36px; height:36px; border-radius:11px; display:grid; place-items:center; flex:none; background:rgba(255,255,255,.12); color:#BFF0D3}
+.auth-pitch li b{display:block; font-size:15px; font-weight:700; color:#fff}
+.auth-pitch li small{display:block; font-size:13.5px; opacity:.78; margin-top:2px; line-height:1.4}
+.auth-foot{font-size:12px; opacity:.6}
+
+/* Form column */
+.auth-main{display:grid; place-items:center; padding:48px 24px; background:var(--bg)}
+.auth .login{width:100%; max-width:400px; margin:0; padding:0; animation:auth-in .45s var(--ease) both}
+.auth .login h1{font-size:30px; letter-spacing:-.03em; margin:0}
+.auth .login > p{margin:8px 0 26px; color:var(--muted); font-size:14.5px; line-height:1.5}
+.auth-brand-sm{display:none; margin-bottom:28px; color:var(--ink)}
+.auth-brand-sm .auth-mark{background:linear-gradient(145deg, var(--g500), var(--g600)); border:0; color:var(--on-g)}
+.auth-brand-sm small{color:var(--muted); opacity:1}
+.auth-form{display:grid; gap:16px}
+.af .lbl{margin:0 0 6px; color:var(--ink); font-size:13px; font-weight:600}
+.af-box{position:relative}
+.af-box .fld{height:46px; padding:0 44px 0 42px; border-radius:13px; font-size:15px; transition:border-color .15s, box-shadow .15s}
+.af-box .fld::placeholder{color:var(--faint)}
+.af-box .fld:hover:not(:focus){border-color:var(--n300)}
+.af-ic{position:absolute; left:14px; top:50%; transform:translateY(-50%); color:var(--faint); pointer-events:none; display:flex; transition:color .15s}
+.af-box:focus-within .af-ic{color:var(--g600)}
+.af-eye{position:absolute; right:6px; top:50%; transform:translateY(-50%); width:34px; height:34px; border-radius:10px; display:grid; place-items:center; color:var(--faint); background:none; border:0; cursor:pointer}
+.af-eye:hover{color:var(--ink); background:var(--n50)}
+.af-eye:focus-visible{outline:2px solid var(--g500); outline-offset:1px}
+.af-caps{display:flex; align-items:center; gap:5px; margin-top:6px; font-size:12.5px; font-weight:600; color:var(--a700)}
+.auth-err{display:flex; align-items:flex-start; gap:9px; padding:11px 13px; border-radius:12px; background:var(--r50); border:1px solid var(--r100); color:var(--r700); font-size:13.5px; font-weight:500; animation:auth-shake .35s ease}
+.auth-err svg{flex:none; margin-top:1px}
+.auth-btn{width:100%; height:48px; justify-content:center; border-radius:13px; font-size:15px; margin-top:4px; box-shadow:0 8px 20px -10px rgba(21,114,70,.7); transition:background .15s, transform .1s, box-shadow .15s}
+.auth-btn:hover:not(:disabled){background:var(--g700)}
+.auth-btn:active:not(:disabled){transform:translateY(1px)}
+.auth-btn:disabled{opacity:.85; cursor:progress}
+.auth-btn:focus-visible{outline:3px solid var(--g200); outline-offset:2px}
+.auth-spin{width:16px; height:16px; border-radius:50%; border:2px solid currentColor; border-right-color:transparent; animation:auth-rot .7s linear infinite}
+.auth-help{margin:22px 0 0; padding-top:18px; border-top:1px solid var(--line); font-size:13px; color:var(--muted); line-height:1.5}
+.auth-checks{list-style:none; margin:-4px 0 0; padding:0; display:grid; gap:6px}
+.auth-checks li{display:flex; align-items:center; gap:7px; font-size:13px; color:var(--faint); transition:color .15s}
+.auth-checks li svg{opacity:.35}
+.auth-checks li.ok{color:var(--g600); font-weight:600}
+.auth-checks li.ok svg{opacity:1}
+
+@keyframes auth-in{from{opacity:0; transform:translateY(8px)}}
+@keyframes auth-shake{25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+@keyframes auth-rot{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){.auth .login,.auth-err{animation:none}.auth-spin{animation-duration:2s}}
+
+@media (max-width:860px){
+  .auth{grid-template-columns:1fr}
+  .auth-side{display:none}
+  .auth-main{place-items:start center; padding:40px 20px}
+  .auth-brand-sm{display:flex}
+}
+}
