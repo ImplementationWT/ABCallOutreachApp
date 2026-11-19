@@ -14,9 +14,6 @@ export async function sessionToken() {
 export async function currentUserDoc(): Promise<UserDoc | null> {
   return sessionUserDoc(await getDb(), await sessionToken());
 }
-export async function currentUser() {
-  return (await currentUserDoc())?._id ?? null;
-}
 export async function setSessionCookie(token: string) {
   (await cookies()).set(SESSION_COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production' && process.env.INSECURE_COOKIES !== '1', path: '/', maxAge: SESSION_DAYS * 86400 });
 }

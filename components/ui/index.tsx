@@ -3,7 +3,7 @@
  * prTag, p2tag, bar, picker, datef, phaseBan. */
 import type React from 'react';
 import { AUDS, OUT, PEO, PRI, ST_TONE, fmtS, fmtWD, type AudKey, type PersonKey, type Pri, type Property, type Status } from '@/lib/domain';
-import { on, registerDate, registerPick, type PickOpt } from '@/lib/state/actions';
+import { on, registerDate } from '@/lib/state/actions';
 import { PAGE_SIZES, S } from '@/lib/state/store';
 import { IC } from './icons';
 
@@ -41,11 +41,6 @@ export function Bar({ n, d, cls = '' }: { n: number; d: number; cls?: string }) 
 }
 
 /** picker(): a button that opens the searchable popover (rendered by <Layer>). */
-export function Picker({ k, value, opts, onSet, ph = 'Choose...' }: { k: string; value?: string; opts: PickOpt[]; onSet: (v: string) => void; ph?: string }) {
-  registerPick(k, { opts, onSet });
-  const o = opts.find(x => x.v === value);
-  return <div className="pk"><button className="pk-b" type="button" {...on('pick', k)}>{o ? <><span>{o.l}</span>{o.d ? <small className="muted">{o.d}</small> : null}</> : <span className="ph2">{ph}</span>}<Icon n="chd" s={16} /></button></div>;
-}
 /** datef(): a button that opens the calendar popover; past days are disabled there. */
 export function DateField({ k, value, onSet, ph = 'Pick a date' }: { k: string; value?: string | null; onSet: (v: string) => void; ph?: string }) {
   registerDate(k, onSet);

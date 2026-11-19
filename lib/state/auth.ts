@@ -10,7 +10,6 @@ export const useMe = create<{ me: Me | null }>(() => ({ me: null }));
 export const getMe = () => useMe.getState().me;
 /** Until /api/auth/me answers, nothing is allowed (the views wait for the data anyway). */
 export const can = (p: Perm) => !!getMe()?.perms.includes(p);
-export const lockedRep = () => { const me = getMe(); return !!me && isLockedRep(me); };
 
 export async function loadMe() {
   const res = await fetch('/api/auth/me', { cache: 'no-store' });
