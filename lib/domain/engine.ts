@@ -155,6 +155,19 @@ export function startDay(rep: RepKey) {
   if (d.st === 'started') return;
   d.st = 'started'; d.startedAt = isoT(nowT());
 }
+/** Start Workday: the day starts and, if the rep has nothing to call (the morning allocation gave
+ * them nothing, e.g. the campaign was created later), they get the first daily batch now: their own
+ * follow-ups first, then the rest in priority order. Returns how many contacts were added. */
+export function startAlloc(rep: RepKey) {
+  startDay(rep);
+  if (openOf(rep).length) return 0;
+  const cap = demoN(CFG.first), before = load(rep);
+  for (const g of freeGroups(rep).filter(g => g.own === rep)) if (load(rep) - before < cap) reserve(g, rep);
+  for (const g of freeGroups(rep).filter(g => !g.own)) { if (load(rep) - before >= cap) break; reserve(g, rep); }
+  const n = load(rep) - before;
+  if (n) DAY[rep].batches.push({ at: fmtT(nowT()), n, k: 'Start of workday' });
+  return n;
+}
 export function endDay(rep: RepKey) {
   const d = DAY[rep];
   const left = openOf(rep);

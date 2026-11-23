@@ -96,13 +96,21 @@ A.openprop = v => { openProp(v); };
 IN.popq = v => { if (S.pop?.t === 'pick') { S.pop.q = v; S.pop.kb = 0; } };
 
 /* ===== REP WORKSPACE ===== */
+/* Start Workday: the server starts the day and, if the list is empty, allocates the first batch. */
 A.startday = () => {
-  const u = S.user;
-  startDay(u);
+  if (S.loadingMore) return false;
+  S.loadingMore = true;
+  void startWorkday(S.user).finally(() => { S.loadingMore = false; bump(); });
+};
+async function startWorkday(u: RepKey) {
+  const r = await allocate({ kind: 'start', rep: u });
+  if (!r) { toast('Could not reach the server. Try again'); return; }
+  await loadState(true);
   const first = openOf(u).sort(queueSort)[0];
   S.sel[u] = first ? first.k : null;
-  toast(`Workday started: ${DAY[u].list.length} contacts for today`);
-};
+  if (r.n) syncLog('Fire Rebuild Contacts', 'Start of workday', `${r.n} contacts reserved for ${PEO[u].n}`);
+  toast(DAY[u].list.length ? `Workday started: ${DAY[u].list.length} contacts for today` : 'Workday started. No eligible contacts in your campaign today');
+}
 A.reopenday = () => { DAY[S.user].st = 'started'; };
 A.qsel = v => { S.sel[S.user] = v; };
 /* Request more: the server allocates (lib/db/allocate.ts), so two reps never get the same contact;

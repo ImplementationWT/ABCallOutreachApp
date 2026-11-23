@@ -1,5 +1,6 @@
 /* Allocation runs on the server, one at a time: two reps who ask for more at the same moment, each
- * with the app loaded before the other's request, never get the same contact. */
+ * with the app loaded before the other's request, never get the same contact; and Start Workday with
+ * an empty list brings the first batch without asking for more. */
 import { expect, test, type Browser, type Page } from '@playwright/test';
 import { createSession, ensureTeamUsers } from '../../lib/db/auth-core';
 import { ARTIFACT_DAY, resetUsers, reseed, withDb } from './db';
@@ -11,8 +12,11 @@ test.beforeAll(async () => {
   await withDb(async db => {
     await ensureTeamUsers(db);
     await db.collection('users').updateMany({}, { $set: { mustChange: false } });
-    // Maya and Daniel start with an empty list, so "Request more" gives them a batch
-    await db.collection('reservations').deleteMany({ date: DAY, rep: { $in: ['may', 'dan'] } });
+    // Maya and Daniel: day started with an empty list, so "Request more" gives them a batch.
+    // Priya: day not started and an empty list, so "Start Workday" gives her the first batch.
+    await db.collection('reservations').deleteMany({ date: DAY, rep: { $in: ['may', 'dan', 'pri'] } });
+    await db.collection('workdays').updateMany({ date: DAY, rep: { $in: ['may', 'dan'] } }, { $set: { st: 'started', startedAt: `${DAY}T08:00` } });
+    await db.collection('workdays').updateOne({ date: DAY, rep: 'pri' }, { $set: { st: 'reserved', startedAt: null } });
     // ...from the same campaign (same audiences), as in production, so they compete for the same contacts
     await db.collection('campaigns').deleteMany({ date: DAY });
     await db.collection('campaigns').insertOne({ _id: 'C-1102-A' as never, date: DAY, auds: ['pp', 'sm', 'mb', 'ad'], reps: ['may', 'dan', 'pri'], goal: 1, pos: 0 });
@@ -33,7 +37,6 @@ const listOf = async (page: Page) => (await page.locator('[data-act=qsel]').eval
 test('two reps asking for more at once never get the same contact', async ({ browser }) => {
   expect(ARTIFACT_DAY.getDate()).toBe(2);
   const [maya, dan] = await Promise.all([as(browser, 'maya'), as(browser, 'daniel')]);
-  for (const p of [maya, dan]) { const start = p.locator('[data-act=startday]'); if (await start.count()) await start.first().click(); }
   expect(await listOf(maya)).toEqual([]);
   expect(await listOf(dan)).toEqual([]);
   // Both pages were loaded before either request: in the browser alone they would pick the same contacts
@@ -50,4 +53,16 @@ test('two reps asking for more at once never get the same contact', async ({ bro
   // A reload shows the same lists
   await maya.reload(); await maya.waitForLoadState('networkidle');
   expect((await listOf(maya)).sort()).toEqual([...a].sort());
+});
+
+test('Start Workday with an empty list brings the first batch, none of it in another list', async ({ browser }) => {
+  const pri = await as(browser, 'priya');
+  expect(await listOf(pri)).toEqual([]);
+  await pri.locator('[data-act=startday]').click();
+  await expect(pri.locator('#toast')).toContainText(/Workday started: \d+ contacts for today/);
+  const mine = await listOf(pri);
+  expect(mine.length).toBeGreaterThan(0);
+  const others = await withDb(db => db.collection('reservations').find({ date: DAY, rep: { $ne: 'pri' } }).toArray());
+  expect(mine.filter(k => others.some(r => String(r.ct).split('@')[0] === k))).toEqual([]);
+  expect(await withDb(db => db.collection('workdays').findOne({ _id: `${DAY}:pri` as never }))).toMatchObject({ st: 'started' });
 });

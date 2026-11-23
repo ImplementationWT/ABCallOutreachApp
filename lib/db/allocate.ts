@@ -5,7 +5,7 @@ import 'server-only';
  * together, are served one after the other, and the second one sees the first one's reservations.
  * So a contact is never in two lists. Only the documents the allocation changed are written. */
 import type { AnyBulkWriteOperation, Db } from 'mongodb';
-import { COLLECTIONS, D, TODAY, fromDocs, requestMore, setClock, setToday, startNewDay, toDocs, type CollectionName, type Doc, type RepKey, type Snapshot } from '@/lib/domain';
+import { COLLECTIONS, D, TODAY, fromDocs, requestMore, setClock, setToday, startAlloc, startNewDay, toDocs, type CollectionName, type Doc, type RepKey, type Snapshot } from '@/lib/domain';
 
 let queue: Promise<unknown> = Promise.resolve();
 /** Runs `fn` after every allocation already queued (the domain is module state: one at a time). */
@@ -43,6 +43,9 @@ export const allocateMorning = (db: Db, now: string) => locked(() => withState(d
   startNewDay();
   return { ran: true };
 }));
+
+/** Start Workday for a rep: the first batch if their list is empty. */
+export const allocateStart = (db: Db, now: string, rep: RepKey) => locked(() => withState(db, now, () => ({ ok: true, n: startAlloc(rep) })));
 
 /** "Request more" for a rep: { ok: false, n } while their list still has contacts without a result. */
 export const allocateMore = (db: Db, now: string, rep: RepKey) => locked(() => withState(db, now, () => requestMore(rep)));

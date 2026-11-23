@@ -45,7 +45,7 @@ export async function loadState(quiet = false, morningAsked = false) {
 }
 
 /** Asks the server to allocate (POST /api/allocate) after the pending writes are saved. null if it failed. */
-export async function allocate(body: { kind: 'morning' } | { kind: 'more'; rep: RepKey }): Promise<{ ok?: boolean; n?: number; ran?: boolean } | null> {
+export async function allocate(body: { kind: 'morning' } | { kind: 'more' | 'start'; rep: RepKey }): Promise<{ ok?: boolean; n?: number; ran?: boolean } | null> {
   while (busy) await new Promise(r => setTimeout(r, 50));
   await persist();
   try {

@@ -40,7 +40,7 @@ function RepStart() {
   const own = cs.filter(c => ownerOf(c) === u).length;
   return <>
     <PageHeader t="My Outbound Dashboard" sub={fmtWD(TODAY)} acts={<Pill t="Not Started" cls="dot" />} />
-    <div className="startw"><div className="sico"><Icon n="headset" s={30} /></div><h2>Ready to start calling?</h2><p>Start your workday to receive your first daily allocation of eligible contacts. They are reserved for you, so nobody else calls them today.</p><button className="btn pri" {...on('startday')}><Icon n="play" s={16} />Start Workday</button>
+    <div className="startw"><div className="sico"><Icon n="headset" s={30} /></div><h2>Ready to start calling?</h2><p>Start your workday to receive your first daily allocation of eligible contacts. They are reserved for you, so nobody else calls them today.</p><button className="btn pri" {...on('startday')} disabled={S.loadingMore} aria-busy={S.loadingMore}>{S.loadingMore ? <span className="ld-spin" aria-hidden="true" /> : <Icon n="play" s={16} />}{S.loadingMore ? 'Getting your contacts…' : 'Start Workday'}</button>
       <div className="pre"><Pill t={cs.length + ' contacts waiting'} cls="green" />{own ? <Pill t={own + ' are your follow-ups'} cls="red" /> : null}{cp ? <Pill t={campName(cp)} cls="blue" /> : null}</div></div>
     <p className="sm muted text-center">The morning allocation ran at 7:00 AM with Andrew’s rules. Daily allocation per rep: {CFG.first} contacts ({demoN(CFG.first)} in this demo, scaled to its data).</p>
   </>;
