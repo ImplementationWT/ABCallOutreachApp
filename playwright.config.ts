@@ -17,7 +17,7 @@ export default defineConfig({
   use: { storageState: STORAGE, actionTimeout: 10_000, baseURL: 'http://localhost:3217', viewport: { width: 1440, height: 900 }, locale: 'en-US', timezoneId: 'America/Los_Angeles' },
   projects: [
     { name: 'read', testMatch: ['compare.spec.ts', 'console.spec.ts'], fullyParallel: true },
-    { name: 'write', testMatch: ['flow.spec.ts', 'more.spec.ts', 'db.spec.ts', 'auth.spec.ts', 'users.spec.ts'], dependencies: ['read'], workers: 1 },
+    { name: 'write', testMatch: ['flow.spec.ts', 'more.spec.ts', 'db.spec.ts', 'auth.spec.ts', 'users.spec.ts', 'alloc.spec.ts'], dependencies: ['read'], workers: 1 },
   ],
   webServer: { command: 'npx next start -p 3217', url: 'http://localhost:3217', reuseExistingServer: false, timeout: 120_000, env: { MONGODB_DB: E2E_DB } },
 });

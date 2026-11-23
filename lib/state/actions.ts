@@ -9,13 +9,14 @@ import type React from 'react';
 import {
   C, CALLS, CAMPS, CFG, DAY, LEAD_OUT, NO_OUT, P, PROPS, PEO, PRANK, REPS, T0, TODAY,
   campOf, ctByName, ctsOf, endDay, fmtWD, isFinal, isoT, nowT, openOf, ownerOf, priOf,
-  requestMore, saveOutcome, startDay, syncLog, D, iso, nextBiz, isCurrentPeriod, shiftPeriod, type PeriodKind, type RepKey,
+  saveOutcome, startDay, syncLog, D, iso, nextBiz, isCurrentPeriod, shiftPeriod, type PeriodKind, type RepKey,
 } from '@/lib/domain';
 import { TOUR } from '@/lib/domain/tour';
 import { go, openProp } from './navigation';
 import { queueSort } from './rep';
 import { APPS, PAGE_SIZES, S, bump, store, toast, type AppKey, type ViewKey } from './store';
 import { can } from './auth';
+import { allocate, loadState } from './persist';
 import { isLocked, type Perm } from '@/lib/auth/roles';
 
 type Fn = (v: string, el?: HTMLElement, e?: React.SyntheticEvent | Event) => unknown;
@@ -104,15 +105,21 @@ A.startday = () => {
 };
 A.reopenday = () => { DAY[S.user].st = 'started'; };
 A.qsel = v => { S.sel[S.user] = v; };
-A.reqmore = () => {
-  const r = requestMore(S.user);
-  if (!r.ok) { toast(`${r.n} contact${r.n > 1 ? 's' : ''} still need${r.n > 1 ? '' : 's'} a result before you get more`); return; }
-  if (!r.n) { toast('No more eligible contacts in your campaign today'); return; }
-  const first = openOf(S.user).sort(queueSort)[0];
-  S.sel[S.user] = first ? first.k : S.sel[S.user];
-  syncLog('Fire Rebuild Contacts', 'Request more', `${r.n} more contacts reserved for ${PEO[S.user].n}`);
+/* Request more: the server allocates (lib/db/allocate.ts), so two reps never get the same contact;
+ * then the data is reloaded with every other rep's reservations. */
+A.reqmore = () => { void reqMore(S.user); return false; };
+async function reqMore(u: RepKey) {
+  const r = await allocate({ kind: 'more', rep: u });
+  if (!r) { toast('Could not reach the server. Try again'); return; }
+  if (!r.ok) { const n = r.n!; toast(`${n} contact${n > 1 ? 's' : ''} still need${n > 1 ? '' : 's'} a result before you get more`); return; }
+  await loadState(true);
+  if (!r.n) { toast('No more eligible contacts in your campaign today'); bump(); return; }
+  const first = openOf(u).sort(queueSort)[0];
+  S.sel[u] = first ? first.k : S.sel[u];
+  syncLog('Fire Rebuild Contacts', 'Request more', `${r.n} more contacts reserved for ${PEO[u].n}`);
   toast(`Checked: every contact documented. ${r.n} more contacts added to your list`);
-};
+  bump();
+}
 A.endday = () => { const n = endDay(S.user); toast(n ? `${n} contacts not called went back to the pool` : 'Workday ended'); };
 A.dial = v => { const [k, i] = v.split('|'); const c = C(k); c.calling = isoT(nowT()); c.callPh = Number(i); };
 A.setout = v => { const [k, o] = v.split('|'); const dr = S.draft[k]; dr.out = dr.out === o ? null : o; if (o === 'Follow Up' && !dr.fu) dr.fu = null; };

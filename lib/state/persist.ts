@@ -1,12 +1,12 @@
 'use client';
 /* The app's link to MongoDB.
  * loadState(): GET /api/state, then fromDocs() fills the domain (until then the views show "Loading").
- * On the first load of a day it also runs the morning allocation for today's campaigns.
+ * On the first load of a day the server runs the morning allocation for today's campaigns (allocate()).
  * After that, every state change (each bump of the store) runs a diff of toDocs() against what the
  * database already has and POSTs only the documents that changed or disappeared. Writes go one at
  * a time, in order; a failed write is retried with the next change. */
 import { create } from 'zustand';
-import { COLLECTIONS, TODAY, fromDocs, setToday, startNewDay, toDocs, type CollectionName, type Doc, type Snapshot } from '@/lib/domain';
+import { COLLECTIONS, TODAY, fromDocs, isoT, setToday, toDocs, type CollectionName, type Doc, type RepKey, type Snapshot } from '@/lib/domain';
 import { bump, toast, useRev } from './store';
 
 type Status = 'loading' | 'ready' | 'error';
@@ -19,20 +19,22 @@ let busy = false, again = false, unsub: (() => void) | null = null;
 const hashes = (s: Snapshot): Hashes =>
   Object.fromEntries(COLLECTIONS.map(n => [n, new Map(s[n].map(d => [d._id, JSON.stringify(d)]))])) as Hashes;
 
-export async function loadState() {
-  useData.setState({ status: 'loading', error: undefined });
+/** quiet: reload the data in place (after an allocation), without the "Loading" screen. */
+export async function loadState(quiet = false, morningAsked = false) {
+  if (!quiet) useData.setState({ status: 'loading', error: undefined });
   try {
     const res = await fetch('/api/state', { cache: 'no-store' });
     if (res.status === 401) { toLogin(); return; }
     if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `HTTP ${res.status}`);
     const snap = (await res.json()) as Snapshot;
     setToday(new Date());
+    // First load of the day: the server allocates (one at a time, so two browsers do not both do it)
+    if (!morningAsked && !snap.workdays.some(w => w.date === TODAY)) { await allocate({ kind: 'morning' }); return loadState(quiet, true); }
     fromDocs(snap);
     // What the database has: only ids it sent count as saved, so a new day's documents get written
     const now = hashes(toDocs());
     for (const n of COLLECTIONS) { const ids = new Set(snap[n].map(d => d._id)); for (const id of [...now[n].keys()]) if (!ids.has(id)) now[n].delete(id); }
     saved = now;
-    if (!snap.workdays.some(w => w.date === TODAY)) startNewDay();
     useData.setState({ status: 'ready' });
     unsub?.();
     unsub = useRev.subscribe(() => { void persist(); });
@@ -40,6 +42,17 @@ export async function loadState() {
   } catch (e) {
     useData.setState({ status: 'error', error: e instanceof Error ? e.message : String(e) });
   }
+}
+
+/** Asks the server to allocate (POST /api/allocate) after the pending writes are saved. null if it failed. */
+export async function allocate(body: { kind: 'morning' } | { kind: 'more'; rep: RepKey }): Promise<{ ok?: boolean; n?: number; ran?: boolean } | null> {
+  while (busy) await new Promise(r => setTimeout(r, 50));
+  await persist();
+  try {
+    const res = await fetch('/api/allocate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, now: isoT(new Date()) }) });
+    if (res.status === 401) { toLogin(); return null; }
+    return res.ok ? await res.json() : null;
+  } catch { return null; }
 }
 
 /** The session expired or was closed: back to the login, then to this same page. */
