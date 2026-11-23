@@ -1,0 +1,15 @@
+/* "Request more" loading state (components/rep/index.tsx). Not from the artifact. */
+@layer components {
+.ld-spin{width:14px; height:14px; border-radius:50%; border:2px solid currentColor; border-right-color:transparent; animation:ld-rot .7s linear infinite; flex:none}
+.btn[aria-busy="true"]{cursor:progress; opacity:.8}
+.ld-box{border-color:var(--g200); background:var(--g25)}
+.ld-ring{width:22px; height:22px; border-radius:50%; border:2.5px solid var(--g100); border-top-color:var(--g600); animation:ld-rot .8s linear infinite; flex:none}
+.ld-sk{display:block; height:11px; border-radius:6px; background:linear-gradient(90deg, var(--n100) 0%, var(--n50) 50%, var(--n100) 100%); background-size:200% 100%; animation:ld-shim 1.2s ease-in-out infinite}
+.ld-qi{pointer-events:none; cursor:default}
+.ld-av{width:34px; height:34px; border-radius:10px; flex:none}
+.ld-lines{display:grid; gap:7px; flex:1; min-width:0}
+.ld-det{display:grid; gap:8px}
+@keyframes ld-rot{to{transform:rotate(360deg)}}
+@keyframes ld-shim{from{background-position:100% 0}to{background-position:-100% 0}}
+@media (prefers-reduced-motion:reduce){.ld-sk{animation:none}.ld-spin,.ld-ring{animation-duration:2s}}
+}

@@ -107,7 +107,11 @@ A.reopenday = () => { DAY[S.user].st = 'started'; };
 A.qsel = v => { S.sel[S.user] = v; };
 /* Request more: the server allocates (lib/db/allocate.ts), so two reps never get the same contact;
  * then the data is reloaded with every other rep's reservations. */
-A.reqmore = () => { void reqMore(S.user); return false; };
+A.reqmore = () => {
+  if (S.loadingMore) return false;
+  S.loadingMore = true;
+  void reqMore(S.user).finally(() => { S.loadingMore = false; bump(); });
+};
 async function reqMore(u: RepKey) {
   const r = await allocate({ kind: 'more', rep: u });
   if (!r) { toast('Could not reach the server. Try again'); return; }

@@ -33,6 +33,8 @@ export type State = {
   tour: { on: boolean; i: number; col: boolean; list: boolean; x: number | null; y: number | null };
   /** Pagination of each table: page index and rows per page (components/ui Pager). */
   pg: Record<string, { i: number; n: number }>;
+  /** "Request more" is waiting for the server (buttons disabled, loading list). */
+  loadingMore: boolean;
 };
 
 /** Rows per page a table can show; the first is the default. */
@@ -44,6 +46,7 @@ export const S: State = {
   user: 'may', sel: {}, draft: {}, srch: {}, modal: null, pop: null, hl: null, top: false,
   tour: { on: false, i: 0, col: false, list: false, x: null, y: null },
   pg: {},
+  loadingMore: false,
 };
 
 /* ===== STORE ===== localStorage with the artifact's prefix */

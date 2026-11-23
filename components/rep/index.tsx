@@ -61,6 +61,9 @@ function QItem({ c, u, cur }: { c: Contact; u: RepKey; cur: boolean }) {
   const tags = done || removed ? null : <div className="tags">{ownerOf(c) === u ? <Pill t={pr === 'P1' ? 'Your follow-up' : 'Your undecided'} cls={pr === 'P1' ? 'red' : 'violet'} /> : null}{p.permit === 'Permit Issued' ? <Pill t="Permit issued" cls="green" /> : p.permit === 'Plans Submitted' ? <Pill t="Plans submitted" cls="amber" /> : null}<Pill t={AUDS[p.aud].s} /></div>;
   return <button className={`qi ${done || removed ? 'done' : ''}`} {...on('qsel', c.k)} aria-current={cur} data-hl={c.k}>{left}<span className="min-w-0"><b>{c.n}</b><small>{p.addr || "No address"}</small><small>{sub}</small>{tags}</span><span /></button>;
 }
+/** Placeholders while "Request more" waits for the server. */
+const QSkel = () => <div className="qi ld-qi" aria-hidden="true"><span className="ld-sk ld-av" /><span className="ld-lines"><span className="ld-sk w-[70%]" /><span className="ld-sk w-[55%]" /><span className="ld-sk w-[40%]" /></span></div>;
+const DetailSkel = () => <div className="dcard ld-det" aria-hidden="true"><span className="ld-sk h-[22px] w-[45%]" /><span className="ld-sk w-[65%]" /><span className="ld-sk h-[44px] w-full mt-[14px]" /><span className="ld-sk h-[120px] w-full mt-[10px]" /></div>;
 function RepWork() {
   const u = S.user, d = DAY[u];
   const all = listOf(u);
@@ -70,17 +73,19 @@ function RepWork() {
   if (!S.sel[u] || !all.find(c => c.k === S.sel[u])) setSel(u, open[0] ? open[0].k : (done[0] || {}).k);
   const ndoc = done.length + removed.length;
   const m = mOf(callsOn(u, TODAY));
+  const busy = S.loadingMore;
   return <>
     <PageHeader t="My Outbound Dashboard" sub={`${fmtWD(TODAY)}, ${m.calls} calls, ${m.con} connects, ${m.leads} lead${m.leads === 1 ? '' : 's'} so far`}
-      acts={<><Pill t="Calling" cls="green dot blink" /><button className="btn sec sm" {...on('reqmore')}><Icon n="plus" s={14} />Request more</button><button className="btn sec sm" {...on('endday')}><Icon n="logout" s={14} />End workday</button></>} />
-    {open.length ? null : <div className="morebox"><Icon n="check" s={22} /><div><b>Your list is documented</b><small>Every contact has a result. Request more and the engine checks the list before giving you the next batch.</small></div><div className="acts"><button className="btn pri" {...on('reqmore')}><Icon n="plus" s={15} />Request more contacts</button></div></div>}
+      acts={<><Pill t="Calling" cls="green dot blink" /><button className="btn sec sm" {...on('reqmore')} disabled={busy} aria-busy={busy}>{busy ? <span className="ld-spin" aria-hidden="true" /> : <Icon n="plus" s={14} />}{busy ? 'Requesting…' : 'Request more'}</button><button className="btn sec sm" {...on('endday')}><Icon n="logout" s={14} />End workday</button></>} />
+    {busy ? <div className="morebox ld-box" role="status" aria-live="polite"><span className="ld-ring" aria-hidden="true" /><div><b>Finding your next contacts</b><small>The engine checks today’s campaign and reserves the contacts for you only, so nobody else gets them.</small></div></div> : open.length ? null : <div className="morebox"><Icon n="check" s={22} /><div><b>Your list is documented</b><small>Every contact has a result. Request more and the engine checks the list before giving you the next batch.</small></div><div className="acts"><button className="btn pri" {...on('reqmore')}><Icon n="plus" s={15} />Request more contacts</button></div></div>}
     <div className="work">
       <div className="qlist"><div className="qhead"><b>Today: {ndoc} of {all.length} documented</b><Bar n={ndoc} d={all.length} /><small>Called contacts go to the end of the queue, so nobody is skipped.</small></div><div className="qscroll">
+        {busy ? <><div className="qsec">Reserving contacts…</div>{[0, 1, 2, 3, 4].map(i => <QSkel key={i} />)}</> : null}
         {open.length ? <><div className="qsec">To call ({open.length})</div>{open.map(c => <QItem key={c.k} c={c} u={u} cur={c.k === S.sel[u]} />)}</> : null}
         {done.length ? <><div className="qsec">Documented ({done.length})</div>{done.map(c => <QItem key={c.k} c={c} u={u} cur={c.k === S.sel[u]} />)}</> : null}
         {removed.length ? <><div className="qsec">Removed today ({removed.length})</div>{removed.map(c => <QItem key={c.k} c={c} u={u} cur={c.k === S.sel[u]} />)}</> : null}
       </div></div>
-      <div className="wdet">{S.sel[u] ? <RepDetail c={C(S.sel[u]!)} /> : <div className="empty">Pick a contact on the left.</div>}</div>
+      <div className="wdet">{busy && !open.length ? <DetailSkel /> : S.sel[u] ? <RepDetail c={C(S.sel[u]!)} /> : <div className="empty">Pick a contact on the left.</div>}</div>
     </div>
   </>;
 }

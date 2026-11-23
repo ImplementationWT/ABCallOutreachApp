@@ -39,6 +39,7 @@
 @import "../styles/artifact/21-rep-work.css";
 @import "../styles/artifact/22-manager.css";
 @import "../styles/auth.css";
+@import "../styles/rep-loading.css";
 
 /* Artifact tokens exposed to Tailwind: bg-n50, text-g600, border-line, shadow-sh-2, font-sans... */
 @theme inline {
