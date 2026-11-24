@@ -5,7 +5,7 @@ import { Fragment } from 'react';
 import type React from 'react';
 import {
   AUDS, C, CALLS, CFG, CTS, DAY, LEADS, OUT, P, PEO, PRI, TODAY, onHold, activeOutcomes, isLeadOut, isNoOut,
-  callsOn, campName, campOf, ctsOf, demoN, docOf, effectsOf, elig, first, fmtD, fmtDT, fmtS, fmtT, fmtUS, fmtWD,
+  callsOn, campName, emptyReason, campOf, ctsOf, demoN, docOf, effectsOf, elig, first, fmtD, fmtDT, fmtS, fmtT, fmtUS, fmtWD,
   fullAddr, getClock, isoT, listOf, mOf, openOf, ownerOf, phIdx, priOf, propStatus, relDay,
   type Contact, type Property, type RepKey,
 } from '@/lib/domain';
@@ -42,11 +42,13 @@ function RepToday() {
 function RepStart() {
   const u = S.user, cs = listOf(u), cp = repCamp();
   const own = cs.filter(c => ownerOf(c) === u).length;
+  const why = emptyReason(u);
   return <>
     <PageHeader t="My Outbound Dashboard" sub={fmtWD(TODAY)} acts={<Pill t="Not Started" cls="dot" />} />
     <div className="startw"><div className="sico"><Icon n="headset" s={30} /></div><h2>Ready to start calling?</h2><p>Start your workday to receive your first daily allocation of eligible contacts. They are reserved for you, so nobody else calls them today.</p><button className="btn pri" {...on('startday')} disabled={S.loadingMore} aria-busy={S.loadingMore}>{S.loadingMore ? <span className="ld-spin" aria-hidden="true" /> : <Icon n="play" s={16} />}{S.loadingMore ? 'Getting your contacts…' : 'Start Workday'}</button>
+      {why ? <div className="nextstep grey mt-[14px] text-left" data-empty={why.k}><span className="ic"><Icon n="info" s={17} /></span><div><b>{why.t}</b><small>{why.d}</small></div></div> : null}
       <div className="pre"><Pill t={cs.length + ' contacts waiting'} cls="green" />{own ? <Pill t={own + ' are your follow-ups'} cls="red" /> : null}{cp ? <Pill t={campName(cp)} cls="blue" /> : null}</div></div>
-    <p className="sm muted text-center">The morning allocation ran at 7:00 AM with Andrew’s rules. Daily allocation per rep: {CFG.first} contacts ({demoN(CFG.first)} in this demo, scaled to its data).</p>
+    <p className="sm muted text-center">Your list comes from today’s campaign with Andrew’s rules. Daily allocation per rep: {CFG.first} contacts ({demoN(CFG.first)} in this demo, scaled to its data).</p>
   </>;
 }
 function RepEnded() {
@@ -81,6 +83,7 @@ function RepWork() {
   return <>
     <PageHeader t="My Outbound Dashboard" sub={`${fmtWD(TODAY)}, ${m.calls} calls, ${m.con} connects, ${m.leads} lead${m.leads === 1 ? '' : 's'} so far`}
       acts={<><Pill t="Calling" cls="green dot blink" /><button className="btn sec sm" {...on('reqmore')} disabled={busy} aria-busy={busy}>{busy ? <span className="ld-spin" aria-hidden="true" /> : <Icon n="plus" s={14} />}{busy ? 'Requesting…' : 'Request more'}</button><button className="btn sec sm" {...on('endday')}><Icon n="logout" s={14} />End workday</button></>} />
+    {!busy && !all.length && emptyReason(u) ? <div className="nextstep grey" data-empty={emptyReason(u)!.k}><span className="ic"><Icon n="info" s={17} /></span><div><b>{emptyReason(u)!.t}</b><small>{emptyReason(u)!.d}</small></div></div> : null}
     {busy ? <div className="morebox ld-box" role="status" aria-live="polite"><span className="ld-ring" aria-hidden="true" /><div><b>Finding your next contacts</b><small>The engine checks today’s campaign and reserves the contacts for you only, so nobody else gets them.</small></div></div> : open.length ? null : <div className="morebox"><Icon n="check" s={22} /><div><b>Your list is documented</b><small>Every contact has a result. Request more and the engine checks the list before giving you the next batch.</small></div><div className="acts"><button className="btn pri" {...on('reqmore')}><Icon n="plus" s={15} />Request more contacts</button></div></div>}
     <div className="work">
       <div className="qlist"><div className="qhead"><b>Today: {ndoc} of {all.length} documented</b><Bar n={ndoc} d={all.length} /><small>Called contacts go to the end of the queue, so nobody is skipped.</small></div><div className="qscroll">

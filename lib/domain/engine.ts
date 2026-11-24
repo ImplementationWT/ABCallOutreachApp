@@ -141,7 +141,8 @@ export function reserve(g: Group, rep: RepKey) {
 }
 export const load = (rep: RepKey) => DAY[rep].list.length;
 /* Morning allocation: owned follow-ups first, then the rest to whoever has the lowest load */
-export function morningAlloc() {
+/** `at`: when it ran (the seeded demo day keeps the artifact's 7:00 AM; the app passes the real time). */
+export function morningAlloc(at = fmtT(nowT())) {
   const reps = REPS.filter(r => DAY[r].st !== 'off' && campOf(r));
   const cap = demoN(CFG.first);
   for (const r of reps) for (const g of freeGroups(r).filter(g => g.own === r)) if (load(r) < cap) reserve(g, r);
@@ -155,12 +156,20 @@ export function morningAlloc() {
     if (!g) { full.add(r); continue; }
     reserve(g, r);
   }
-  for (const r of REPS) DAY[r].batches.push({ at: '7:00 AM', n: DAY[r].list.length, k: 'Morning allocation' });
+  for (const r of REPS) DAY[r].batches.push({ at, n: DAY[r].list.length, k: 'Morning allocation' });
 }
 /** A day with no workdays yet (the first load of the day): the morning allocation for today's campaigns. */
 export function startNewDay() {
   resetDays();
   morningAlloc();
+}
+/** Why a rep has no contacts today, or null: no campaign with them today, today's allocation has not
+ * run yet, or the campaign's pool is empty. */
+export function emptyReason(rep: RepKey): { k: 'nocamp' | 'notyet' | 'empty'; t: string; d: string } | null {
+  if (DAY[rep].list.length) return null;
+  if (!campOf(rep)) return { k: 'nocamp', t: 'No campaign today', d: 'You are not in any of today’s campaigns, so the allocation has nothing for you. Ask Andrew to add you to today’s campaign; your follow-ups wait for you.' };
+  if (!DAY[rep].batches.some(b => b.k === 'Morning allocation')) return { k: 'notyet', t: 'Today’s allocation has not run yet', d: 'It runs the first time someone opens the app today. Reload the page in a moment.' };
+  return { k: 'empty', t: 'No eligible contacts left in today’s campaign', d: 'Every contact of today’s audiences is reserved, waiting for its date, on hold or closed. Ask Andrew to add audiences to today’s campaign.' };
 }
 export const listOf = (rep: RepKey) => DAY[rep].list.map(C);
 /** A follow-up set for later today, whose time has come: the contact is to call again today. */

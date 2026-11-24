@@ -144,7 +144,7 @@ export function buildWorld(t0: Date = new Date()) {
   buildDaym();
 
   /* ===== MORNING STATE ===== */
-  morningAlloc();
+  morningAlloc('7:00 AM');
   /* Priya and Daniel started before Maya and made a few calls */
   DAY.pri.st = 'started'; DAY.pri.startedAt = TODAY + 'T07:58';
   DAY.dan.st = 'started'; DAY.dan.startedAt = TODAY + 'T08:01';

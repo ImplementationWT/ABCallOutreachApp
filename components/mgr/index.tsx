@@ -124,7 +124,7 @@ function CampRow({ c }: { c: (typeof CAMPS)[number] }) {
     <div className="cell"><b>{fmtUS(c.date)}</b><small>{WD[D(c.date)!.getDay()]}</small></div>
     <div className="t"><b>{c.auds.map(a => AUDS[a].n).join(', ')}</b><small>{c.k}, goal {c.goal} potential lead per rep</small></div>
     <div className="cell flex gap-[4px]">{c.reps.map(r => <Avatar key={r} k={r} sm />)}</div>
-    <div className="cell">{res != null ? res + ' reserved' : c.date > TODAY ? 'Allocates at 7:00 AM' : 'Closed'}</div>
+    <div className="cell">{res != null ? res + ' reserved' : c.date > TODAY ? 'Allocates on its day' : 'Closed'}</div>
     <div className="cell">{m ? m.calls + ' calls' : ''}</div>
     <div className="cell">{m ? m.leads + ' leads' : ''}</div>
   </div>;

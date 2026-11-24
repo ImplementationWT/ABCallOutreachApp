@@ -166,13 +166,13 @@ test.describe('A. Rep Workspace', () => {
     const after = await withDb(db => db.collection('reservations').find({ date: DAY }).toArray());
     expect(after.map(r => `${r._id}:${r.rep}`).sort()).toEqual(before.map(r => `${r._id}:${r.rep}`).sort());
   });
-  test('[No cumple] A1 if the morning run gave a rep nothing, the start screen says so (not a normal empty list)', async ({ browser }) => {
-    test.fail();
+  test('A1 if a rep has no list, the start screen says why (no campaign today), not a normal empty list', async ({ browser }) => {
     await withDb(async db => { await db.collection('reservations').deleteMany({ date: DAY, rep: 'pri' }); await db.collection('workdays').updateOne({ _id: `${DAY}:pri` as never }, { $set: { st: 'reserved', startedAt: null } }); });
     await withDb(db => db.collection('campaigns').updateMany({ date: DAY }, { $pull: { reps: 'pri' } as never }));
     const p = await page(browser, 'admin', '/mgr/live');
     await p.click('[data-act=viewas][data-v=pri]');
-    await expect(p.locator('.startw')).toContainText(/No campaign today/i, { timeout: 3000 });
+    await expect(p.locator('.startw [data-empty=nocamp]').first()).toContainText('No campaign today');
+    await expect(p.locator('#main')).not.toContainText('7:00 AM');
   });
   test('A2 the list is in priority order, and saving updates the counters without a reload', async ({ browser }) => {
     const p = await page(browser, 'maya');
