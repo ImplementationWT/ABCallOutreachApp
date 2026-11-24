@@ -58,7 +58,7 @@ function MgrLive() {
 }
 
 /* ----- Contact pool ----- */
-const POOLF: [string, string, string][] = [['pool', 'Eligible, not reserved', 'green'], ['res', 'Reserved today', 'blue'], ['due', 'Not due yet', ''], ['hold', 'On hold, no number', 'amber'], ['stop', 'Removed by the property', 'red'], ['closed', 'Closed', 'red'], ['dnc', 'Do Not Call or suppressed', 'red'], ['pipe', 'In AB sales pipeline', 'blue'], ['lead', 'Handed to sales', 'green'], ['max', 'Max attempts', ''], ['all', 'All contacts', '']];
+const POOLF: [string, string, string][] = [['pool', 'Eligible, not reserved', 'green'], ['res', 'Reserved today', 'blue'], ['due', 'Not due yet', ''], ['hold', 'On hold, no number', 'amber'], ['stop', 'Removed by the property', 'red'], ['closed', 'Closed', 'red'], ['dnc', 'Do Not Call or suppressed', 'red'], ['pipe', 'In AB sales pipeline', 'blue'], ['lead', 'Handed to sales', 'green'], ['max', 'On hold, max attempts', 'amber'], ['all', 'All contacts', '']];
 const POOL_COLS = 'grid-cols-[40px_minmax(0,1.2fr)_minmax(0,1fr)_150px_150px_minmax(0,1.3fr)]';
 function MgrPool() {
   const E = CTS.map(c => [c, elig(c)] as const);
@@ -82,7 +82,7 @@ function MgrPool() {
           <div className="t"><b className="font-semibold">{p.addr || "No address"}</b><small>{AUDS[p.aud].s}, {p.permit === 'None' ? 'no permit' : p.permit}</small></div>
           <div className="cell"><OutPill o={c.out} /><small>{c.lastAt ? fmtS(c.lastAt) + (c.rep ? ' by ' + first(c.rep) : '') : ''}</small></div>
           <div className="cell">{c.nextAt ? <><b>{fmtWD(c.nextAt)}</b><small>{relDay(c.nextAt)}</small></> : <span className="muted">Any day</span>}</div>
-          <div className="cell"><Pill t={e.why.length > 46 ? e.why.slice(0, 44) + '...' : e.why} cls={e.tone} /></div>
+          <div className="cell"><Pill t={e.why.length > 46 ? e.why.slice(0, 44) + '...' : e.why} cls={e.tone} />{e.k === 'max' && getMe()?.role === 'admin' ? <button className="btn sec sm mt-[4px]" {...on('reactivate', c.k)}><Icon n="refresh" s={14} />Reactivate</button> : null}</div>
         </div>;
       })}
     </div>
@@ -167,7 +167,8 @@ function MgrRules() {
         </div>
         <div className="card p-[6px_4px]"><h3 className="p-[10px_14px_0]"><Icon n="shield" s={16} />Eligibility, checked in this order</h3>
           {eligRows.map(([i, t, d, tg], ix) => <Rule key={ix} icon={i} t={t} d={d} r="" tag={tg} />)}
-          <Rule icon="flag" t="Max attempts per contact" d="Counts every call, answered or not." r={<><Num k="maxAtt" v={CFG.maxAtt} /><span className="sm muted">calls</span></>} />
+          <Rule icon="flag" t="Max attempts per contact" d="Counts every call, answered or not. At the max the contact goes on hold; a follow-up set on the last attempt is kept." r={<><Num k="maxAtt" v={CFG.maxAtt} /><span className="sm muted">calls</span></>} />
+          <Rule icon="refresh" t="Reactivating an on-hold contact" d="Its rep or an administrator puts it back in the pool. Pending with Andrew: keep its attempts or start again at 0." r={<span className="segs">{[['false', 'Keep the attempts'], ['true', 'Back to 0']].map(([k, l]) => <button key={k} className="seg" {...on('cfgset', `reactivateReset|${k}`)} aria-pressed={String(!!CFG.reactivateReset) === k}>{l}</button>)}</span>} />
         </div>
       </div>
       <div>

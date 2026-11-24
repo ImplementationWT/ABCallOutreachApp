@@ -135,6 +135,27 @@ test.describe('C2. Recall windows from the catalog', () => {
   });
 });
 
+test.describe('C4. On hold and reactivation', () => {
+  test('the assigned rep or an administrator reactivates an on-hold contact; the attempts are kept', async ({ browser, playwright }) => {
+    const [a, b] = await withDb(async db => {
+      const cs = await db.collection('contacts').find({ stop: null, out: null, rep: null }).limit(2).toArray();
+      for (const c of cs) await db.collection('contacts').updateOne({ _id: c._id }, { $set: { rep: 'may', att: 6, out: 'Left VM', lastAt: '2026-10-20T10:00', nextAt: '2026-10-25' } });
+      return cs;
+    });
+    const now = `${DAY}T09:00`;
+    for (const u of ['daniel', 'andrew']) expect((await (await api(playwright, u)).post('/api/work', { data: { action: 'reactivate', ct: a._id, now } })).status(), u).toBe(403);
+    const p = await page(browser, 'maya', '/rep/fu');
+    const held = p.locator('[data-hold]');
+    await expect(held).toContainText(String(a.n));
+    await held.locator('.row', { hasText: String(a.n) }).locator('[data-act=reactivate]').click();
+    await expect(p.locator('#toast')).toContainText('Contact reactivated: back in the pool');
+    expect(await withDb(db => db.collection('contacts').findOne({ _id: a._id }))).toMatchObject({ att: 6, react: 6 });
+    const admin = await api(playwright, 'admin');
+    expect((await admin.post('/api/work', { data: { action: 'reactivate', ct: b._id, now } })).status()).toBe(200);
+    expect((await admin.post('/api/work', { data: { action: 'reactivate', ct: b._id, now } })).status()).toBe(409); // not on hold any more
+  });
+});
+
 test.describe('A. Rep Workspace', () => {
   test('A1 reloading does not regenerate or duplicate the list', async ({ browser }) => {
     const p = await page(browser, 'maya');
@@ -254,6 +275,7 @@ test.describe('A. Rep Workspace', () => {
     await p.click(`[data-act=setout][data-v="${ck}|Hung Up"]`);
     await p.locator(`#note-${ck}`).fill('She hung up after the intro');
     await p.click(`[data-act=saveout][data-v="${ck}"]`);
+    await expect(p.locator('#toast')).toContainText('Hung Up saved');
     await p.click(`[data-act=qsel][data-v="${ck}"]`);
     const hist = p.locator('.dcard', { hasText: 'History at this property' });
     // the clock is frozen in the tests, so every call has the same minute: find the line, not the first one

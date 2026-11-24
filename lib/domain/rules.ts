@@ -2,6 +2,8 @@
 export type Config = {
   first: number; more: number; scale: number;
   maxAtt: number; refresh: string; endDay: string;
+  /** Reactivating an on-hold contact sets its attempts back to 0 (true) or keeps them (false, today). */
+  reactivateReset?: boolean;
   hours: string;
   [k: string]: unknown;
 };
@@ -9,7 +11,7 @@ export type Config = {
 /** Mutable on purpose: the Rules page edits it in place and the next allocation reads it. */
 const CFG0 = (): Config => ({
   first: 200, more: 100, scale: 0.07,
-  maxAtt: 6, refresh: 'daily', endDay: 'pool',
+  maxAtt: 6, refresh: 'daily', endDay: 'pool', reactivateReset: false,
   hours: '9:00 AM to 7:00 PM Pacific, Monday to Saturday',
 });
 export const CFG: Config = CFG0();

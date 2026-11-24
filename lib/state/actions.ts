@@ -194,7 +194,9 @@ A.ncsave = () => {
 };
 IN.cfg = (v, k) => {
   if (!can('mgr.manage')) return; CFG[k] = Math.max(0, Number(v) || 0); };
-A.cfgset = v => { const [k, val] = v.split('|'); CFG[k] = val; toast('Rule saved. The next allocation uses it'); };
+A.cfgset = v => { const [k, val] = v.split('|'); CFG[k] = val === 'true' ? true : val === 'false' ? false : val; toast('Rule saved. The next allocation uses it'); };
+/* Reactivate a contact on hold (its rep or an administrator; the server checks it). */
+A.reactivate = v => { void serverAct({ action: 'reactivate', ct: v }, () => toast('Contact reactivated: back in the pool')); return false; };
 
 /* Performance by period (not in the artifact): Day, Week, Month or Year, moved with ‹ ›, back to
  * the current one, and a bar of the chart opens its day or month. */

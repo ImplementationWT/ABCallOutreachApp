@@ -2,7 +2,7 @@
  * `it.fails` = the criterion is NOT met today: the test states the expected behaviour and is expected
  * to fail; when the gap is fixed it starts passing and vitest reports it, so it is flipped to `it`. */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { C, CALLS, CFG, COLLECTIONS, DEFAULT_OUTCOMES, OUT, OUTK, P, activeOutcomes, elig, fromDocs, openOf, saveOutcome, setClock, setToday, toDocs, type Doc, type OutcomeDef } from '../../lib/domain';
+import { C, CALLS, CFG, COLLECTIONS, DEFAULT_OUTCOMES, OUT, OUTK, P, activeOutcomes, elig, fromDocs, onHold, openOf, reactivate, saveOutcome, setClock, setToday, toDocs, type Doc, type OutcomeDef } from '../../lib/domain';
 import { DAY0, TODAY0, ct, load, prop, started } from './fixture';
 
 const D = (s: string) => new Date(s + 'T08:20');
@@ -135,25 +135,51 @@ describe('C3 household propagation', () => {
 });
 
 describe('C4 maximum attempts and on-hold', () => {
-  it('every outcome adds one attempt (none is excluded today)', () => {
+  it('every outcome adds one attempt (rule: every call counts)', () => {
     for (const out of OUTK) { household(); saveOutcome('C-4', 'may', out, ''); expect(C('C-4').att, out).toBe(1); }
   });
-  it('at the maximum (rules/default.maxAtt = 6) the contact leaves the pool as "max", not on hold', () => {
+  it('an outcome set not to count as an attempt in the catalog does not add one', () => {
+    OUT['Not Contacted'].countsAsAttempt = false;
+    saveOutcome('C-4', 'may', 'Not Contacted', '');
+    expect(C('C-4').att).toBe(0);
+  });
+  it('the maximum is 6 (rules/default.maxAtt); at the maximum the contact goes on hold and leaves the pool', () => {
+    expect(CFG.maxAtt).toBe(6);
     load({ props: [prop('P-1', 'pp')], contacts: [ct('C-1', 'P-1', { att: 5 })], workdays: started() });
     saveOutcome('C-1', 'may', 'Not Contacted', '');
     setToday(D('2026-11-10'));
     expect(C('C-1').att).toBe(6);
-    expect(elig(C('C-1'))).toMatchObject({ ok: false, k: 'max' });
+    expect(elig(C('C-1'))).toMatchObject({ ok: false, k: 'max', why: 'On hold: 6 attempts (max 6)' });
   });
-  it('"on hold" today means no working phone number; it comes back as soon as a number is added', () => {
+  it('without a working phone the contact is also on hold, until a number is added', () => {
     load({ props: [prop('P-1', 'pp')], contacts: [ct('C-1', 'P-1')], noPhone: ['C-1'] });
     expect(elig(C('C-1')).k).toBe('hold');
   });
-  it.fails('[No cumple] a Follow Up saved on the last attempt still comes back to the rep on its date', () => {
+  it('a Follow Up set on the sixth attempt is kept; if that call does not happen either, the contact goes on hold', () => {
     load({ props: [prop('P-1', 'pp')], contacts: [ct('C-1', 'P-1', { att: 5 })], workdays: started() });
-    saveOutcome('C-1', 'may', 'Follow Up', '', '2026-11-04');
+    saveOutcome('C-1', 'may', 'Follow Up', '', '2026-11-04T10:00');
     setToday(D('2026-11-04'));
-    expect(elig(C('C-1')).ok).toBe(true); // today: { ok: false, k: 'max' }, the follow-up is lost
+    expect(C('C-1').att).toBe(6);
+    expect(elig(C('C-1')).ok).toBe(true);
+    saveOutcome('C-1', 'may', 'Left VM', 'no answer at the follow-up');
+    setToday(D('2026-11-20'));
+    expect(elig(C('C-1')).k).toBe('max');
+  });
+  it('reactivating keeps the attempts (for now) and puts the contact back in the pool', () => {
+    load({ props: [prop('P-1', 'pp')], contacts: [ct('C-1', 'P-1', { att: 6, out: 'Left VM', lastAt: '2026-10-20T10:00', nextAt: '2026-10-25' })], workdays: started() });
+    expect(onHold(C('C-1'))).toBe(true);
+    reactivate(C('C-1'));
+    expect(C('C-1').att).toBe(6);
+    expect(elig(C('C-1')).ok).toBe(true);
+    saveOutcome('C-1', 'may', 'Left VM', '');
+    expect(C('C-1').att).toBe(7);
+    expect(onHold(C('C-1'))).toBe(false); // a new round of attempts started at the reactivation
+  });
+  it('the reset to 0 is one setting away (rules/default.reactivateReset), off by default', () => {
+    expect(CFG.reactivateReset).toBe(false);
+    load({ props: [prop('P-1', 'pp')], contacts: [ct('C-1', 'P-1', { att: 6 })], workdays: started(), rules: { reactivateReset: true } });
+    reactivate(C('C-1'));
+    expect(C('C-1').att).toBe(0);
   });
   it('the call log keeps every attempt', () => {
     saveOutcome('C-4', 'may', 'Left VM', 'first'); saveOutcome('C-4', 'dan', 'Hung Up', 'second');

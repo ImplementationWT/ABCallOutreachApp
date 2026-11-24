@@ -32,7 +32,7 @@ export const SCHEMAS: Record<CollectionName, Schema> = {
   // address, normalized, so a load never creates the same owner twice.
   contacts: obj(['prop', 'n', 'role', 'email', 'att', 'dnc', 'supp'], {
     _id: str, prop: str, n: str, role: str, other: str, email: str, out: strN, lastAt: strN, nextAt: strN,
-    att: num, rep: enumOf(PEOPLE, true), dnc: bool, supp: bool, stop: { bsonType: ['object', 'null'] }, note: str, fuAt: { bsonType: ['string', 'null'], pattern: dateTime.pattern },
+    att: num, rep: enumOf(PEOPLE, true), dnc: bool, supp: bool, stop: { bsonType: ['object', 'null'] }, note: str, fuAt: { bsonType: ['string', 'null'], pattern: dateTime.pattern }, react: numN,
     props: { bsonType: 'array', minItems: 1, items: str }, pst: { bsonType: 'object' }, ownerKey: str,
     firstName: strN, lastName: strN, emails: { bsonType: 'array', items: str },
     mailAddr: strN, mailCity: strN, mailState: strN, mailZip: strN,
@@ -44,7 +44,7 @@ export const SCHEMAS: Record<CollectionName, Schema> = {
   call_log: obj(['ct', 'rep', 'at', 'out', 'ph'], { _id: num, ct: str, rep: enumOf(PEOPLE), at: dateTime, out: str, note: str, ph: str, live: bool, fx: { bsonType: 'array', items: str }, key: str }),
   hand_offs: obj(['prop', 'ct', 'rep', 'at', 'out', 'src', 'pos'], { _id: str, prop: str, ct: str, rep: enumOf(PEOPLE), at: dateTime, out: str, note: str, src: enumOf(['Outbound', 'Inbound']), fresh: bool, pos: num }),
   reps: obj(['n', 'i', 'r'], { _id: enumOf(PEOPLE), n: str, i: str, c: str, r: str }),
-  rules: obj(['first', 'more', 'scale', 'maxAtt', 'refresh', 'endDay', 'hours'], { _id: enumOf(['default']), first: num, more: num, scale: num, maxAtt: num, refresh: enumOf(['daily', 'weekly']), endDay: enumOf(['pool', 'keep']), rc: { bsonType: 'object' }, hours: str }),
+  rules: obj(['first', 'more', 'scale', 'maxAtt', 'refresh', 'endDay', 'hours'], { _id: enumOf(['default']), first: num, more: num, scale: num, maxAtt: num, refresh: enumOf(['daily', 'weekly']), endDay: enumOf(['pool', 'keep']), rc: { bsonType: 'object' }, reactivateReset: bool, hours: str }),
   daily_metrics: obj(['day', 'rep', 'calls', 'con', 'conv', 'leads'], { _id: str, day: date, rep: enumOf(REPS), calls: num, con: num, conv: num, leads: num }),
   sync_log: obj(['at', 'board', 'item', 'what'], { _id: num, at: dateTime, board: str, item: str, what: str }),
   app_meta: obj(['seq'], { _id: enumOf(['state']), seq: { bsonType: 'object' } }),

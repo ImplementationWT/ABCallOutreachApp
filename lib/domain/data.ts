@@ -35,13 +35,15 @@ export type Contact = {
   note: string;
   /** Date and time of the follow-up the contact asked for ('YYYY-MM-DDTHH:MM'); nextAt is its day. */
   fuAt?: string | null;
+  /** Attempts the contact had when it was last reactivated from on-hold: a new round of attempts starts there. */
+  react?: number | null;
   callPh?: number | null; calling?: string | false;
   base?: string; props?: string[];
   ownerKey?: string; firstName?: string | null; lastName?: string | null; emails?: string[];
   mailAddr?: string | null; mailCity?: string | null; mailState?: string | null; mailZip?: string | null;
 };
 /** The outreach state a slot keeps for its own property (the rest of the contact is the person). */
-export const SLOT_KEYS = ['out', 'lastAt', 'nextAt', 'att', 'rep', 'stop', 'note', 'fuAt'] as const;
+export const SLOT_KEYS = ['out', 'lastAt', 'nextAt', 'att', 'rep', 'stop', 'note', 'fuAt', 'react'] as const;
 export type SlotState = Pick<Contact, (typeof SLOT_KEYS)[number]>;
 /** key: the id the browser gives each save, so a double submission is saved once. */
 export type Call = { id: number; ct: string; rep: PersonKey; at: string; out: string; note: string; ph: string; live?: boolean; fx?: string[]; key?: string };

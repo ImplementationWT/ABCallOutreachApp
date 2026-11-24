@@ -61,6 +61,19 @@ export const callable = (c: Contact) => c.phones.some(x => x.st !== 'bad');
  * call per person a day, so the person is not called twice. */
 export const ownerBusy = (c: Contact) =>
   (!!c.base || (c.props?.length ?? 0) > 1) && slotsOf(c).some(x => x !== c && x.res?.date === TODAY);
+/** Attempts in the current round (since the last reactivation). */
+export const attemptsOf = (c: Contact) => c.att - (c.react ?? 0);
+/** On hold after the maximum of attempts. Exception: a follow-up set on the last attempt is kept; if
+ * that call does not happen either (another attempt), the contact goes on hold. */
+export const onHold = (c: Contact) => {
+  const n = attemptsOf(c);
+  return n >= CFG.maxAtt && !(n === CFG.maxAtt && !!c.out && !!OUT[c.out]?.needsFollowUp);
+};
+/** Reactivate an on-hold contact: back in the pool. The attempts are kept (a new round starts) unless
+ * the rules say to set them back to 0 (rules: reactivateReset). */
+export function reactivate(c: Contact) {
+  if (CFG.reactivateReset) { c.att = 0; c.react = null; } else c.react = c.att;
+}
 export const isFinal = (c: Contact) => !!c.out && !!OUT[c.out]?.final;
 export function priOf(c: Contact): Pri {
   const p = P(c.prop);
@@ -81,7 +94,7 @@ export function elig(c: Contact, ignoreRes?: boolean): Elig {
   if (c.stop) return { ok: false, k: 'stop', why: 'Removed: ' + c.stop.why, tone: 'red' };
   if (isNoOut(c.out) && !isFinal(c) && c.nextAt! > TODAY) return { ok: false, k: 'stop', why: c.out + ', can be called again ' + fmtD(c.nextAt), tone: 'red' };
   if (!callable(c)) return { ok: false, k: 'hold', why: 'On hold: needs a new number', tone: 'amber' };
-  if (c.att >= CFG.maxAtt) return { ok: false, k: 'max', why: `Max attempts reached (${c.att})`, tone: '' };
+  if (onHold(c)) return { ok: false, k: 'max', why: `On hold: ${c.att} attempts (max ${CFG.maxAtt})`, tone: 'amber' };
   if (c.nextAt && c.nextAt > TODAY) return { ok: false, k: 'due', why: 'Not due until ' + fmtWD(c.nextAt), tone: '' };
   if (!ignoreRes && c.res && c.res.date === TODAY) return { ok: true, k: 'res', why: 'Reserved for ' + PEO[c.res.rep].n + ' today', tone: 'blue', pri: priOf(c) };
   return { ok: true, k: 'pool', why: 'Eligible today', tone: 'green', pri: priOf(c) };
@@ -240,7 +253,8 @@ export function effectsOf(c: Contact, out: string, fu?: string | null) {
   } else {
     fx.push(`Back in the pool on ${fmtWD(nx!)} (${r.days} ${r.cal ? 'day' : 'business day'}${r.days > 1 ? 's' : ''}), any rep`);
   }
-  if (c.att + 1 >= CFG.maxAtt && !d.lead && !isNoOut(out) && !d.needsFollowUp) fx.push(`This is attempt ${c.att + 1} of ${CFG.maxAtt}: the contact leaves the lists after it`);
+  const n = attemptsOf(c) + (d.countsAsAttempt ? 1 : 0);
+  if (n >= CFG.maxAtt && !d.lead && !isNoOut(out)) fx.push(d.needsFollowUp && n === CFG.maxAtt ? `This is attempt ${n} of ${CFG.maxAtt}: the follow-up is kept; if that call does not happen, the contact goes on hold` : `This is attempt ${n} of ${CFG.maxAtt}: the contact goes on hold after it`);
   fx.push('monday: contact and property updated');
   return fx;
 }
@@ -254,7 +268,8 @@ export function saveOutcome(ck: string, rep: RepKey, out: string, note: string, 
   CALLS.push(call);
   if (ph && d.phone === 'bad') ph.st = 'bad';
   else if (ph && d.phone === 'ok') ph.st = 'ok';
-  c.att++; c.out = out; c.lastAt = at; c.note = note || c.note;
+  if (d.countsAsAttempt) c.att++;
+  c.out = out; c.lastAt = at; c.note = note || c.note;
   // A follow-up (or undecided) belongs to the rep assigned to the contact: the one whose list it is in
   if (d.sameRep) c.rep = rep;
   else if (!c.rep) c.rep = rep;
