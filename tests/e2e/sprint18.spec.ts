@@ -206,6 +206,23 @@ test.describe('A. Rep Workspace', () => {
     expect(await withDb(db => db.collection('call_log').countDocuments({ ct: r!.ct }))).toBe(n0 + 1);
     expect(await withDb(db => db.collection('contacts').findOne({ _id: String(r!.ct).split('@')[0] as never }))).toMatchObject({ fuAt: `${DAY}T15:00`, nextAt: DAY });
   });
+  test('A3 My follow-ups: only the rep\'s own, split in Overdue, Today and Upcoming', async ({ browser }) => {
+    const ids = await withDb(async db => {
+      const cs = await db.collection('contacts').find({ stop: null, out: null }).limit(4).toArray();
+      const set = (i: number, x: object) => db.collection('contacts').updateOne({ _id: cs[i]._id }, { $set: { out: 'Follow Up', lastAt: '2026-10-28T10:00', att: 1, ...x } });
+      await set(0, { rep: 'may', nextAt: '2026-10-30' });
+      await set(1, { rep: 'may', nextAt: DAY, fuAt: `${DAY}T16:00` });
+      await set(2, { rep: 'may', nextAt: '2026-11-10' });
+      await set(3, { rep: 'dan', nextAt: DAY });
+      return cs.map(c => String(c.n));
+    });
+    const p = await page(browser, 'maya', '/rep/fu');
+    await expect(p.locator('.grp', { hasText: 'Overdue' })).toContainText(ids[0]);
+    await expect(p.locator('.grp', { hasText: 'Today' }).first()).toContainText(ids[1]);
+    await expect(p.locator('.grp', { hasText: 'Today' }).first()).toContainText('4:00 PM');
+    await expect(p.locator('.grp', { hasText: 'Upcoming' })).toContainText(ids[2]);
+    await expect(p.locator('#main')).not.toContainText(ids[3]);
+  });
   test('A4 a double click on Save writes one call, not two', async ({ browser }) => {
     const p = await page(browser, 'maya');
     const ck = (await p.locator('[data-act=saveout]').first().getAttribute('data-v'))!;
@@ -308,6 +325,19 @@ test.describe('B. Engine on the server', () => {
     expect((await maya.post('/api/work', { data: { action: 'endday', rep: 'may', now: `${NEXT}T18:00` } })).status()).toBe(200);
     expect(await withDb(db => db.collection('property_locks').countDocuments({ date: NEXT, rep: 'may' }))).toBe(0);
     await withDb(async db => { for (const c of ['workdays', 'reservations', 'property_locks', 'campaigns']) await db.collection(c).deleteMany({ $or: [{ date: NEXT }, { _id: 'C-1104-T' as never }] }); });
+  });
+  test('B4 Reassign (on the server) moves contacts not called yet and their pending follow-ups to the new rep', async ({ playwright }) => {
+    const admin = await api(playwright, 'admin');
+    await withDb(db => db.collection('campaigns').updateMany({ date: DAY }, { $set: { auds: ['pp', 'sm', 'mb', 'ad'], reps: ['may', 'dan', 'pri'] } }));
+    await admin.post('/api/allocate', { data: { kind: 'start', rep: 'pri', now: `${DAY}T10:30` } });
+    const before = await withDb(db => db.collection('reservations').find({ date: DAY, rep: 'pri', done: null }).toArray());
+    expect(before.length).toBeGreaterThan(0);
+    const k = String(before[0].ct).split('@')[0];
+    await withDb(db => db.collection('contacts').updateOne({ _id: k as never }, { $set: { out: 'Follow Up', rep: 'pri', nextAt: DAY, lastAt: '2026-10-28T10:00' } }));
+    const r = await (await admin.post('/api/work', { data: { action: 'reassign', rep: 'pri', to: 'dan', n: before.length, now: `${DAY}T11:00` } })).json();
+    expect(r.n).toBeGreaterThan(0);
+    expect(await withDb(db => db.collection('reservations').countDocuments({ date: DAY, rep: 'pri', done: null }))).toBe(0);
+    expect(await withDb(db => db.collection('contacts').findOne({ _id: k as never }))).toMatchObject({ rep: 'dan' });
   });
   test('B5 the browser never writes reservations', async ({ playwright }) => {
     const admin = await api(playwright, 'admin');

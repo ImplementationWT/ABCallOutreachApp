@@ -2,7 +2,7 @@
  * `it.fails` = criterion not met today (see c-outcomes.test.ts). The server-side parts (lock,
  * idempotent morning run, concurrent requests) are in tests/e2e/sprint18.spec.ts. */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { C, CFG, DAY, P, dupCheck, elig, endDay, freeGroups, listOf, openOf, priOf, requestMore, saveOutcome, setToday, startAlloc, startNewDay, demoN, type RepKey } from '../../lib/domain';
+import { C, CFG, DAY, P, reassignOpen, dupCheck, elig, endDay, freeGroups, listOf, openOf, priOf, requestMore, saveOutcome, setToday, startAlloc, startNewDay, demoN, type RepKey } from '../../lib/domain';
 import { DAY0, TODAY0, ct, load, prop, started } from './fixture';
 
 const repsOf = () => Object.fromEntries((['may', 'dan', 'pri'] as RepKey[]).map(r => [r, listOf(r).map(c => c.k)]));
@@ -126,9 +126,26 @@ describe('B4 due follow-ups go back to their rep', () => {
     startNewDay();
     expect([...listOf('may'), ...listOf('dan'), ...listOf('pri')].map(c => c.k)).not.toContain('C-fu');
   });
-  it.fails('[No cumple] the follow-up goes back to the rep who set it (today: to the first rep who ever called the contact)', () => {
+  it('the follow-up belongs to the rep assigned to the contact: the one who set it from their list', () => {
     load({ props: [prop('P-1', 'pp')], contacts: [ct('C-1', 'P-1', { out: 'Left VM', lastAt: '2026-10-20T10:00', nextAt: '2026-10-25', att: 1, rep: 'may' })], workdays: started() });
-    saveOutcome('C-1', 'dan', 'Follow Up', '', '2026-11-03');
+    saveOutcome('C-1', 'dan', 'Follow Up', '', '2026-11-03T10:00');
+    expect(C('C-1').rep).toBe('dan');
+  });
+  it('if its rep is not available, nobody else takes it: it waits in their queue', () => {
+    fu('dan');
+    DAY.dan.st = 'off';
+    for (const r of ['may', 'pri'] as RepKey[]) expect(freeGroups(r).flatMap(g => g.cs.map(c => c.k))).not.toContain('C-fu');
+  });
+  it('Reassign moves the contacts not called yet, with their property and their pending follow-ups', () => {
+    load({
+      props: [prop('P-1', 'pp'), prop('P-2', 'pp')],
+      contacts: [ct('C-1', 'P-1', { out: 'Follow Up', lastAt: '2026-10-28T10:00', nextAt: TODAY0, att: 1, rep: 'may' }), ct('C-2', 'P-1', { role: 'Secondary owner' }), ct('C-3', 'P-2')],
+      workdays: started(),
+      reservations: ['C-1', 'C-2', 'C-3'].map((k, i) => ({ _id: `${TODAY0}:${k}`, ct: k, rep: 'may', date: TODAY0, order: i, done: null })),
+    });
+    expect(reassignOpen('may', 'dan', 3)).toBe(3);
+    expect(listOf('dan').map(c => c.k).sort()).toEqual(['C-1', 'C-2', 'C-3']);
+    expect(listOf('may')).toEqual([]);
     expect(C('C-1').rep).toBe('dan');
   });
 });

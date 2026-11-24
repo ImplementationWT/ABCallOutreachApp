@@ -118,7 +118,7 @@ export function freeGroups(rep: RepKey) {
   return Object.values(gs).filter(g => {
     const r = ctsOf(g.p.k).find(c => c.res && c.res.date === TODAY);
     return (!r || r.res!.rep === rep) && (!PLOCK[g.p.k] || PLOCK[g.p.k] === rep);
-  }).filter(g => !g.own || g.own === rep || DAY[g.own as RepKey].st === 'off')
+  }).filter(g => !g.own || g.own === rep)
     .sort((a, b) => a.best - b.best || waited(a) - waited(b) || a.p.k.localeCompare(b.p.k));
 }
 export function reserve(g: Group, rep: RepKey) {
@@ -180,6 +180,22 @@ export function startAlloc(rep: RepKey) {
   if (n) DAY[rep].batches.push({ at: fmtT(nowT()), n, k: 'Start of workday' });
   return n;
 }
+/** Reassign: up to `n` contacts not called yet move from one rep to another, with their whole
+ * property; their pending follow-ups move to the new rep too. Returns how many moved. */
+export function reassignOpen(from: RepKey, to: RepKey, n: number) {
+  const open = openOf(from).sort((a, b) => PRANK[priOf(b)] - PRANK[priOf(a)]);
+  let moved = 0;
+  for (const c of open) {
+    if (moved >= n) break;
+    if (!DAY[from].list.includes(c.k)) continue;
+    const sib = ctsOf(c.prop).filter(x => DAY[from].list.includes(x.k) && !DAY[from].done[x.k]);
+    sib.forEach(x => {
+      DAY[from].list = DAY[from].list.filter(k => k !== x.k); x.res = { rep: to, date: TODAY }; DAY[to].list.push(x.k); moved++;
+      if (x.rep === from && x.out && OUT[x.out]?.sameRep) x.rep = to;
+    });
+  }
+  return moved;
+}
 export function endDay(rep: RepKey) {
   const d = DAY[rep];
   const left = openOf(rep);
@@ -238,7 +254,9 @@ export function saveOutcome(ck: string, rep: RepKey, out: string, note: string, 
   if (ph && d.phone === 'bad') ph.st = 'bad';
   else if (ph && d.phone === 'ok') ph.st = 'ok';
   c.att++; c.out = out; c.lastAt = at; c.note = note || c.note;
-  if (!c.rep || d.sameRep) c.rep = c.rep || rep;
+  // A follow-up (or undecided) belongs to the rep assigned to the contact: the one whose list it is in
+  if (d.sameRep) c.rep = rep;
+  else if (!c.rep) c.rep = rep;
   c.nextAt = nextFor(out, at, c, fu);
   if (d.needsFollowUp && fu && fu.length > 10) c.fuAt = fu; else if (c.fuAt) c.fuAt = null;
   c.callPh = null; c.calling = false;

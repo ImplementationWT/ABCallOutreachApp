@@ -5,8 +5,8 @@ import { Fragment } from 'react';
 import type React from 'react';
 import {
   AUDS, C, CALLS, CFG, DAY, LEADS, OUT, P, PEO, PRI, TODAY, activeOutcomes, isLeadOut, isNoOut,
-  addDays, callsOn, campName, campOf, ctsOf, demoN, docOf, effectsOf, elig, first, fmtD, fmtDT, fmtS, fmtT, fmtUS, fmtWD,
-  fullAddr, getClock, iso, isoT, listOf, mOf, openOf, ownerOf, phIdx, priOf, propStatus, relDay, T0,
+  callsOn, campName, campOf, ctsOf, demoN, docOf, effectsOf, elig, first, fmtD, fmtDT, fmtS, fmtT, fmtUS, fmtWD,
+  fullAddr, getClock, isoT, listOf, mOf, openOf, ownerOf, phIdx, priOf, propStatus, relDay,
   type Contact, type Property, type RepKey,
 } from '@/lib/domain';
 import { inp, on } from '@/lib/state/actions';
@@ -168,10 +168,9 @@ function RepFollowUps() {
   const l = myFollowUps(u).sort((a, b) => a.nextAt!.localeCompare(b.nextAt!));
   const row = (c: Contact) => { const p = P(c.prop), pr = priOf(c); return <div key={c.k} className="row grid-cols-[40px_minmax(0,1.4fr)_minmax(0,1fr)_150px_130px]" {...on('openprop', p.k)}><PrTag pr={pr} sm /><div className="t"><b>{c.n}</b><small>{p.addr || "No address"}, {AUDS[p.aud].s}</small></div><div className="cell">{c.note || ''}</div><div className="cell"><OutPill o={c.out} /><small>{fmtS(c.lastAt)}</small></div><div className="cell"><b>{fmtWD(c.nextAt!)}</b><small>{c.fuAt ? fmtT(c.fuAt) + ', ' : ''}{relDay(c.nextAt!)}</small></div></div>; };
   const g = (t: string, arr: Contact[]) => { if (!arr.length) return null; const pg = paged('fu:' + t, arr); return <div className="grp" key={t}><div className="grp-h"><i />{t}<span className="n">{arr.length}</span></div><div className="rows">{pg.rows.map(row)}</div>{pg.pager}</div>; };
-  const wk = iso(addDays(T0, 6));
   return <>
-    <PageHeader t="My follow-ups" sub="Follow Up (P1) and Undecided (P3) contacts always come back to you, on the date you set or after the waiting time in the rules." />
-    {g('Due today or earlier', l.filter(c => c.nextAt! <= TODAY))}{g('This week', l.filter(c => c.nextAt! > TODAY && c.nextAt! <= wk))}{g('Later', l.filter(c => c.nextAt! > wk))}{l.length ? null : <div className="empty">No follow-ups yet.</div>}
+    <PageHeader t="My follow-ups" sub="Your follow-ups and undecided contacts come back to you, and only to you, on the date and time you set or after the waiting time of the result. If a contact is reassigned, its follow-ups go to the new rep." />
+    {g('Overdue', l.filter(c => c.nextAt! < TODAY))}{g('Today', l.filter(c => c.nextAt! === TODAY))}{g('Upcoming', l.filter(c => c.nextAt! > TODAY))}{l.length ? null : <div className="empty">No follow-ups yet.</div>}
   </>;
 }
 function RepCalls() {
