@@ -12,26 +12,25 @@ export const AUDK = Object.keys(AUDS) as AudKey[];
 
 export type Status = 'Not Contacted' | 'Contacted' | 'Not Interested' | 'Potential Lead';
 export type Tone = 'n' | 'b' | 'a' | 'g' | 'r';
-export type OutcomeDef = { g: 'none' | 'con' | 'conv'; st: Status; tone: Tone; hint: string; prop?: boolean };
-
-/* Call outcomes (dispositions). grp: none = no one answered, con = connected, conv = conversation */
-export const OUT = {
-  'Not Contacted': { g: 'none', st: 'Not Contacted', tone: 'n', hint: 'No answer, no voicemail' },
-  'Left VM': { g: 'none', st: 'Not Contacted', tone: 'b', hint: 'Voicemail left' },
-  'Wrong Number': { g: 'none', st: 'Not Contacted', tone: 'n', hint: 'Number is not theirs' },
-  'Hung Up': { g: 'con', st: 'Not Contacted', tone: 'n', hint: 'Answered, no conversation', prop: true },
-  'Undecided': { g: 'conv', st: 'Contacted', tone: 'a', hint: 'Talked, not sure yet' },
-  'Follow Up': { g: 'conv', st: 'Contacted', tone: 'a', hint: 'Asked for a call back' },
-  'Working on Plans': { g: 'conv', st: 'Potential Lead', tone: 'g', hint: 'Has an architect or plans' },
-  'Interested': { g: 'conv', st: 'Potential Lead', tone: 'g', hint: 'Wants to talk to AB' },
-  'Not Interested': { g: 'conv', st: 'Not Interested', tone: 'r', hint: 'Said no for now', prop: true },
-  'Already Building / Done': { g: 'conv', st: 'Not Interested', tone: 'r', hint: 'Has a builder or sold' },
-  'Do Not Contact': { g: 'conv', st: 'Not Interested', tone: 'r', hint: 'Asked not to be called' },
-} satisfies Record<string, OutcomeDef> as Record<string, OutcomeDef>;
-export type Outcome = keyof typeof OUT;
-export const OUTK = Object.keys(OUT);
-export const NO_OUT = ['Not Interested', 'Already Building / Done', 'Do Not Contact'];
-export const LEAD_OUT = ['Working on Plans', 'Interested'];
+/* Call outcomes: the catalog is data (collection `outcomes`, see outcomes.ts). OUT and OUTK are
+ * filled by fromDocs() from the database, or by buildWorld() from the seed. */
+import type { OutcomeDef } from './outcomes';
+export type { OutcomeDef, OutcomeDoc } from './outcomes';
+export type Outcome = string;
+export const OUT: Record<string, OutcomeDef> = {};
+/** Outcome names in catalog order. */
+export const OUTK: string[] = [];
+export function setOutcomes(list: [string, OutcomeDef][]) {
+  for (const k of Object.keys(OUT)) delete OUT[k];
+  OUTK.length = 0;
+  for (const [k, d] of list) { OUT[k] = { ...d }; OUTK.push(k); }
+}
+/** The outcomes a rep can pick (inactive ones stay in OUT for the history). */
+export const activeOutcomes = () => OUTK.filter(k => OUT[k].active);
+/** The property goes to sales. */
+export const isLeadOut = (o?: string | null) => !!o && !!OUT[o]?.lead;
+/** A "no": the rest of the property (or every property of the person) leaves the lists. */
+export const isNoOut = (o?: string | null) => !!o && !!OUT[o] && !OUT[o].lead && OUT[o].propagates !== 'none';
 export const ST_RANK: Record<Status, number> = { 'Not Contacted': 0, 'Contacted': 1, 'Not Interested': 2, 'Potential Lead': 3 };
 export const ST_TONE: Record<Status, string> = { 'Not Contacted': '', 'Contacted': 'amber', 'Not Interested': 'red', 'Potential Lead': 'green' };
 

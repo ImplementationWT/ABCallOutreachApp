@@ -3,7 +3,7 @@
  * (from OUTREACH MANAGER), so the domain has no DOM and no import cycles.
  */
 import { campOf } from './campaigns';
-import { LEAD_OUT, NO_OUT, OUT, PRANK, ST_RANK, type Pri, type Status } from './catalogs';
+import { OUT, PRANK, ST_RANK, isNoOut, type Pri, type Status } from './catalogs';
 import { C, CALLS, CTS, LEADS, P, SEQ, ctsOf, slotsOf, syncLog, type Call, type Contact, type Property } from './data';
 import { Dx, T0, TODAY, addBiz, addDays, fmtD, fmtS, fmtT, fmtWD, iso, isoT, nextBiz, nowT } from './dates';
 import { PEO, REPS, type PersonKey, type RepKey } from './people';
@@ -12,18 +12,25 @@ import { CFG, demoN } from './rules';
 /* Past call: writes the log and the contact state */
 export function pastCall(c: Contact, rep: PersonKey, at: string, out: string, note = '') {
   const ph = c.phones.find(x => x.st !== 'bad') || c.phones[0];
-  if (ph && OUT[out].g !== 'none') ph.st = 'ok';
+  if (ph && OUT[out]?.group !== 'none') ph.st = 'ok';
   CALLS.push({ id: SEQ.call++, ct: c.k, rep, at, out, note, ph: ph?.n || '' });
   c.att++; c.out = out; c.lastAt = at; c.rep = c.rep || rep; c.note = note;
   c.nextAt = nextFor(out, at, c);
 }
 export function nextFor(out: string, at: string, c?: Pick<Contact, 'phones'>, fu?: string | null): string | null {
-  if (out === 'Follow Up') return fu || iso(addBiz(at, 2));
-  if (LEAD_OUT.includes(out) || out === 'Already Building / Done' || out === 'Do Not Contact') return null;
-  if (out === 'Wrong Number') return c && c.phones.some(x => x.st !== 'bad') ? iso(nextBiz(at)) : null;
-  if (out === 'Not Interested') return iso(addDays(at, CFG.rc['Not Interested']));
-  if (out === 'Undecided') return iso(addDays(at, CFG.rc.Undecided));
-  return iso(addBiz(at, CFG.rc[out] || 1));
+  const d = OUT[out];
+  if (!d) return null;
+  if (d.needsFollowUp) return fu || iso(addBiz(at, 2));
+  if (d.lead || d.final) return null;
+  if (d.phone === 'bad') return c && c.phones.some(x => x.st !== 'bad') ? iso(nextBiz(at)) : null;
+  const r = recallOf(out);
+  return iso(r.cal ? addDays(at, r.days) : addBiz(at, r.days));
+}
+/** The waiting time of an outcome: days, and whether they are calendar days. */
+export function recallOf(out: string) {
+  const d = OUT[out];
+  const days = CFG.rc?.[out] ?? d?.recallDays ?? 1;
+  return d?.calendarDays ? { days, cal: true } : { days: days || 1, cal: false };
 }
 export const pastAt = (daysAgo: number, h = 10, m = 15) => { const d = addDays(T0, -daysAgo); d.setHours(h, m); return isoT(d); };
 
@@ -49,14 +56,13 @@ export const callable = (c: Contact) => c.phones.some(x => x.st !== 'bad');
  * call per person a day, so the person is not called twice. */
 export const ownerBusy = (c: Contact) =>
   (!!c.base || (c.props?.length ?? 0) > 1) && slotsOf(c).some(x => x !== c && x.res?.date === TODAY);
-export const isFinal = (c: Contact) => c.out === 'Already Building / Done' || c.out === 'Do Not Contact';
+export const isFinal = (c: Contact) => !!c.out && !!OUT[c.out]?.final;
 export function priOf(c: Contact): Pri {
   const p = P(c.prop);
-  if (c.out === 'Follow Up') return 'P1';
+  const pri = c.out ? OUT[c.out]?.pri : null;
+  if (pri === 'P1') return 'P1';
   if (p.permit === 'Permit Issued') return 'P2';
-  if (c.out === 'Undecided') return 'P3';
-  if (c.out === 'Left VM') return 'P4';
-  return 'P5';
+  return pri || 'P5';
 }
 export type Elig = { ok: boolean; k: string; why: string; tone: string; pri?: Pri };
 /* The eligibility rules from Andrew's design, checked in order */
@@ -68,7 +74,7 @@ export function elig(c: Contact, ignoreRes?: boolean): Elig {
   if (p.inPipe) return { ok: false, k: 'pipe', why: 'Already in AB’s sales pipeline: ' + p.inPipe, tone: 'blue' };
   if (isFinal(c)) return { ok: false, k: 'closed', why: 'Closed: ' + c.out, tone: 'red' };
   if (c.stop) return { ok: false, k: 'stop', why: 'Removed: ' + c.stop.why, tone: 'red' };
-  if (c.out === 'Not Interested' && c.nextAt! > TODAY) return { ok: false, k: 'stop', why: 'Not Interested, can be called again ' + fmtD(c.nextAt), tone: 'red' };
+  if (isNoOut(c.out) && !isFinal(c) && c.nextAt! > TODAY) return { ok: false, k: 'stop', why: c.out + ', can be called again ' + fmtD(c.nextAt), tone: 'red' };
   if (!callable(c)) return { ok: false, k: 'hold', why: 'On hold: needs a new number', tone: 'amber' };
   if (c.att >= CFG.maxAtt) return { ok: false, k: 'max', why: `Max attempts reached (${c.att})`, tone: '' };
   if (c.nextAt && c.nextAt > TODAY) return { ok: false, k: 'due', why: 'Not due until ' + fmtWD(c.nextAt), tone: '' };
@@ -79,7 +85,7 @@ export function propStatus(p: Property): Status {
   if (p.lead) return 'Potential Lead';
   let best: Status = 'Not Contacted';
   for (const c of ctsOf(p.k)) {
-    const s = c.out ? OUT[c.out].st : 'Not Contacted';
+    const s = (c.out && OUT[c.out]?.status) || 'Not Contacted';
     if (ST_RANK[s] > ST_RANK[best]) best = s;
   }
   return best;
@@ -181,66 +187,69 @@ const otherSlots = (c: Contact) => slotsOf(c).filter(x => x !== c && !x.stop && 
 export const phIdx =(c: Contact) => { const i = c.phones.findIndex(x => x.st !== 'bad'); return i < 0 ? 0 : i; };
 /* What a result will do, written from the rules (same text before and after saving) */
 export function effectsOf(c: Contact, out: string, fu?: string | null) {
-  const p = P(c.prop), sib = ctsOf(p.k).filter(x => x !== c && !x.stop && !isFinal(x) && !x.dnc);
-  const nx = nextFor(out, TODAY, Object.assign({}, c, { phones: out === 'Wrong Number' ? c.phones.map((x, i) => i === phIdx(c) ? { n: x.n, st: 'bad' as const } : x) : c.phones }), fu);
+  const p = P(c.prop), d = OUT[out], sib = ctsOf(p.k).filter(x => x !== c && !x.stop && !isFinal(x) && !x.dnc);
+  const nx = nextFor(out, TODAY, Object.assign({}, c, { phones: d.phone === 'bad' ? c.phones.map((x, i) => i === phIdx(c) ? { n: x.n, st: 'bad' as const } : x) : c.phones }), fu);
   const fx: string[] = [];
-  const st = OUT[out].st;
-  const after = ST_RANK[st] > ST_RANK[propStatus(p)] || LEAD_OUT.includes(out) ? st : propStatus(p);
+  const st = d.status;
+  const after = ST_RANK[st] > ST_RANK[propStatus(p)] || d.lead ? st : propStatus(p);
+  const r = recallOf(out);
   fx.push(`Property status: ${after}` + (after !== propStatus(p) ? ` (was ${propStatus(p)})` : ''));
-  if (LEAD_OUT.includes(out)) {
+  if (d.lead) {
     fx.push('Hand-off to AB sales: a Potential Lead is created in the AB Leads board in monday, with this call history');
     if (sib.length) fx.push(`${sib.map(x => x.n).join(', ')} ${sib.length > 1 ? 'leave' : 'leaves'} the outreach lists: the property is with sales now`);
-  } else if (NO_OUT.includes(out)) {
+  } else if (isNoOut(out)) {
     if (sib.length) fx.push(`${sib.map(x => x.n).join(', ')} ${sib.length > 1 ? 'leave' : 'leaves'} every list, with the reason "${c.n} said ${out}"`);
-    if (out === 'Not Interested') fx.push(`${c.n} can be called again on ${fmtD(nx)} (${CFG.rc['Not Interested']} days)`);
+    if (!d.final) fx.push(`${c.n} can be called again on ${fmtD(nx)} (${r.days} days)`);
     else fx.push(`${c.n} is never called again`);
-    if (out === 'Already Building / Done') fx.push('Construction Started changes to Yes on the property');
+    if (d.started) fx.push('Construction Started changes to Yes on the property');
     const more = otherSlots(c).length;
-    if (out === 'Do Not Contact' && more) fx.push(`${c.n} also owns ${more} other propert${more > 1 ? 'ies' : 'y'}: ${more > 1 ? 'they leave' : 'it leaves'} the lists too`);
-    if (out === 'Not Interested' && more) fx.push(`Only this property: ${c.n}’s other ${more} propert${more > 1 ? 'ies stay' : 'y stays'} in outreach`);
-  } else if (out === 'Wrong Number') {
+    if (d.propagates === 'person' && more) fx.push(`${c.n} also owns ${more} other propert${more > 1 ? 'ies' : 'y'}: ${more > 1 ? 'they leave' : 'it leaves'} the lists too`);
+    if (d.propagates === 'property' && !d.final && more) fx.push(`Only this property: ${c.n}’s other ${more} propert${more > 1 ? 'ies stay' : 'y stays'} in outreach`);
+  } else if (d.phone === 'bad') {
     const other = c.phones.find((x, i) => i !== phIdx(c) && x.st !== 'bad');
     fx.push(other ? `This number is marked wrong. Next call goes to ${other.n} on ${fmtWD(nx!)}` : 'On hold until there is a new number (phase 2: automatic number search)');
-  } else if (out === 'Follow Up') {
-    fx.push(`Comes back to you (P1) on ${fu ? fmtWD(fu) : 'the date you set'}`);
-  } else if (out === 'Undecided') {
-    fx.push(`Comes back to you (P3) on ${fmtWD(nx!)} (${CFG.rc.Undecided} days)`);
+  } else if (d.needsFollowUp) {
+    fx.push(`Comes back to you (${d.pri || 'P1'}) on ${fu ? fmtWD(fu) : 'the date you set'}`);
+  } else if (d.sameRep) {
+    fx.push(`Comes back to you (${d.pri || priOf(c)}) on ${fmtWD(nx!)} (${r.days} days)`);
+  } else if (d.final) {
+    fx.push(`${c.n} is never called again`);
   } else {
-    fx.push(`Back in the pool on ${fmtWD(nx!)} (${CFG.rc[out] || 1} business day${(CFG.rc[out] || 1) > 1 ? 's' : ''}), any rep`);
+    fx.push(`Back in the pool on ${fmtWD(nx!)} (${r.days} ${r.cal ? 'day' : 'business day'}${r.days > 1 ? 's' : ''}), any rep`);
   }
-  if (c.att + 1 >= CFG.maxAtt && !LEAD_OUT.includes(out) && !NO_OUT.includes(out) && out !== 'Follow Up') fx.push(`This is attempt ${c.att + 1} of ${CFG.maxAtt}: the contact leaves the lists after it`);
+  if (c.att + 1 >= CFG.maxAtt && !d.lead && !isNoOut(out) && !d.needsFollowUp) fx.push(`This is attempt ${c.att + 1} of ${CFG.maxAtt}: the contact leaves the lists after it`);
   fx.push('monday: contact and property updated');
   return fx;
 }
 export function saveOutcome(ck: string, rep: RepKey, out: string, note: string, fu?: string | null) {
-  const c = C(ck), p = P(c.prop);
+  const c = C(ck), p = P(c.prop), d = OUT[out];
   const fx = effectsOf(c, out, fu);
   const at = isoT(nowT(4));
   const ix = c.callPh != null ? c.callPh : phIdx(c);
   const ph = c.phones[ix];
   const call: Call = { id: SEQ.call++, ct: c.k, rep, at, out, note, ph: ph?.n || '', live: true };
   CALLS.push(call);
-  if (ph && out === 'Wrong Number') ph.st = 'bad';
-  else if (ph && out !== 'Not Contacted' && out !== 'Left VM') ph.st = 'ok';
+  if (ph && d.phone === 'bad') ph.st = 'bad';
+  else if (ph && d.phone === 'ok') ph.st = 'ok';
   c.att++; c.out = out; c.lastAt = at; c.note = note || c.note;
-  if (!c.rep || out === 'Follow Up' || out === 'Undecided') c.rep = c.rep || rep;
+  if (!c.rep || d.sameRep) c.rep = c.rep || rep;
   c.nextAt = nextFor(out, at, c, fu);
   c.callPh = null; c.calling = false;
   DAY[rep].done[c.k] = call.id;
   syncLog('Fire Rebuild Contacts', c.n, `Last Call Outcome: ${out}, Call Attempts: ${c.att}` + (c.nextAt ? `, Next Eligible Call: ${fmtS(c.nextAt)}` : ''));
   const sibs = ctsOf(p.k).filter(x => x !== c && !x.stop && !isFinal(x) && !x.dnc);
-  if (LEAD_OUT.includes(out)) {
+  if (d.lead) {
     p.lead = 'L-' + (SEQ.lead++);
     LEADS.unshift({ k: p.lead, prop: p.k, ct: c.k, rep, at, out, note, src: 'Outbound', fresh: true });
     sibs.forEach(x => { x.stop = { why: 'Property handed to sales', by: c.k }; });
     syncLog('AB Leads', p.addr, `New Potential Lead ${p.lead} from ${PEO[rep].n}, with ${CALLS.filter(x => ctsOf(p.k).some(y => y.k === x.ct)).length} calls of history`);
-  } else if (NO_OUT.includes(out)) {
+  } else if (isNoOut(out)) {
     sibs.forEach(x => { x.stop = { why: `${c.n} said ${out}`, by: c.k }; });
-    if (out === 'Already Building / Done') p.started = 'Yes';
+    if (d.started) p.started = 'Yes';
   }
   // "Do Not Contact" is about the person: their other properties leave the lists too.
   // "Not Interested" and the rest stay with this property only.
-  if (out === 'Do Not Contact') otherSlots(c).forEach(x => { x.stop = { why: `${c.n} asked not to be contacted`, by: c.k }; });
+  if (d.propagates === 'person') otherSlots(c).forEach(x => { x.stop = { why: `${c.n} asked not to be contacted`, by: c.k }; });
   syncLog('Fire Rebuild Properties', p.addr, `Outreach Status: ${propStatus(p)}` + (p.started === 'Yes' ? ', Construction Started: Yes' : ''));
   return fx;
 }

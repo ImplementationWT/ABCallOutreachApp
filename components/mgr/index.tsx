@@ -4,7 +4,7 @@
 import type React from 'react';
 import {
   lastDay, pastDays, PERIODS, chartTitle, isCurrentPeriod, periodBuckets, periodDays, periodLabel, sumDays, type PeriodKind,
-  AUDK, AUDS, C, CALLS, CAMPS, CFG, CTS, D, DAY, LEADS, LEAD_OUT, OUT, OUTK, P, PEO, PRANK, PRI, PROPS, REPS, SYNC, TODAY, WD,
+  AUDK, AUDS, C, CALLS, CAMPS, CFG, CTS, D, DAY, LEADS, OUT, OUTK, recallOf, P, PEO, PRANK, PRI, PROPS, REPS, SYNC, TODAY, WD,
   callsOn, campName, campOf, demoN, docOf, dupCheck, elig, first, fmtS, fmtT, fmtUS, fmtWD, listOf, mDay, mOf, openOf, ownerOf, propStatus, relDay,
   type Metrics, type Pri, type RepKey,
 } from '@/lib/domain';
@@ -12,13 +12,15 @@ import { inp, on } from '@/lib/state/actions';
 import { S, bump, toast } from '@/lib/state/store';
 import { can } from '@/lib/state/auth';
 import { UsersPage } from './users';
+import { OutcomesPage } from './outcomes';
+import { getMe } from '@/lib/state/auth';
 import { TeamChart } from './TeamChart';
 import type { SbItem } from '@/components/shell/Sidebar';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { Avatar, Bar, Icon, KPI_GRID, Kv, OutPill, PageHeader, Pill, PrTag, StatFilter, paged } from '@/components/ui';
 
 export function MgrSide() {
-  return <Sidebar k="mgr" items={[['Today'], ['live', 'The day by rep', 'target'], ['pool', 'Contact pool', 'users'], ['leads', 'Hand-offs to sales', 'hand', LEADS.filter(l => l.fresh).length], ['Plan'], ['camp', 'Campaigns', 'cal'], ['rules', 'Assignment rules', 'gear'], ['Results'], ['perf', 'Performance', 'chart'], ['mail', 'Daily emails', 'mail'], ['monday'], ['sync', 'monday sync', 'sync'], ...(can('users.manage') ? [['Admin'], ['users', 'Users', 'key']] as SbItem[] : [])]} />;
+  return <Sidebar k="mgr" items={[['Today'], ['live', 'The day by rep', 'target'], ['pool', 'Contact pool', 'users'], ['leads', 'Hand-offs to sales', 'hand', LEADS.filter(l => l.fresh).length], ['Plan'], ['camp', 'Campaigns', 'cal'], ['rules', 'Assignment rules', 'gear'], ['Results'], ['perf', 'Performance', 'chart'], ['mail', 'Daily emails', 'mail'], ['monday'], ['sync', 'monday sync', 'sync'], ...(can('users.manage') || getMe()?.role === 'admin' ? [['Admin'], ...(can('users.manage') ? [['users', 'Users', 'key']] : []), ...(getMe()?.role === 'admin' ? [['outc', 'Call outcomes', 'list']] : [])] as SbItem[] : [])]} />;
 }
 
 /* ----- The day by rep ----- */
@@ -175,9 +177,7 @@ function MgrRules() {
         </div>
         <div className="card"><h3><Icon n="cal" s={16} />When a contact can be called again</h3>
           <table className="ptbl"><tbody><tr><th>Result</th><th>Property status</th><th>Eligible again</th></tr>
-            {OUTK.map(o => <tr key={o}><td>{o}{OUT[o].prop ? <> <Pill t="Proposed" cls="amber" /></> : null}</td><td>{OUT[o].st}</td><td>{CFG.rc[o] != null
-              ? <span className="inline-flex gap-[6px] items-center"><Num k={'rc.' + o.replace(/ /g, '_')} v={CFG.rc[o]} w={62} /><span className="sm muted">{o === 'Undecided' || o === 'Not Interested' ? 'days, same rep for Undecided' : 'business days'}</span></span>
-              : o === 'Follow Up' ? 'On the date the rep sets, same rep' : LEAD_OUT.includes(o) ? 'Goes to AB sales' : o === 'Wrong Number' ? 'Next number, or on hold' : 'Never'}</td></tr>)}
+            {OUTK.map(o => <tr key={o}><td>{o}{OUT[o].proposed ? <> <Pill t="Proposed" cls="amber" /></> : null}</td><td>{OUT[o].status}</td><td>{waitText(o)}</td></tr>)}
           </tbody></table>
           <p className="sm muted mt-[8px]">With several contacts, the property takes the most advanced status: Potential Lead, then Not Interested, then Contacted, then Not Contacted.</p>
         </div>
@@ -285,6 +285,18 @@ function MgrSync() {
   </>;
 }
 
-export const MgrPages: Record<'live' | 'pool' | 'leads' | 'camp' | 'rules' | 'perf' | 'mail' | 'sync' | 'users', () => React.ReactNode> = {
-  live: MgrLive, pool: MgrPool, leads: MgrLeads, camp: MgrCamps, rules: MgrRules, perf: MgrPerf, mail: MgrMail, sync: MgrSync, users: UsersPage,
+/** "Eligible again" for an outcome of the catalog. */
+function waitText(o: string): React.ReactNode {
+  const d = OUT[o];
+  if (d.needsFollowUp) return 'On the date the rep sets, same rep';
+  if (d.lead) return 'Goes to AB sales';
+  if (d.final) return 'Never';
+  if (d.phone === 'bad') return 'Next number, or on hold';
+  const r = recallOf(o);
+  return CFG.rc[o] != null
+    ? <span className="inline-flex gap-[6px] items-center"><Num k={'rc.' + o.replace(/ /g, '_')} v={CFG.rc[o]} w={62} /><span className="sm muted">{r.cal ? (d.sameRep ? 'days, same rep' : 'days') : 'business days'}</span></span>
+    : `${r.days} ${r.cal ? 'day' : 'business day'}${r.days > 1 ? 's' : ''}`;
+}
+export const MgrPages: Record<'live' | 'pool' | 'leads' | 'camp' | 'rules' | 'perf' | 'mail' | 'sync' | 'users' | 'outc', () => React.ReactNode> = {
+  live: MgrLive, pool: MgrPool, leads: MgrLeads, camp: MgrCamps, rules: MgrRules, perf: MgrPerf, mail: MgrMail, sync: MgrSync, users: UsersPage, outc: OutcomesPage,
 };

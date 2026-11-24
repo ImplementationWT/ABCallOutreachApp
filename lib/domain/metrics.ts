@@ -1,14 +1,14 @@
 /* ===== METRICS (one calculation for the dashboard, the rep view and the emails) ===== (artifact/app.html) */
-import { LEAD_OUT, OUT } from './catalogs';
+import { OUT, isLeadOut } from './catalogs';
 import { CALLS, type Call } from './data';
 import { D, TODAY, addDays, isBiz, iso, pct } from './dates';
 import { REPS, type RepKey } from './people';
 import { rint, rnd } from './seed';
 
 export type Metrics = { calls: number; con: number; conv: number; leads: number; d2c: string; c2v: string; v2l: string };
-export const isConnect = (o: string) => OUT[o] && OUT[o].g !== 'none';
-export const isConvo = (o: string) => OUT[o] && OUT[o].g === 'conv';
-export const isLead = (o: string) => LEAD_OUT.includes(o);
+export const isConnect = (o: string) => !!OUT[o] && OUT[o].group !== 'none';
+export const isConvo = (o: string) => !!OUT[o] && OUT[o].group === 'conv';
+export const isLead = (o: string) => isLeadOut(o);
 export function mOf(calls: Call[]): Metrics {
   const m = { calls: calls.length, con: calls.filter(x => isConnect(x.out)).length, conv: calls.filter(x => isConvo(x.out)).length, leads: calls.filter(x => isLead(x.out)).length } as Metrics;
   m.d2c = pct(m.con, m.calls); m.c2v = pct(m.conv, m.con); m.v2l = pct(m.leads, m.conv);

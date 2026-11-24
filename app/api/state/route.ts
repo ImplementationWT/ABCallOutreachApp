@@ -5,6 +5,7 @@ import { currentUserDoc, forbidden, unauthorized } from '@/lib/auth/session';
 import { isLockedRep, type Perm } from '@/lib/auth/roles';
 import { scopeFor } from '@/lib/db/scope';
 import { readSnapshot } from '@/lib/db/server-state';
+import { ensureOutcomes } from '@/lib/db/outcomes';
 import { COLLECTIONS, type CollectionName, type Doc, type Snapshot } from '@/lib/domain';
 
 /* GET /api/state: the collections that build the app's state (lib/state/persist.ts). A rep gets only
@@ -18,7 +19,9 @@ export async function GET() {
   try {
     const user = await currentUserDoc();
     if (!user) return unauthorized();
-    return Response.json(scopeFor(await readSnapshot(await getDb()), user) satisfies Snapshot);
+    const db = await getDb();
+    if (await ensureOutcomes(db)) console.log('outcomes: catalog seeded');
+    return Response.json(scopeFor(await readSnapshot(db), user) satisfies Snapshot);
   } catch (e) {
     console.error('GET /api/state failed', e);
     return Response.json({ error: 'Could not read the database' }, { status: 503 });
@@ -28,8 +31,8 @@ export async function GET() {
 type Change = { upsert?: Doc[]; delete?: (string | number)[] };
 /** Collections only some roles may write (the rest change with the reps' daily work). */
 const WRITE_PERM: Partial<Record<CollectionName, Perm>> = { campaigns: 'mgr.manage', rules: 'mgr.manage', reps: 'users.manage' };
-/** Written only by the server actions (/api/work, /api/allocate). */
-const SERVER_ONLY: CollectionName[] = ['call_log'];
+/** Written only by the server: call results (/api/work) and the outcome catalog (/api/outcomes). */
+const SERVER_ONLY: CollectionName[] = ['call_log', 'outcomes'];
 const MAX_DOCS = 2000;
 
 export async function POST(req: Request) {

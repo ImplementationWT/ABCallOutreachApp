@@ -3,7 +3,7 @@
  * requests (workdays, daily metrics, sync log, clock and counters). No driver here, so the seed
  * script and the tests can use it outside Next. */
 import type { Db, IndexDescription } from 'mongodb';
-import { AUDK, OUTK, type CollectionName } from '@/lib/domain';
+import { AUDK, type CollectionName } from '@/lib/domain';
 
 type Schema = Record<string, unknown>;
 const str = { bsonType: 'string' };
@@ -31,7 +31,7 @@ export const SCHEMAS: Record<CollectionName, Schema> = {
   // outreach state; `pst` holds the state of the others, by property). ownerKey: owner name and mailing
   // address, normalized, so a load never creates the same owner twice.
   contacts: obj(['prop', 'n', 'role', 'email', 'att', 'dnc', 'supp'], {
-    _id: str, prop: str, n: str, role: str, other: str, email: str, out: enumOf(OUTK, true), lastAt: strN, nextAt: strN,
+    _id: str, prop: str, n: str, role: str, other: str, email: str, out: strN, lastAt: strN, nextAt: strN,
     att: num, rep: enumOf(PEOPLE, true), dnc: bool, supp: bool, stop: { bsonType: ['object', 'null'] }, note: str,
     props: { bsonType: 'array', minItems: 1, items: str }, pst: { bsonType: 'object' }, ownerKey: str,
     firstName: strN, lastName: strN, emails: { bsonType: 'array', items: str },
@@ -41,13 +41,20 @@ export const SCHEMAS: Record<CollectionName, Schema> = {
   campaigns: obj(['date', 'auds', 'reps', 'goal', 'pos'], { _id: str, date, auds: { bsonType: 'array', items: enumOf(AUDK) }, reps: { bsonType: 'array', items: enumOf(REPS) }, goal: num, past: bool, pos: num }),
   reservations: obj(['ct', 'rep', 'date', 'order'], { _id: str, ct: str, rep: enumOf(REPS), date, order: num, done: numN }),
   workdays: obj(['rep', 'date', 'st', 'batches'], { _id: str, rep: enumOf(REPS), date, st: enumOf(['reserved', 'started', 'ended', 'off']), startedAt: strN, endedAt: strN, batches: { bsonType: 'array' } }),
-  call_log: obj(['ct', 'rep', 'at', 'out', 'ph'], { _id: num, ct: str, rep: enumOf(PEOPLE), at: dateTime, out: enumOf(OUTK), note: str, ph: str, live: bool, fx: { bsonType: 'array', items: str } }),
+  call_log: obj(['ct', 'rep', 'at', 'out', 'ph'], { _id: num, ct: str, rep: enumOf(PEOPLE), at: dateTime, out: str, note: str, ph: str, live: bool, fx: { bsonType: 'array', items: str } }),
   hand_offs: obj(['prop', 'ct', 'rep', 'at', 'out', 'src', 'pos'], { _id: str, prop: str, ct: str, rep: enumOf(PEOPLE), at: dateTime, out: str, note: str, src: enumOf(['Outbound', 'Inbound']), fresh: bool, pos: num }),
   reps: obj(['n', 'i', 'r'], { _id: enumOf(PEOPLE), n: str, i: str, c: str, r: str }),
   rules: obj(['first', 'more', 'scale', 'maxAtt', 'refresh', 'endDay', 'rc', 'hours'], { _id: enumOf(['default']), first: num, more: num, scale: num, maxAtt: num, refresh: enumOf(['daily', 'weekly']), endDay: enumOf(['pool', 'keep']), rc: { bsonType: 'object' }, hours: str }),
   daily_metrics: obj(['day', 'rep', 'calls', 'con', 'conv', 'leads'], { _id: str, day: date, rep: enumOf(REPS), calls: num, con: num, conv: num, leads: num }),
   sync_log: obj(['at', 'board', 'item', 'what'], { _id: num, at: dateTime, board: str, item: str, what: str }),
   app_meta: obj(['seq'], { _id: enumOf(['state']), seq: { bsonType: 'object' } }),
+  // The call outcome catalog (lib/domain/outcomes.ts): edited by an administrator, never hardcoded.
+  outcomes: obj(['active', 'countsAsAttempt', 'recallDays', 'calendarDays', 'propagates', 'needsFollowUp', 'lead', 'final', 'sameRep', 'group', 'status', 'phone', 'pos'], {
+    _id: { bsonType: 'string', minLength: 1, maxLength: 60 }, active: bool, countsAsAttempt: bool, recallDays: { bsonType: 'number', minimum: 1 }, calendarDays: bool,
+    propagates: enumOf(['none', 'property', 'person']), needsFollowUp: bool, lead: bool, final: bool, sameRep: bool, pri: enumOf(['P1', 'P3', 'P4'], true),
+    group: enumOf(['none', 'con', 'conv']), status: enumOf(['Not Contacted', 'Contacted', 'Not Interested', 'Potential Lead']), phone: enumOf(['bad', 'ok', 'keep']),
+    started: bool, proposed: bool, tone: str, hint: str, pos: num,
+  }),
 };
 
 export const INDEXES: Partial<Record<CollectionName, IndexDescription[]>> = {

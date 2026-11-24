@@ -6,7 +6,8 @@
  * Used by `npm run db:seed` (initial content of MongoDB) and by the determinism test; the app
  * itself loads its data from MongoDB.
  */
-import { AUDK, LEAD_OUT, NO_OUT, type AudKey } from './catalogs';
+import { AUDK, isLeadOut, isNoOut, setOutcomes, type AudKey } from './catalogs';
+import { DEFAULT_OUTCOMES } from './outcomes';
 import { CTS, LEADS, LN, FN, OTHER_ROLES, PROPS, SEQ, SYNC, ctsOf, mkCt, mkPhone, mkProp, P, resetData, syncLog, type Contact, type Phone } from './data';
 import { D, T0, TODAY, WDL, addBiz, addDays, fmtS, fmtWD, iso, p2, setClock, setToday, subBiz } from './dates';
 import { DAY, morningAlloc, openOf, pastAt, pastCall, resetDays, saveOutcome } from './engine';
@@ -21,6 +22,7 @@ import { pick, resetSeed, rint, rnd } from './seed';
 export function buildWorld(t0: Date = new Date()) {
   setToday(t0);
   resetSeed(); resetData(); resetDays(); resetCampaigns(); resetRules(); resetDaym(); setClock(new Date(T0));
+  setOutcomes(DEFAULT_OUTCOMES);
   const ago = (days: number) => iso(addDays(T0, -days));
 
   /* ----- Live cases (fictional people and addresses) ----- */
@@ -127,14 +129,14 @@ export function buildWorld(t0: Date = new Date()) {
   /* Propagation of the history: one no or one lead stops the rest of the property */
   for (const p of PROPS) {
     const cs = ctsOf(p.k);
-    const lead = cs.find(c => LEAD_OUT.includes(c.out!));
-    const no = cs.find(c => NO_OUT.includes(c.out!));
+    const lead = cs.find(c => isLeadOut(c.out));
+    const no = cs.find(c => isNoOut(c.out));
     if (lead) {
       p.lead = p.lead || 'L-' + (SEQ.lead++);
       if (!LEADS.find(l => l.prop === p.k)) LEADS.push({ k: p.lead, prop: p.k, ct: lead.k, rep: lead.rep!, at: lead.lastAt!, out: lead.out!, note: lead.note, src: 'Outbound' });
       cs.filter(c => c !== lead).forEach(c => { c.stop = { why: 'Property handed to sales', by: lead.k }; });
     } else if (no) {
-      cs.filter(c => c !== no && !NO_OUT.includes(c.out!)).forEach(c => { c.stop = { why: `${no.n} said ${no.out}`, by: no.k }; });
+      cs.filter(c => c !== no && !isNoOut(c.out)).forEach(c => { c.stop = { why: `${no.n} said ${no.out}`, by: no.k }; });
     }
     if (cs.some(c => c.out === 'Already Building / Done')) p.started = 'Yes';
   }

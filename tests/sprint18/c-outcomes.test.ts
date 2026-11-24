@@ -2,10 +2,11 @@
  * `it.fails` = the criterion is NOT met today: the test states the expected behaviour and is expected
  * to fail; when the gap is fixed it starts passing and vitest reports it, so it is flipped to `it`. */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { C, CALLS, CFG, COLLECTIONS, OUT, OUTK, P, elig, saveOutcome, setToday, type OutcomeDef } from '../../lib/domain';
+import { C, CALLS, CFG, COLLECTIONS, DEFAULT_OUTCOMES, OUT, OUTK, P, activeOutcomes, elig, fromDocs, saveOutcome, setToday, toDocs, type Doc, type OutcomeDef } from '../../lib/domain';
 import { DAY0, TODAY0, ct, load, prop, started } from './fixture';
 
 const D = (s: string) => new Date(s + 'T08:20');
+const json = <T,>(x: T) => JSON.parse(JSON.stringify(x)) as T;
 /** One property with three contacts (a household), two phones on A. */
 function household() {
   load({
@@ -17,17 +18,40 @@ function household() {
 beforeEach(() => { setToday(DAY0); household(); });
 
 describe('C1 configurable outcome catalog', () => {
-  it('documents today: 11 outcomes fixed in code (lib/domain/catalogs.ts OUT)', () => {
-    expect(OUTK).toEqual(['Not Contacted', 'Left VM', 'Wrong Number', 'Hung Up', 'Undecided', 'Follow Up', 'Working on Plans', 'Interested', 'Not Interested', 'Already Building / Done', 'Do Not Contact']);
-    // only the recall days of 5 outcomes are in the database (rules/default.rc)
-    expect(Object.keys(CFG.rc).sort()).toEqual(['Hung Up', 'Left VM', 'Not Contacted', 'Not Interested', 'Undecided']);
-  });
-  it.fails('[No implementado] the catalog is a database collection an admin can edit without a deploy', () => {
+  it('the catalog is a database collection (outcomes), seeded with the 11 outcomes', () => {
     expect(COLLECTIONS as readonly string[]).toContain('outcomes');
+    expect(OUTK).toEqual(['Not Contacted', 'Left VM', 'Wrong Number', 'Hung Up', 'Undecided', 'Follow Up', 'Working on Plans', 'Interested', 'Not Interested', 'Already Building / Done', 'Do Not Contact']);
+    expect(DEFAULT_OUTCOMES.map(([k]) => k)).toEqual(OUTK);
   });
-  it.fails('[No implementado] each outcome stores active, counts-as-attempt, recall days, propagates, needs follow-up date', () => {
-    const d = OUT['Left VM'] as OutcomeDef & Record<string, unknown>;
-    for (const k of ['active', 'countsAsAttempt', 'recallDays', 'propagates', 'needsFollowUp']) expect(d).toHaveProperty(k);
+  it('each outcome stores active, counts-as-attempt, recall days (>= 1), propagates and needs follow-up', () => {
+    for (const k of OUTK) {
+      const d = OUT[k] as OutcomeDef & Record<string, unknown>;
+      for (const f of ['active', 'countsAsAttempt', 'recallDays', 'propagates', 'needsFollowUp']) expect(d, k).toHaveProperty(f);
+      expect(d.recallDays, k).toBeGreaterThanOrEqual(1);
+      expect(d.countsAsAttempt, k).toBe(true);
+    }
+  });
+  it('what an outcome does comes from the catalog in the database, not from the code', () => {
+    const docs = json(toDocs());
+    // a new outcome that stops the property and comes back in 3 calendar days
+    docs.outcomes.push({ _id: 'Moved away', ...OUT['Not Interested'], recallDays: 3, calendarDays: true, proposed: false, hint: 'Does not live there', pos: 99 });
+    // Hung Up deactivated
+    docs.outcomes = docs.outcomes.map((o: Doc) => o._id === 'Hung Up' ? { ...o, active: false } : o);
+    fromDocs(docs);
+    expect(activeOutcomes()).toContain('Moved away');
+    expect(activeOutcomes()).not.toContain('Hung Up');
+    saveOutcome('C-1', 'may', 'Moved away', '');
+    expect(C('C-1').nextAt).toBe('2026-11-05');
+    for (const k of ['C-2', 'C-3']) expect(C(k).stop?.why).toBe('Ann A said Moved away');
+  });
+  it('deactivating an outcome keeps the history that used it', () => {
+    saveOutcome('C-4', 'may', 'Hung Up', 'old call');
+    const docs = json(toDocs());
+    docs.outcomes = docs.outcomes.map((o: Doc) => o._id === 'Hung Up' ? { ...o, active: false } : o);
+    fromDocs(docs);
+    expect(CALLS.find(x => x.ct === 'C-4')?.out).toBe('Hung Up');
+    expect(OUT['Hung Up']).toMatchObject({ active: false, status: 'Not Contacted' });
+    expect(elig(C('C-4')).k).toBe('due');
   });
 });
 
@@ -55,9 +79,9 @@ describe('C2 recall window per outcome', () => {
     setToday(D('2026-11-04')); expect(elig(C('C-4')).k).toBe('due');
     setToday(D('2026-11-05')); expect(elig(C('C-4')).ok).toBe(true);
   });
-  it('edge: a window of 0 business days is treated as 1 (CFG.rc[out] || 1), empty too', () => {
+  it('edge: a window of 0 business days is treated as 1; with none in the rules, the catalog\'s days apply', () => {
     CFG.rc['Left VM'] = 0; expect(after('Left VM')).toBe('2026-11-03');
-    delete CFG.rc['Hung Up']; household(); delete CFG.rc['Hung Up']; expect(after('Hung Up')).toBe('2026-11-03');
+    household(); delete CFG.rc['Hung Up']; expect(after('Hung Up')).toBe('2026-11-04');
   });
   it('edge: a window of 0 calendar days (Undecided) makes it callable the same day', () => {
     CFG.rc.Undecided = 0; expect(after('Undecided')).toBe(TODAY0);

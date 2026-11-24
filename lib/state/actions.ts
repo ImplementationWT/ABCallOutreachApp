@@ -7,7 +7,7 @@
  */
 import type React from 'react';
 import {
-  C, CAMPS, CFG, DAY, LEAD_OUT, NO_OUT, P, PROPS, PEO, REPS, T0, TODAY,
+  C, CAMPS, CFG, DAY, OUT, P, isLeadOut, isNoOut, PROPS, PEO, REPS, T0, TODAY,
   campOf, ctByName, ctsOf, fmtWD, isFinal, isoT, nowT, openOf,
   startDay, syncLog, D, iso, nextBiz, isCurrentPeriod, shiftPeriod, type PeriodKind, type RepKey,
 } from '@/lib/domain';
@@ -143,7 +143,7 @@ async function reqMore(u: RepKey) {
 }
 A.endday = () => { void serverAct({ action: 'endday', rep: S.user }, r => { const n = Number(r.n); toast(n ? `${n} contacts not called went back to the pool` : 'Workday ended'); }); return false; };
 A.dial = v => { const [k, i] = v.split('|'); const c = C(k); c.calling = isoT(nowT()); c.callPh = Number(i); };
-A.setout = v => { const [k, o] = v.split('|'); const dr = S.draft[k]; dr.out = dr.out === o ? null : o; if (o === 'Follow Up' && !dr.fu) dr.fu = null; };
+A.setout = v => { const [k, o] = v.split('|'); const dr = S.draft[k]; dr.out = dr.out === o ? null : o; if (OUT[o]?.needsFollowUp && !dr.fu) dr.fu = null; };
 IN.note = (v, k) => { S.draft[k].note = v; };
 A.togscript = () => { S.f.script = !S.f.script; };
 /* Save and next: the result is saved by the server (POST /api/work), which checks the contact is in
@@ -159,7 +159,7 @@ function savedToast(u: RepKey, v: string) {
   const nx = openOf(u).sort(queueSort)[0];
   S.sel[u] = nx ? nx.k : v;
   const c = C(v);
-  toast(LEAD_OUT.includes(c.out!) ? `${c.n}: handed to AB sales as a Potential Lead` : NO_OUT.includes(c.out!) ? `${c.n}: ${c.out}. Other contacts at the property removed` : `${c.n}: ${c.out} saved${c.nextAt ? ', back ' + fmtWD(c.nextAt) : ''}`);
+  toast(isLeadOut(c.out) ? `${c.n}: handed to AB sales as a Potential Lead` : isNoOut(c.out) ? `${c.n}: ${c.out}. Other contacts at the property removed` : `${c.n}: ${c.out} saved${c.nextAt ? ', back ' + fmtWD(c.nextAt) : ''}`);
 }
 
 /* ===== OUTREACH MANAGER ===== */
@@ -212,7 +212,7 @@ A.perfdrill = v => { const [k, d] = v.split('|'); S.f.perfp = k; S.f.perfd = d; 
 /* ===== PROPERTIES ===== */
 A.prtab = v => { S.tab.prp = v; };
 A.go_mgr_leads = () => { go('mgr', 'leads'); };
-A.reopen = v => { ctsOf(v).forEach(c => { c.stop = null; if (c.out === 'Not Interested') c.nextAt = TODAY; }); syncLog('Fire Rebuild Properties', P(v).addr, 'Reopened for outreach by Andrew'); toast('Property reopened: its contacts are eligible again'); };
+A.reopen = v => { ctsOf(v).forEach(c => { c.stop = null; if (isNoOut(c.out) && !isFinal(c)) c.nextAt = TODAY; }); syncLog('Fire Rebuild Properties', P(v).addr, 'Reopened for outreach by Andrew'); toast('Property reopened: its contacts are eligible again'); };
 A.started = v => { const p = P(v); p.started = 'Yes'; ctsOf(v).forEach(c => { if (!c.stop && !isFinal(c)) c.stop = { why: 'Construction started at the property', by: null }; }); syncLog('Fire Rebuild Properties', p.addr, 'Construction Started: Yes'); toast('Construction started: contacts removed from outreach'); };
 A.openct = v => { const c = C(v); openProp(c.prop, 'cts'); S.hl = v; };
 

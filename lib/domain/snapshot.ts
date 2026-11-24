@@ -7,6 +7,7 @@
  * Pure: no driver, no DOM.
  */
 import { CAMPS, resetCampaigns, type Campaign } from './campaigns';
+import { OUT, OUTK, setOutcomes, type OutcomeDoc } from './catalogs';
 import { C, CALLS, CTS, LEADS, PROPS, SEQ, SLOT_KEYS, SYNC, resetData, type Call, type Contact, type Lead, type Phone, type PhoneSt, type Property, type SlotState, type SyncEntry } from './data';
 import { TODAY } from './dates';
 import { DAY, resetDays, type DayState } from './engine';
@@ -16,7 +17,7 @@ import { CFG, resetRules, type Config } from './rules';
 
 export const COLLECTIONS = [
   'properties', 'contacts', 'phone_numbers', 'campaigns', 'reservations', 'workdays', 'call_log',
-  'hand_offs', 'reps', 'rules', 'daily_metrics', 'sync_log', 'app_meta',
+  'hand_offs', 'reps', 'rules', 'daily_metrics', 'sync_log', 'app_meta', 'outcomes',
 ] as const;
 export type CollectionName = (typeof COLLECTIONS)[number];
 export type Doc = { _id: string | number; [k: string]: unknown };
@@ -77,6 +78,7 @@ export function toDocs(): Snapshot {
     daily_metrics: metrics,
     sync_log: SYNC.map((s, i) => ({ _id: SYNC.length - 1 - i, ...s })),
     app_meta: [{ _id: 'state', seq: { ...SEQ } }],
+    outcomes: OUTK.map((k, pos) => ({ _id: k, ...OUT[k], pos })),
   } as unknown as Snapshot);
 }
 
@@ -85,6 +87,7 @@ const strip = <T extends Doc>(d: T, ...keys: string[]) => { const o: Record<stri
 
 /** Replaces the whole in-memory state with the documents of a snapshot. */
 export function fromDocs(s: Snapshot) {
+  setOutcomes(((s.outcomes ?? []) as OutcomeDoc[]).slice().sort((a, b) => a.pos - b.pos).map(d => [d._id, strip(d, 'pos') as unknown as OutcomeDoc]));
   resetData(); resetDays(); resetCampaigns(); resetRules(); resetDaym();
   const phones: Record<string, Phone[]> = {};
   for (const p of (s.phone_numbers as PhoneDoc[]).slice().sort((a, b) => a.idx - b.idx)) (phones[p.ct] ||= []).push({ n: p.n, st: p.st });

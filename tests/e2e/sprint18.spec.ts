@@ -84,6 +84,41 @@ test.describe('6. API: a rep cannot read or change another rep\'s data', () => {
   });
 });
 
+test.describe('C1. Outcome catalog (administrator only)', () => {
+  test('only an administrator edits it; recall days of at least 1; names are unique', async ({ playwright }) => {
+    for (const u of ['maya', 'andrew']) {
+      const r = await (await api(playwright, u)).post('/api/outcomes', { data: { action: 'create', name: 'X', status: 'Contacted' } });
+      expect(r.status(), u).toBe(403);
+    }
+    const admin = await api(playwright, 'admin');
+    expect((await admin.post('/api/outcomes', { data: { action: 'create', name: 'Zero days', status: 'Contacted', recallDays: 0 } })).status()).toBe(400);
+    expect((await admin.post('/api/outcomes', { data: { action: 'create', name: 'left vm', status: 'Contacted' } })).status()).toBe(409);
+    expect((await admin.post('/api/outcomes', { data: { action: 'update', name: 'Left VM', recallDays: 0 } })).status()).toBe(400);
+    // nobody writes the catalog through POST /api/state
+    expect((await admin.post('/api/state', { data: { changes: { outcomes: { upsert: [{ _id: 'Y' }] } } } })).status()).toBe(403);
+  });
+  test('an administrator creates and deactivates outcomes on the screen; the rep\'s form follows the catalog', async ({ browser }) => {
+    const a = await page(browser, 'admin', '/mgr/outc');
+    await expect(a.locator('[data-outcome]')).toHaveCount(11);
+    await a.getByRole('button', { name: 'New outcome' }).click();
+    await a.locator('#o-name').fill('Moved away');
+    await a.locator('#o-days').fill('3');
+    await a.locator('[data-prop=property]').click();
+    await a.getByRole('button', { name: 'Create outcome' }).click();
+    await expect(a.locator('[data-outcome="Moved away"]')).toBeVisible();
+    await a.locator('[data-toggle="Hung Up"]').click();
+    await expect(a.locator('[data-outcome="Hung Up"]')).toContainText('Inactive');
+    const doc = await withDb(db => db.collection('outcomes').findOne({ _id: 'Moved away' as never }));
+    expect(doc).toMatchObject({ active: true, countsAsAttempt: true, recallDays: 3, propagates: 'property', needsFollowUp: false });
+    const m = await page(browser, 'maya');
+    const ck = (await m.locator('[data-act=saveout]').first().getAttribute('data-v'))!;
+    await expect(m.locator(`[data-act=setout][data-v="${ck}|Moved away"]`)).toBeVisible();
+    await expect(m.locator(`[data-act=setout][data-v="${ck}|Hung Up"]`)).toHaveCount(0);
+    // back as it was for the rest of the file
+    await withDb(async db => { await db.collection('outcomes').updateOne({ _id: 'Hung Up' as never }, { $set: { active: true } }); await db.collection('outcomes').deleteOne({ _id: 'Moved away' as never }); });
+  });
+});
+
 test.describe('A. Rep Workspace', () => {
   test('A1 reloading does not regenerate or duplicate the list', async ({ browser }) => {
     const p = await page(browser, 'maya');

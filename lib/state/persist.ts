@@ -89,7 +89,7 @@ function diff(now: Hashes): Partial<Record<CollectionName, Change>> | null {
 }
 
 /** Collections the browser never writes: the server actions save them (/api/work, /api/allocate). */
-const SERVER_ONLY: CollectionName[] = ['call_log'];
+const SERVER_ONLY: CollectionName[] = ['call_log', 'outcomes'];
 /** A rep's browser writes nothing here: every rep action is a server action. */
 const writesState = () => { const me = getMe(); return !!me && !isLockedRep(me); };
 

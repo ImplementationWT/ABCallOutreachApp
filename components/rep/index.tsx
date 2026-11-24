@@ -4,7 +4,7 @@
 import { Fragment } from 'react';
 import type React from 'react';
 import {
-  AUDS, C, CALLS, CFG, DAY, LEADS, LEAD_OUT, NO_OUT, OUT, P, PEO, PRI, TODAY,
+  AUDS, C, CALLS, CFG, DAY, LEADS, OUT, P, PEO, PRI, TODAY, activeOutcomes, isLeadOut, isNoOut,
   addDays, callsOn, campName, campOf, ctsOf, demoN, docOf, effectsOf, elig, first, fmtD, fmtDT, fmtS, fmtT, fmtUS, fmtWD,
   fullAddr, iso, listOf, mOf, openOf, ownerOf, phIdx, priOf, propStatus, relDay, T0,
   type Contact, type Property, type RepKey,
@@ -55,7 +55,7 @@ function RepEnded() {
 function QItem({ c, u, cur }: { c: Contact; u: RepKey; cur: boolean }) {
   const p = P(c.prop), done = DAY[u].done[c.k], call = done ? CALLS.find(x => x.id === done) : undefined;
   const pr = priOf(c);
-  const removed = c.stop || (p.lead && !(call && LEAD_OUT.includes(call.out)));
+  const removed = c.stop || (p.lead && !(call && isLeadOut(call.out)));
   const left = removed ? <span className="pr ok bg-r50 text-r500"><Icon n="ban" s={14} /></span> : done ? <span className="pr ok"><Icon n="check" s={15} /></span> : <PrTag pr={pr} />;
   const sub = done ? `${call!.out} at ${fmtT(call!.at)}` : removed ? (c.stop ? c.stop.why : 'Property handed to sales') : `${c.out ? c.out + ' ' + fmtS(c.lastAt) : 'Never called'}, attempt ${c.att + 1}`;
   const tags = done || removed ? null : <div className="tags">{ownerOf(c) === u ? <Pill t={pr === 'P1' ? 'Your follow-up' : 'Your undecided'} cls={pr === 'P1' ? 'red' : 'violet'} /> : null}{p.permit === 'Permit Issued' ? <Pill t="Permit issued" cls="green" /> : p.permit === 'Plans Submitted' ? <Pill t="Plans submitted" cls="amber" /> : null}<Pill t={AUDS[p.aud].s} /></div>;
@@ -89,7 +89,11 @@ function RepWork() {
     </div>
   </>;
 }
-const GRP: [string, string[]][] = [['Nobody answered', ['Not Contacted', 'Left VM', 'Wrong Number']], ['Answered', ['Hung Up', 'Undecided', 'Follow Up', 'Working on Plans', 'Interested']], ['Said no', ['Not Interested', 'Already Building / Done', 'Do Not Contact']]];
+/** The result buttons, grouped, from the outcome catalog (active outcomes only). */
+const groupsOf = (): [string, string[]][] => {
+  const act = activeOutcomes();
+  return [['Nobody answered', act.filter(o => OUT[o].group === 'none' && !isNoOut(o) && !isLeadOut(o))], ['Answered', act.filter(o => OUT[o].group !== 'none' && !isNoOut(o))], ['Said no', act.filter(o => isNoOut(o))]];
+};
 function RepDetail({ c }: { c: Contact }) {
   const u = S.user, p = P(c.prop), d = DAY[u];
   const doneId = d.done[c.k], call = doneId ? CALLS.find(x => x.id === doneId) : undefined;
@@ -98,7 +102,7 @@ function RepDetail({ c }: { c: Contact }) {
   const dr = draftOf(c.k);
   const sibs = ctsOf(p.k).filter(x => x !== c);
   const ix = phIdx(c);
-  const fuOk = dr.out !== 'Follow Up' || dr.fu;
+  const needsFu = !!dr.out && !!OUT[dr.out]?.needsFollowUp, fuOk = !needsFu || dr.fu;
   return <>
     <div className="dcard"><div className="dh"><div><h2>{c.n}</h2><p>{roleOf(c)}, {fullAddr(p)}</p><div className="pills">
       {call || removed ? null : <PrTag pr={pr} sm />}{call || removed ? null : <Pill t={`${pr}: ${PRI[pr].n}`} />}
@@ -109,7 +113,7 @@ function RepDetail({ c }: { c: Contact }) {
       ? <div className="nextstep red"><span className="ic"><Icon n="ban" s={17} /></span><div><b>Do not call: removed from your list</b><small>{c.stop ? c.stop.why : 'The property is with AB sales'}. The rule removes every other contact of a property when one says no or becomes a lead.</small></div></div>
       : call
         ? <>
-          <div className={`nextstep ${LEAD_OUT.includes(call.out) ? '' : NO_OUT.includes(call.out) ? 'red' : 'grey'}`}><span className="ic"><Icon n="check" s={17} /></span><div><b>Documented: {call.out} at {fmtT(call.at)}</b><small>{call.note ? call.note : 'No notes'}</small></div></div>
+          <div className={`nextstep ${isLeadOut(call.out) ? '' : isNoOut(call.out) ? 'red' : 'grey'}`}><span className="ic"><Icon n="check" s={17} /></span><div><b>Documented: {call.out} at {fmtT(call.at)}</b><small>{call.note ? call.note : 'No notes'}</small></div></div>
           {call.fx ? <div className="effect m-[-4px_0_12px]"><b>What the rules did</b><ul>{call.fx.map((x, i) => <li key={i}>{x}</li>)}</ul></div> : null}
         </>
         : <>
@@ -118,11 +122,11 @@ function RepDetail({ c }: { c: Contact }) {
           </div>
             {c.calling ? <div className="oncall"><span className="dotc" /><div><b>Calling {c.phones[c.callPh!].n}</b> from your phone, dialed at {fmtT(c.calling)}. Record the result below when you hang up.</div></div> : null}</div>
           <div className="dcard"><h3><Icon n="edit" s={16} />Result of the call</h3>
-            {GRP.map(([t, ks]) => <Fragment key={t}><div className="lbl mt-[6px]">{t}</div><div className="outs">{ks.map(o => <button key={o} className={`ob ${OUT[o].tone}`} {...on('setout', `${c.k}|${o}`)} aria-pressed={dr.out === o}>{o}<small>{OUT[o].hint}{OUT[o].prop ? ', proposed' : ''}</small></button>)}</div></Fragment>)}
-            {dr.out === 'Follow Up' ? <><label className="lbl">Call back on <em>*</em></label><div className="max-w-[320px]"><DateField k={'fu:' + c.k} value={dr.fu} onSet={v => setFu(c.k, v)} /></div></> : null}
+            {groupsOf().filter(([, ks]) => ks.length).map(([t, ks]) => <Fragment key={t}><div className="lbl mt-[6px]">{t}</div><div className="outs">{ks.map(o => <button key={o} className={`ob ${OUT[o].tone}`} {...on('setout', `${c.k}|${o}`)} aria-pressed={dr.out === o}>{o}<small>{OUT[o].hint}{OUT[o].proposed ? ', proposed' : ''}</small></button>)}</div></Fragment>)}
+            {needsFu ? <><label className="lbl">Call back on <em>*</em></label><div className="max-w-[320px]"><DateField k={'fu:' + c.k} value={dr.fu} onSet={v => setFu(c.k, v)} /></div></> : null}
             <label className="lbl">Notes</label><textarea className="fld min-h-[70px]" id={`note-${c.k}`} key={c.k} {...inp('note.' + c.k)} placeholder="What did they say? Anything the next person should know" defaultValue={dr.note} />
             {dr.out ? <div className="effect"><b>When you save</b><ul>{effectsOf(c, dr.out, dr.fu).map((x, i) => <li key={i}>{x}</li>)}</ul></div> : null}
-            <div className="savebar"><span className="sm muted">{dr.out ? '' : 'Pick a result to save.'}{dr.out === 'Follow Up' && !dr.fu ? 'Pick the call back date.' : ''}</span><span className="sp" /><button className="btn pri" {...on('saveout', c.k)} disabled={!(dr.out && fuOk)}><Icon n="check" s={15} />Save and next</button></div></div>
+            <div className="savebar"><span className="sm muted">{dr.out ? '' : 'Pick a result to save.'}{needsFu && !dr.fu ? 'Pick the call back date.' : ''}</span><span className="sp" /><button className="btn pri" {...on('saveout', c.k)} disabled={!(dr.out && fuOk)}><Icon n="check" s={15} />Save and next</button></div></div>
         </>}
     <div className="dcard"><h3><Icon n="home" s={16} />The property<span className="r"><StPill s={propStatus(p)} /></span></h3><div className="grid4"><Kv l="Permit" v={p.permit === 'None' ? 'No permit yet' : p.permit} sub={p.permitDate ? fmtD(p.permitDate) : ''} /><Kv l="Construction started" v={p.started} /><Kv l="Audience" v={AUDS[p.aud].s} /><Kv l="Owner since" v={p.since ?? "—"} /></div>
       <div className="lbl mt-[12px]">Other contacts at this property</div>{sibs.length ? <div className="octs">{sibs.map(x => <SibRow key={x.k} x={x} u={u} />)}</div> : <p className="sm muted">No other contacts.</p>}</div>
@@ -136,7 +140,7 @@ export function SibRow({ x, u }: { x: Contact; u: RepKey }) {
   const e = elig(x, true);
   const today = x.res && x.res.date === TODAY ? (x.res.rep === u ? 'In your list today' : 'In ' + first(x.res.rep) + '’s list today') : '';
   const last = x.out ? `${x.out}, ${fmtS(x.lastAt)} by ${first(x.rep || 'may')}` : 'Never called';
-  return <div className={`oct ${x.stop || NO_OUT.includes(x.out!) ? 'stop' : ''}`}><span><Icon n="user" s={15} /></span><div><b>{x.n}</b> <span className="muted sm">{roleOf(x)}</span><br /><span className="sm muted">{last}{x.note && x.out ? ': ' + x.note : ''}</span></div><div className="r">{today ? <Pill t={today} cls="blue" /> : null}{!e.ok || e.k !== 'pool' ? <Pill t={e.ok ? 'Eligible' : e.why.length > 34 ? e.why.slice(0, 32) + '...' : e.why} cls={e.ok ? 'green' : e.tone} /> : <Pill t="Eligible" cls="green" />}</div></div>;
+  return <div className={`oct ${x.stop || isNoOut(x.out) ? 'stop' : ''}`}><span><Icon n="user" s={15} /></span><div><b>{x.n}</b> <span className="muted sm">{roleOf(x)}</span><br /><span className="sm muted">{last}{x.note && x.out ? ': ' + x.note : ''}</span></div><div className="r">{today ? <Pill t={today} cls="blue" /> : null}{!e.ok || e.k !== 'pool' ? <Pill t={e.ok ? 'Eligible' : e.why.length > 34 ? e.why.slice(0, 32) + '...' : e.why} cls={e.ok ? 'green' : e.tone} /> : <Pill t="Eligible" cls="green" />}</div></div>;
 }
 const TL_TONE: Record<string, string> = { g: 'tg', a: 'ta', r: 'tr', b: 'tb', n: '' };
 export function HistList({ pk }: { pk: string }) {
@@ -146,7 +150,7 @@ export function HistList({ pk }: { pk: string }) {
   if (!cl.length && !lead) return <p className="sm muted">No calls yet at this property.</p>;
   return <ul className="tl">
     {lead ? <li className="tg"><span className="d"><Icon n="hand" s={15} /></span><div className="x"><b>{lead.src === 'Inbound' ? 'Inbound call taken by the office' : 'Handed to AB sales'}: {lead.k}</b><br /><span className="muted">{lead.note || ''}</span><time>{fmtDT(lead.at)}</time></div></li> : null}
-    {cl.map(x => <li key={x.id} className={OUT[x.out] ? TL_TONE[OUT[x.out].tone] : ''}><span className="d"><Icon n={x.out === 'Left VM' ? 'vm' : OUT[x.out] && OUT[x.out].g === 'none' ? 'call' : 'msg'} s={15} /></span><div className="x"><b>{C(x.ct).n}: {x.out}</b> <span className="muted">by {PEO[x.rep].n}, {x.ph}</span>{x.note ? <><br />{x.note}</> : null}<time>{fmtDT(x.at)}</time></div></li>)}
+    {cl.map(x => <li key={x.id} className={OUT[x.out] ? TL_TONE[OUT[x.out].tone] : ''}><span className="d"><Icon n={OUT[x.out]?.tone === 'b' ? 'vm' : OUT[x.out] && OUT[x.out].group === 'none' ? 'call' : 'msg'} s={15} /></span><div className="x"><b>{C(x.ct).n}: {x.out}</b> <span className="muted">by {PEO[x.rep].n}, {x.ph}</span>{x.note ? <><br />{x.note}</> : null}<time>{fmtDT(x.at)}</time></div></li>)}
   </ul>;
 }
 function scriptFor(c: Contact, p: Property, u: RepKey) {
