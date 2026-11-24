@@ -14,6 +14,7 @@ export async function seedDatabase(db: Db, { reset = false, t0, resetAdmin = fal
   if (existing && !reset) return { seeded: false, counts: { properties: existing } };
   buildWorld(t0);
   const docs = toDocs();
+  if (reset) await db.collection('property_locks').deleteMany({});
   const counts: Record<string, number> = {};
   for (const name of COLLECTIONS) {
     const col = db.collection<Doc>(name);

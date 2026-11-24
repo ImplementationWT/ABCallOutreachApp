@@ -75,14 +75,21 @@ export const INDEXES: Partial<Record<CollectionName, IndexDescription[]>> = {
   sync_log: [{ key: { at: -1 } }],
 };
 
+/** Server-only collections (not part of the app's state): the property locks of each day
+ * (lib/db/server-state.ts). _id "date:property" is unique, so a property has one rep a day. */
+const SERVER_SCHEMAS: Record<string, Schema> = {
+  property_locks: obj(['date', 'prop', 'rep'], { _id: str, date, prop: str, rep: enumOf(REPS) }),
+};
+const SERVER_INDEXES: Record<string, IndexDescription[]> = { property_locks: [{ key: { date: 1, rep: 1 } }] };
+
 /** Creates every collection with its validator (or updates the validator) and its indexes. */
 export async function ensureCollections(db: Db) {
   const existing = new Set((await db.listCollections({}, { nameOnly: true }).toArray()).map(c => c.name));
-  for (const [name, schema] of Object.entries(SCHEMAS) as [CollectionName, Schema][]) {
+  for (const [name, schema] of [...Object.entries(SCHEMAS), ...Object.entries(SERVER_SCHEMAS)] as [CollectionName, Schema][]) {
     const validator = { $jsonSchema: schema };
     if (existing.has(name)) await db.command({ collMod: name, validator, validationLevel: 'strict', validationAction: 'error' });
     else await db.createCollection(name, { validator, validationLevel: 'strict', validationAction: 'error' });
-    const idx = INDEXES[name];
+    const idx = INDEXES[name] ?? SERVER_INDEXES[name];
     if (idx?.length) await db.collection(name).createIndexes(idx);
   }
 }

@@ -40,6 +40,10 @@ export type DayState = {
   batches: { at: string; n: number; k: string }[];
   startedAt?: string; endedAt?: string;
 };
+/** Property locks of today held in MongoDB (property_locks, set on the server before an allocation):
+ * a property locked by another rep is never offered, even if this state does not show its reservation. */
+export const PLOCK: Record<string, RepKey> = {};
+export const setLocks = (locks: Record<string, RepKey>) => { for (const k of Object.keys(PLOCK)) delete PLOCK[k]; Object.assign(PLOCK, locks); };
 export const DAY: Record<RepKey, DayState> = {
   may: { st: 'reserved', list: [], done: {}, batches: [] },
   dan: { st: 'reserved', list: [], done: {}, batches: [] },
@@ -113,7 +117,7 @@ export function freeGroups(rep: RepKey) {
   /* If a sibling is reserved already, the property stays with that rep */
   return Object.values(gs).filter(g => {
     const r = ctsOf(g.p.k).find(c => c.res && c.res.date === TODAY);
-    return !r || r.res!.rep === rep;
+    return (!r || r.res!.rep === rep) && (!PLOCK[g.p.k] || PLOCK[g.p.k] === rep);
   }).filter(g => !g.own || g.own === rep || DAY[g.own as RepKey].st === 'off')
     .sort((a, b) => a.best - b.best || waited(a) - waited(b) || a.p.k.localeCompare(b.p.k));
 }

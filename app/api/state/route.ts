@@ -31,8 +31,9 @@ export async function GET() {
 type Change = { upsert?: Doc[]; delete?: (string | number)[] };
 /** Collections only some roles may write (the rest change with the reps' daily work). */
 const WRITE_PERM: Partial<Record<CollectionName, Perm>> = { campaigns: 'mgr.manage', rules: 'mgr.manage', reps: 'users.manage' };
-/** Written only by the server: call results (/api/work) and the outcome catalog (/api/outcomes). */
-const SERVER_ONLY: CollectionName[] = ['call_log', 'outcomes'];
+/** Written only by the server: call results and the lists (/api/work, /api/allocate, with their
+ * property locks) and the outcome catalog (/api/outcomes). The browser never writes reservations. */
+const SERVER_ONLY: CollectionName[] = ['call_log', 'outcomes', 'reservations'];
 const MAX_DOCS = 2000;
 
 export async function POST(req: Request) {

@@ -276,6 +276,44 @@ test.describe('B. Engine on the server', () => {
     for (const r of res) (byProp[propOf(String(r.ct))] ||= new Set()).add(String(r.rep));
     expect(Object.entries(byProp).filter(([, s]) => s.size > 1)).toEqual([]);
   });
+  test('B5 the property lock is in MongoDB: one lock per property and day, a lock held elsewhere is respected, End workday frees it', async ({ playwright }) => {
+    const NEXT = '2026-11-04';
+    await withDb(async db => {
+      for (const c of ['workdays', 'reservations', 'property_locks']) await db.collection(c).deleteMany({ date: NEXT });
+      await db.collection('campaigns').insertOne({ _id: 'C-1104-T' as never, date: NEXT, auds: ['pp', 'sm', 'mb', 'ad'], reps: ['may', 'dan', 'pri'], goal: 1, pos: 98 });
+    });
+    const maya = await api(playwright, 'maya');
+    expect((await (await maya.post('/api/allocate', { data: { kind: 'morning', now: `${NEXT}T07:00` } })).json()).ran).toBe(true);
+    const cts = await withDb(db => db.collection('contacts').find({}, { projection: { prop: 1 } }).toArray());
+    const propOf = (k: string) => k.includes('@') ? k.split('@')[1] : String(cts.find(c => String(c._id) === k)!.prop);
+    const res = await withDb(db => db.collection('reservations').find({ date: NEXT }).toArray());
+    const locks = await withDb(db => db.collection('property_locks').find({ date: NEXT }).toArray());
+    const want = Object.fromEntries(res.map(r => [`${NEXT}:${propOf(String(r.ct))}`, r.rep]));
+    expect(Object.fromEntries(locks.map(l => [String(l._id), l.rep]))).toEqual(want);
+    // another server holds a free property for Daniel: Maya's next batch never takes it
+    const taken = new Set(res.map(r => propOf(String(r.ct))));
+    const props = await withDb(db => db.collection('properties').find({ aud: 'pp', lead: null, inPipe: null }).toArray());
+    const free = props.map(p => String(p._id)).filter(p => !taken.has(p));
+    await withDb(async db => {
+      await db.collection('property_locks').insertMany(free.map(p => ({ _id: `${NEXT}:${p}` as never, date: NEXT, prop: p, rep: 'dan' })));
+      await db.collection('workdays').updateOne({ _id: `${NEXT}:may` as never }, { $set: { st: 'started' } });
+      await db.collection('reservations').updateMany({ date: NEXT, rep: 'may' }, { $set: { done: 1 } });
+    });
+    const more = await (await maya.post('/api/allocate', { data: { kind: 'more', rep: 'may', now: `${NEXT}T10:00` } })).json();
+    expect(more.ok).toBe(true);
+    const mine = await withDb(db => db.collection('reservations').find({ date: NEXT, rep: 'may' }).toArray());
+    for (const r of mine) expect(free).not.toContain(propOf(String(r.ct)));
+    // End workday frees the locks of what goes back to the pool
+    await withDb(db => db.collection('reservations').updateMany({ date: NEXT, rep: 'may' }, { $set: { done: null } }));
+    expect((await maya.post('/api/work', { data: { action: 'endday', rep: 'may', now: `${NEXT}T18:00` } })).status()).toBe(200);
+    expect(await withDb(db => db.collection('property_locks').countDocuments({ date: NEXT, rep: 'may' }))).toBe(0);
+    await withDb(async db => { for (const c of ['workdays', 'reservations', 'property_locks', 'campaigns']) await db.collection(c).deleteMany({ $or: [{ date: NEXT }, { _id: 'C-1104-T' as never }] }); });
+  });
+  test('B5 the browser never writes reservations', async ({ playwright }) => {
+    const admin = await api(playwright, 'admin');
+    const res = await admin.post('/api/state', { data: { changes: { reservations: { upsert: [{ _id: `${DAY}:X`, ct: 'X', rep: 'may', date: DAY, order: 0, done: null }] } } } });
+    expect(res.status()).toBe(403);
+  });
   test('B8 the rep sees a clear message when the pool is empty (no error)', async ({ browser }) => {
     await withDb(async db => { await db.collection('campaigns').updateMany({ date: DAY }, { $set: { auds: [] } }); await db.collection('reservations').deleteMany({ date: DAY, rep: 'may' });
       // her own follow-ups come back even without audiences: move them out of today so the pool is really empty
