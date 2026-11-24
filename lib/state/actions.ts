@@ -7,16 +7,16 @@
  */
 import type React from 'react';
 import {
-  C, CALLS, CAMPS, CFG, DAY, LEAD_OUT, NO_OUT, P, PROPS, PEO, PRANK, REPS, T0, TODAY,
-  campOf, ctByName, ctsOf, endDay, fmtWD, isFinal, isoT, nowT, openOf, ownerOf, priOf,
-  saveOutcome, startDay, syncLog, D, iso, nextBiz, isCurrentPeriod, shiftPeriod, type PeriodKind, type RepKey,
+  C, CAMPS, CFG, DAY, LEAD_OUT, NO_OUT, P, PROPS, PEO, REPS, T0, TODAY,
+  campOf, ctByName, ctsOf, fmtWD, isFinal, isoT, nowT, openOf,
+  startDay, syncLog, D, iso, nextBiz, isCurrentPeriod, shiftPeriod, type PeriodKind, type RepKey,
 } from '@/lib/domain';
 import { TOUR } from '@/lib/domain/tour';
 import { go, openProp } from './navigation';
 import { queueSort } from './rep';
 import { APPS, PAGE_SIZES, S, bump, store, toast, type AppKey, type ViewKey } from './store';
 import { can } from './auth';
-import { allocate, loadState } from './persist';
+import { allocate, loadState, work } from './persist';
 import { isLocked, type Perm } from '@/lib/auth/roles';
 
 type Fn = (v: string, el?: HTMLElement, e?: React.SyntheticEvent | Event) => unknown;
@@ -108,10 +108,20 @@ async function startWorkday(u: RepKey) {
   await loadState(true);
   const first = openOf(u).sort(queueSort)[0];
   S.sel[u] = first ? first.k : null;
-  if (r.n) syncLog('Fire Rebuild Contacts', 'Start of workday', `${r.n} contacts reserved for ${PEO[u].n}`);
   toast(DAY[u].list.length ? `Workday started: ${DAY[u].list.length} contacts for today` : 'Workday started. No eligible contacts in your campaign today');
 }
-A.reopenday = () => { DAY[S.user].st = 'started'; };
+A.reopenday = () => { void serverAct({ action: 'reopenday', rep: S.user }); return false; };
+/** Runs a server action (lib/db/work.ts), reloads the data and calls `then` with the answer. */
+async function serverAct(body: Record<string, unknown>, then?: (r: Record<string, unknown>) => void) {
+  if (S.loadingMore) return;
+  S.loadingMore = true; bump();
+  try {
+    const r = await work(body);
+    if (r.error) { toast(r.error); return; }
+    await loadState(true);
+    then?.(r);
+  } finally { S.loadingMore = false; bump(); }
+}
 A.qsel = v => { S.sel[S.user] = v; };
 /* Request more: the server allocates (lib/db/allocate.ts), so two reps never get the same contact;
  * then the data is reloaded with every other rep's reservations. */
@@ -128,26 +138,29 @@ async function reqMore(u: RepKey) {
   if (!r.n) { toast('No more eligible contacts in your campaign today'); bump(); return; }
   const first = openOf(u).sort(queueSort)[0];
   S.sel[u] = first ? first.k : S.sel[u];
-  syncLog('Fire Rebuild Contacts', 'Request more', `${r.n} more contacts reserved for ${PEO[u].n}`);
   toast(`Checked: every contact documented. ${r.n} more contacts added to your list`);
   bump();
 }
-A.endday = () => { const n = endDay(S.user); toast(n ? `${n} contacts not called went back to the pool` : 'Workday ended'); };
+A.endday = () => { void serverAct({ action: 'endday', rep: S.user }, r => { const n = Number(r.n); toast(n ? `${n} contacts not called went back to the pool` : 'Workday ended'); }); return false; };
 A.dial = v => { const [k, i] = v.split('|'); const c = C(k); c.calling = isoT(nowT()); c.callPh = Number(i); };
 A.setout = v => { const [k, o] = v.split('|'); const dr = S.draft[k]; dr.out = dr.out === o ? null : o; if (o === 'Follow Up' && !dr.fu) dr.fu = null; };
 IN.note = (v, k) => { S.draft[k].note = v; };
 A.togscript = () => { S.f.script = !S.f.script; };
+/* Save and next: the result is saved by the server (POST /api/work), which checks the contact is in
+ * the rep's list; then the data is reloaded. */
 A.saveout = v => {
   const u = S.user, dr = S.draft[v];
-  if (!dr || !dr.out) return false;
-  const fx = saveOutcome(v, u, dr.out, dr.note, dr.fu);
-  CALLS[CALLS.length - 1].fx = fx;
+  if (!dr || !dr.out || S.loadingMore) return false;
+  void serverAct({ action: 'save', rep: u, ct: v, out: dr.out, note: dr.note, fu: dr.fu }, () => savedToast(u, v));
+  return false;
+};
+function savedToast(u: RepKey, v: string) {
   delete S.draft[v];
   const nx = openOf(u).sort(queueSort)[0];
   S.sel[u] = nx ? nx.k : v;
   const c = C(v);
   toast(LEAD_OUT.includes(c.out!) ? `${c.n}: handed to AB sales as a Potential Lead` : NO_OUT.includes(c.out!) ? `${c.n}: ${c.out}. Other contacts at the property removed` : `${c.n}: ${c.out} saved${c.nextAt ? ', back ' + fmtWD(c.nextAt) : ''}`);
-};
+}
 
 /* ===== OUTREACH MANAGER ===== */
 A.replist = v => { S.modal = { k: 'replist', r: v }; };
@@ -159,18 +172,11 @@ A.reassign = v => {
 };
 A.rato = v => { S.modal!.to = v; };
 IN.ran = v => { S.modal!.n = Math.max(0, Number(v) || 0); };
+/* Reassign: done by the server (lib/db/work.ts), so the lists stay consistent with every rep's. */
 A.radone = () => {
   const m = S.modal!, from = m.r as RepKey, to = m.to as RepKey;
-  const open = openOf(from).filter(c => ownerOf(c) !== from).sort((a, b) => PRANK[priOf(b)] - PRANK[priOf(a)]);
-  let moved = 0;
-  for (const c of open) {
-    if (moved >= m.n) break;
-    if (!DAY[from].list.includes(c.k)) continue;
-    const sib = ctsOf(c.prop).filter(x => DAY[from].list.includes(x.k) && !DAY[from].done[x.k]);
-    sib.forEach(x => { DAY[from].list = DAY[from].list.filter(k => k !== x.k); x.res = { rep: to, date: TODAY }; DAY[to].list.push(x.k); moved++; });
-  }
-  syncLog('Fire Rebuild Contacts', 'Reassign', `${moved} contacts moved from ${PEO[from].n} to ${PEO[to].n}`);
-  S.modal = null; toast(`${moved} contacts moved to ${PEO[to].n}`);
+  void serverAct({ action: 'reassign', rep: from, to, n: m.n }, r => { S.modal = null; toast(`${r.n} contacts moved to ${PEO[to].n}`); });
+  return false;
 };
 IN.srch = (v, k) => { S.srch[k] = v; firstPages(); };
 /* Tables: page (‹ ›) and rows per page (20, 30 or 50). A new filter or search goes back to page 1. */

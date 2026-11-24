@@ -38,25 +38,49 @@ test.describe('6. API: a rep cannot read or change another rep\'s data', () => {
     expect((await maya.post('/api/allocate', { data: { kind: 'more', rep: 'dan', now: `${DAY}T09:00` } })).status()).toBe(403);
     expect((await maya.get('/api/users')).status()).toBe(403);
   });
-  test('[No cumple] GET /api/state gives a rep only their own lists', async ({ playwright }) => {
-    test.fail();
+  test('GET /api/state gives a rep only their own lists, workdays and numbers, and only the properties of their work', async ({ playwright }) => {
     const maya = await api(playwright, 'maya');
     const s = await (await maya.get('/api/state')).json();
-    expect(s.reservations.filter((r: { rep: string; date: string }) => r.date === DAY && r.rep !== 'may')).toEqual([]);
+    expect(s.reservations.filter((r: { rep: string }) => r.rep !== 'may')).toEqual([]);
+    expect(s.workdays.filter((r: { rep: string }) => r.rep !== 'may')).toEqual([]);
+    expect(s.daily_metrics.filter((r: { rep: string }) => r.rep !== 'may')).toEqual([]);
+    expect(s.sync_log).toEqual([]);
+    // a contact that is only in Daniel's list (its property is not in Maya's work) is not sent
+    const dan = await withDb(db => db.collection('reservations').find({ date: DAY, rep: 'dan' }).toArray());
+    const all = await withDb(db => db.collection('contacts').find({}).toArray());
+    const propOf = (k: string) => k.includes('@') ? k.split('@')[1] : String(all.find(c => String(c._id) === k)!.prop);
+    const mayProps = new Set(s.properties.map((p: { _id: string }) => p._id));
+    const onlyDan = dan.map(r => String(r.ct)).filter(k => !mayProps.has(propOf(k)));
+    expect(onlyDan.length).toBeGreaterThan(0);
+    for (const k of onlyDan) expect(s.contacts.map((c: { _id: string }) => c._id)).not.toContain(k.split('@')[0]);
+    // a manager still gets everything
+    const admin = await (await (await api(playwright, 'admin')).get('/api/state')).json();
+    expect(admin.reservations.length).toBeGreaterThan(s.reservations.length);
   });
-  test('[No cumple] POST /api/state refuses a change to a contact in another rep\'s list', async ({ playwright }) => {
-    test.fail();
+  test('POST /api/state refuses any write from a rep (a contact in another rep\'s list, a workday)', async ({ playwright }) => {
     const r = await withDb(db => db.collection('reservations').findOne({ date: DAY, rep: 'dan' }));
     const c = await withDb(db => db.collection('contacts').findOne({ _id: String(r!.ct).split('@')[0] as never }));
     const maya = await api(playwright, 'maya');
-    const res = await maya.post('/api/state', { data: { changes: { contacts: { upsert: [{ ...c, out: 'Do Not Contact', note: 'changed by maya' }] } } } });
-    expect(res.status()).toBe(403);
-  });
-  test('[No cumple] POST /api/state refuses changes to another rep\'s workday and follow-ups', async ({ playwright }) => {
-    test.fail();
-    const maya = await api(playwright, 'maya');
+    expect((await maya.post('/api/state', { data: { changes: { contacts: { upsert: [{ ...c, out: 'Do Not Contact', note: 'changed by maya' }] } } } })).status()).toBe(403);
     const w = await withDb(db => db.collection('workdays').findOne({ _id: `${DAY}:dan` as never }));
     expect((await maya.post('/api/state', { data: { changes: { workdays: { upsert: [{ ...w, st: 'ended' }] } } } })).status()).toBe(403);
+    expect(await withDb(db => db.collection('contacts').findOne({ _id: c!._id }))).toMatchObject({ out: c!.out ?? null });
+  });
+  test('POST /api/work: a rep cannot save a result, end the day or reassign for another rep, nor on a contact outside their list', async ({ playwright }) => {
+    const r = await withDb(db => db.collection('reservations').findOne({ date: DAY, rep: 'dan', done: null }));
+    const maya = await api(playwright, 'maya');
+    const now = `${DAY}T09:00`;
+    expect((await maya.post('/api/work', { data: { action: 'save', rep: 'dan', ct: r!.ct, out: 'Left VM', now } })).status()).toBe(403);
+    const own = await maya.post('/api/work', { data: { action: 'save', rep: 'may', ct: r!.ct, out: 'Left VM', now } });
+    expect(own.status()).toBe(403);
+    expect((await own.json()).error).toBe('This contact is not in your list today');
+    expect((await maya.post('/api/work', { data: { action: 'endday', rep: 'dan', now } })).status()).toBe(403);
+    expect((await maya.post('/api/work', { data: { action: 'reassign', rep: 'may', to: 'dan', n: 1, now } })).status()).toBe(403);
+  });
+  test('nobody writes call results through POST /api/state (only the server saves them)', async ({ playwright }) => {
+    const admin = await api(playwright, 'admin');
+    const res = await admin.post('/api/state', { data: { changes: { call_log: { upsert: [{ _id: 999999, ct: 'x', rep: 'may', at: `${DAY}T09:00`, out: 'Left VM', ph: '' }] } } } });
+    expect(res.status()).toBe(403);
   });
 });
 
@@ -76,7 +100,7 @@ test.describe('A. Rep Workspace', () => {
     await withDb(db => db.collection('campaigns').updateMany({ date: DAY }, { $pull: { reps: 'pri' } as never }));
     const p = await page(browser, 'admin', '/mgr/live');
     await p.click('[data-act=viewas][data-v=pri]');
-    await expect(p.locator('#main')).toContainText(/no campaign|not scheduled|no list|did not run/i, { timeout: 3000 });
+    await expect(p.locator('.startw')).toContainText(/No campaign today/i, { timeout: 3000 });
   });
   test('A2 the list is in priority order, and saving updates the counters without a reload', async ({ browser }) => {
     const p = await page(browser, 'maya');

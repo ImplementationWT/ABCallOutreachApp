@@ -39,6 +39,9 @@ export const canOpen = (me: Pick<Me, 'perms'>, view: string) => !isLocked(view) 
 export const VIEW_PERM: Record<string, Perm> = { rep: 'rep.workspace', mgr: 'mgr.view', prp: 'prp.view', p2: 'p2.view', db: 'data.view' };
 /** A rep without Outreach Manager works only in their own list. */
 export const isLockedRep = (me: Pick<Me, 'perms' | 'person'>) => !!me.person && (REP_PEOPLE as readonly string[]).includes(me.person) && !me.perms.includes('mgr.view');
+/** Whether a user may act on a rep's list: their own, or any rep's with Outreach Manager (not a locked rep). */
+export const mayActFor = (me: Pick<Me, 'perms' | 'person'>, rep: string) =>
+  (REP_PEOPLE as readonly string[]).includes(rep) && (me.person === rep || (!isLockedRep(me) && me.perms.includes('mgr.view')));
 /** Where a user lands after signing in. */
 export function homeOf(me: Pick<Me, 'perms' | 'person'>) {
   if (isLockedRep(me)) return '/rep/today';
