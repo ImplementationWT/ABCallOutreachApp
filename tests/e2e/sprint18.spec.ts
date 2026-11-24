@@ -1,0 +1,206 @@
+/* Sprint 18 validation, end to end (UI -> API -> MongoDB -> other views), on calloutreach_e2e.
+ * test.fail() = the criterion is NOT met today: the test states the expected behaviour and is
+ * expected to fail; Playwright reports it as passing until the gap is fixed (then it must be flipped).
+ * Users: maya and daniel (reps), admin. Day: the seed's demo day, Mon Nov 2, 2026 (browser clock fixed). */
+import { expect, test, type APIRequestContext, type Browser, type Page } from '@playwright/test';
+import { createSession, ensureTeamUsers } from '../../lib/db/auth-core';
+import { resetUsers, reseed, withDb } from './db';
+import { fixClock } from './targets';
+
+const DAY = '2026-11-02';
+const BASE = 'http://localhost:3217';
+const cookie = (token: string) => ({ cookies: [{ name: 'ab_session', value: token, domain: 'localhost', path: '/', expires: -1, httpOnly: true, secure: false, sameSite: 'Lax' as const }], origins: [] });
+const token = (user: string) => withDb(db => createSession(db, user));
+
+test.describe.configure({ mode: 'serial' });
+test.beforeAll(async () => {
+  await reseed();
+  await withDb(async db => { await ensureTeamUsers(db); await db.collection('users').updateMany({}, { $set: { mustChange: false } }); });
+});
+test.afterAll(async () => { await resetUsers(); await reseed(); });
+
+async function page(browser: Browser, user: string, path = '/rep/today', width = 1440): Promise<Page> {
+  const p = await browser.newPage({ storageState: cookie(await token(user)), viewport: { width, height: 900 } });
+  await fixClock(p);
+  await p.goto(path);
+  await p.waitForLoadState('networkidle');
+  const start = p.locator('[data-act=startday]');
+  if (path === '/rep/today' && await start.count()) { await start.click(); await expect(p.locator('#toast')).toContainText('Workday started'); await p.waitForLoadState('networkidle'); }
+  return p;
+}
+async function api(pw: { request: { newContext: (o: object) => Promise<APIRequestContext> } }, user: string) {
+  return pw.request.newContext({ baseURL: BASE, storageState: cookie(await token(user)) });
+}
+
+test.describe('6. API: a rep cannot read or change another rep\'s data', () => {
+  test('a rep cannot allocate for another rep, nor manage users', async ({ playwright }) => {
+    const maya = await api(playwright, 'maya');
+    expect((await maya.post('/api/allocate', { data: { kind: 'more', rep: 'dan', now: `${DAY}T09:00` } })).status()).toBe(403);
+    expect((await maya.get('/api/users')).status()).toBe(403);
+  });
+  test('[No cumple] GET /api/state gives a rep only their own lists', async ({ playwright }) => {
+    test.fail();
+    const maya = await api(playwright, 'maya');
+    const s = await (await maya.get('/api/state')).json();
+    expect(s.reservations.filter((r: { rep: string; date: string }) => r.date === DAY && r.rep !== 'may')).toEqual([]);
+  });
+  test('[No cumple] POST /api/state refuses a change to a contact in another rep\'s list', async ({ playwright }) => {
+    test.fail();
+    const r = await withDb(db => db.collection('reservations').findOne({ date: DAY, rep: 'dan' }));
+    const c = await withDb(db => db.collection('contacts').findOne({ _id: String(r!.ct).split('@')[0] as never }));
+    const maya = await api(playwright, 'maya');
+    const res = await maya.post('/api/state', { data: { changes: { contacts: { upsert: [{ ...c, out: 'Do Not Contact', note: 'changed by maya' }] } } } });
+    expect(res.status()).toBe(403);
+  });
+  test('[No cumple] POST /api/state refuses changes to another rep\'s workday and follow-ups', async ({ playwright }) => {
+    test.fail();
+    const maya = await api(playwright, 'maya');
+    const w = await withDb(db => db.collection('workdays').findOne({ _id: `${DAY}:dan` as never }));
+    expect((await maya.post('/api/state', { data: { changes: { workdays: { upsert: [{ ...w, st: 'ended' }] } } } })).status()).toBe(403);
+  });
+});
+
+test.describe('A. Rep Workspace', () => {
+  test('A1 reloading does not regenerate or duplicate the list', async ({ browser }) => {
+    const p = await page(browser, 'maya');
+    const before = await withDb(db => db.collection('reservations').find({ date: DAY }).toArray());
+    const list = await p.locator('[data-act=qsel]').evaluateAll(e => e.map(x => x.getAttribute('data-v')));
+    await p.reload(); await p.waitForLoadState('networkidle');
+    expect(await p.locator('[data-act=qsel]').evaluateAll(e => e.map(x => x.getAttribute('data-v')))).toEqual(list);
+    const after = await withDb(db => db.collection('reservations').find({ date: DAY }).toArray());
+    expect(after.map(r => `${r._id}:${r.rep}`).sort()).toEqual(before.map(r => `${r._id}:${r.rep}`).sort());
+  });
+  test('[No cumple] A1 if the morning run gave a rep nothing, the start screen says so (not a normal empty list)', async ({ browser }) => {
+    test.fail();
+    await withDb(async db => { await db.collection('reservations').deleteMany({ date: DAY, rep: 'pri' }); await db.collection('workdays').updateOne({ _id: `${DAY}:pri` as never }, { $set: { st: 'reserved', startedAt: null } }); });
+    await withDb(db => db.collection('campaigns').updateMany({ date: DAY }, { $pull: { reps: 'pri' } as never }));
+    const p = await page(browser, 'admin', '/mgr/live');
+    await p.click('[data-act=viewas][data-v=pri]');
+    await expect(p.locator('#main')).toContainText(/no campaign|not scheduled|no list|did not run/i, { timeout: 3000 });
+  });
+  test('A2 the list is in priority order, and saving updates the counters without a reload', async ({ browser }) => {
+    const p = await page(browser, 'maya');
+    // Documented rule (lib/state/rep.ts:6-9): a household's contacts stay together, households ordered
+    // by the best priority among their open contacts, then by the engine's order
+    const rows = (await p.locator('.qsec', { hasText: 'To call' }).locator('xpath=following-sibling::*[@data-act="qsel"]').evaluateAll(els => els.map(e => ({ pr: (e.textContent!.match(/P[1-5]/) || [''])[0], addr: e.querySelectorAll('small')[0]?.textContent || '' }))));
+    expect(rows.length).toBeGreaterThan(0);
+    const order: string[] = []; const best: Record<string, number> = {};
+    for (const r of rows) { if (order.at(-1) !== r.addr) { expect(order, `household ${r.addr} split in the queue`).not.toContain(r.addr); order.push(r.addr); } best[r.addr] = Math.min(best[r.addr] ?? 9, Number(r.pr.slice(1))); }
+    const seq = order.map(a => best[a]);
+    console.log('A2 queue', JSON.stringify(rows.map(r => r.pr + ' ' + r.addr)));
+    expect(seq).toEqual([...seq].sort((x, y) => x - y));
+    const head = p.locator('.qhead b');
+    const m = (await head.innerText()).match(/(\d+) of (\d+)/)!;
+    const ck = await p.locator('[data-act=saveout]').first().getAttribute('data-v');
+    await p.click(`[data-act=setout][data-v="${ck}|Left VM"]`);
+    await p.click(`[data-act=saveout][data-v="${ck}"]`);
+    await expect(head).toHaveText(`Today: ${Number(m[1]) + 1} of ${m[2]} documented`);
+  });
+  test('A4 validations: result required, follow-up date only for Follow Up, past days disabled; notes saved whole', async ({ browser }) => {
+    const p = await page(browser, 'maya');
+    const ck = (await p.locator('[data-act=saveout]').first().getAttribute('data-v'))!;
+    const save = p.locator(`[data-act=saveout][data-v="${ck}"]`);
+    await expect(save).toBeDisabled();
+    await p.click(`[data-act=setout][data-v="${ck}|Follow Up"]`);
+    await expect(save).toBeDisabled(); // needs the date
+    await p.locator('.dcard [data-act=cal]').last().click();
+    await expect(p.locator('[data-act=calpick][data-v="2026-11-01"]')).toBeDisabled();
+    await p.locator('[data-act=calpick][data-v="2026-11-03"]', { hasNotText: 'Tomorrow' }).click();
+    await expect(save).toBeEnabled();
+    const note = 'Long note. '.repeat(200).trim();
+    await p.locator(`#note-${ck}`).fill(note);
+    await save.click();
+    await p.waitForLoadState('networkidle'); await p.waitForTimeout(800);
+    const call = await withDb(db => db.collection('call_log').find({ ct: ck }).sort({ _id: -1 }).limit(1).next());
+    expect(call).toMatchObject({ out: 'Follow Up', rep: 'may', note });
+    const c = await withDb(db => db.collection('contacts').findOne({ _id: ck as never }));
+    expect(c).toMatchObject({ out: 'Follow Up', nextAt: '2026-11-03', rep: expect.any(String) });
+    // A3: it is in My follow-ups, on that date (no time zone shift)
+    await p.goto('/rep/fu'); await p.waitForLoadState('networkidle');
+    await expect(p.locator('.grp', { hasText: 'This week' })).toContainText('Tue, Nov 3');
+  });
+  test('A4 a double click on Save writes one call, not two', async ({ browser }) => {
+    const p = await page(browser, 'maya');
+    const ck = (await p.locator('[data-act=saveout]').first().getAttribute('data-v'))!;
+    const n0 = await withDb(db => db.collection('call_log').countDocuments({ ct: ck }));
+    await p.click(`[data-act=setout][data-v="${ck}|Not Contacted"]`);
+    await p.locator(`[data-act=saveout][data-v="${ck}"]`).dblclick();
+    await p.waitForLoadState('networkidle'); await p.waitForTimeout(800);
+    expect(await withDb(db => db.collection('call_log').countDocuments({ ct: ck }))).toBe(n0 + 1);
+  });
+  test('A5 the detail shows the household, its people and the history with author and date, including the call just saved', async ({ browser }) => {
+    const p = await page(browser, 'maya');
+    const ck = (await p.locator('[data-act=saveout]').first().getAttribute('data-v'))!;
+    await p.click(`[data-act=setout][data-v="${ck}|Hung Up"]`);
+    await p.locator(`#note-${ck}`).fill('She hung up after the intro');
+    await p.click(`[data-act=saveout][data-v="${ck}"]`);
+    await p.click(`[data-act=qsel][data-v="${ck}"]`);
+    const hist = p.locator('.dcard', { hasText: 'History at this property' });
+    // the clock is frozen in the tests, so every call has the same minute: find the line, not the first one
+    const li = hist.locator('li', { hasText: 'She hung up after the intro' });
+    await expect(li).toContainText('Hung Up');
+    await expect(li).toContainText('by Maya Torres');
+    await expect(li.locator('time')).toHaveText(/^\w{3} \d+, \d+:\d{2} (AM|PM)$/);
+    await expect(p.locator('.dcard', { hasText: 'The property' })).toContainText('Other contacts at this property');
+  });
+  for (const w of [375, 768, 1440]) {
+    test(`A6 rep views at ${w}px: no horizontal scroll, Save reachable`, async ({ browser }) => {
+      for (const path of ['/rep/today', '/rep/fu', '/rep/calls']) {
+        const p = await page(browser, 'maya', path, w);
+        const over = await p.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+        expect(over, path).toBeLessThanOrEqual(0);
+        if (path === '/rep/today') {
+          const b = await p.locator('[data-act=saveout]').first().boundingBox();
+          expect(b && b.x >= 0 && b.x + b.width <= w).toBe(true);
+        }
+        await p.close();
+      }
+    });
+  }
+});
+
+test.describe('B. Engine on the server', () => {
+  test('B7 two morning runs at the same time: one runs, one does nothing, no list is duplicated', async ({ playwright }) => {
+    const NEXT = '2026-11-03';
+    await withDb(async db => { await db.collection('workdays').deleteMany({ date: NEXT }); await db.collection('reservations').deleteMany({ date: NEXT }); await db.collection('campaigns').insertOne({ _id: 'C-1103-T' as never, date: NEXT, auds: ['pp', 'sm', 'mb', 'ad'], reps: ['may', 'dan', 'pri'], goal: 1, pos: 99 }); });
+    const [a, b] = [await api(playwright, 'maya'), await api(playwright, 'daniel')];
+    const rs = await Promise.all([a, b].map(x => x.post('/api/allocate', { data: { kind: 'morning', now: `${NEXT}T07:00` } }).then(r => r.json())));
+    expect(rs.map(r => r.ran).sort()).toEqual([false, true]);
+    const again = await (await a.post('/api/allocate', { data: { kind: 'morning', now: `${NEXT}T07:05` } })).json();
+    expect(again.ran).toBe(false);
+    const res = await withDb(db => db.collection('reservations').find({ date: NEXT }).toArray());
+    expect(res.length).toBeGreaterThan(0);
+    expect(new Set(res.map(r => r.ct)).size).toBe(res.length);
+    expect(await withDb(db => db.collection('workdays').countDocuments({ date: NEXT }))).toBe(3);
+  });
+  test('B5 + B8 two reps ask for more at once on shared households: no household split', async ({ playwright }) => {
+    await withDb(async db => {
+      await db.collection('reservations').deleteMany({ date: DAY, rep: { $in: ['may', 'dan'] } });
+      await db.collection('workdays').updateMany({ date: DAY, rep: { $in: ['may', 'dan'] } }, { $set: { st: 'started' } });
+      await db.collection('campaigns').updateMany({ date: DAY }, { $set: { auds: ['pp', 'sm', 'mb', 'ad'], reps: ['may', 'dan', 'pri'] } });
+    });
+    const [a, b] = [await api(playwright, 'maya'), await api(playwright, 'daniel')];
+    const rs = await Promise.all([a.post('/api/allocate', { data: { kind: 'more', rep: 'may', now: `${DAY}T10:00` } }), b.post('/api/allocate', { data: { kind: 'more', rep: 'dan', now: `${DAY}T10:00` } })]);
+    for (const r of rs) expect((await r.json()).ok).toBe(true);
+    const res = await withDb(db => db.collection('reservations').find({ date: DAY }).toArray());
+    const cts = await withDb(db => db.collection('contacts').find({}, { projection: { prop: 1 } }).toArray());
+    const propOf = (k: string) => k.includes('@') ? k.split('@')[1] : String(cts.find(c => String(c._id) === k)!.prop);
+    const byProp: Record<string, Set<string>> = {};
+    for (const r of res) (byProp[propOf(String(r.ct))] ||= new Set()).add(String(r.rep));
+    expect(Object.entries(byProp).filter(([, s]) => s.size > 1)).toEqual([]);
+  });
+  test('B8 the rep sees a clear message when the pool is empty (no error)', async ({ browser }) => {
+    await withDb(async db => { await db.collection('campaigns').updateMany({ date: DAY }, { $set: { auds: [] } }); await db.collection('reservations').deleteMany({ date: DAY, rep: 'may' });
+      // her own follow-ups come back even without audiences: move them out of today so the pool is really empty
+      await db.collection('contacts').updateMany({ rep: 'may' }, { $set: { nextAt: '2026-12-31' } }); });
+    const p = await page(browser, 'maya');
+    await p.locator('[data-act=reqmore]').first().click();
+    await expect(p.locator('#toast')).toContainText('No more eligible contacts in your campaign today');
+  });
+  test('[No implementado] B7 the morning run happens at a set hour (California time), without anyone opening the app', async () => {
+    test.fail();
+    // No scheduler exists: the run happens on the first load of the day. Expect a configured hour in the rules.
+    const rules = await withDb(db => db.collection('rules').findOne({ _id: 'default' as never }));
+    expect(rules).toHaveProperty('morningAt');
+  });
+});
