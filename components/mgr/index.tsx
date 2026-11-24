@@ -285,17 +285,15 @@ function MgrSync() {
   </>;
 }
 
-/** "Eligible again" for an outcome of the catalog. */
-function waitText(o: string): React.ReactNode {
+/** "Eligible again" for an outcome of the catalog (the days are edited in Call outcomes). */
+function waitText(o: string): string {
   const d = OUT[o];
-  if (d.needsFollowUp) return 'On the date the rep sets, same rep';
+  if (d.needsFollowUp) return 'On the date and time the rep sets, same rep';
   if (d.lead) return 'Goes to AB sales';
   if (d.final) return 'Never';
-  if (d.phone === 'bad') return 'Next number, or on hold';
-  const r = recallOf(o);
-  return CFG.rc[o] != null
-    ? <span className="inline-flex gap-[6px] items-center"><Num k={'rc.' + o.replace(/ /g, '_')} v={CFG.rc[o]} w={62} /><span className="sm muted">{r.cal ? (d.sameRep ? 'days, same rep' : 'days') : 'business days'}</span></span>
-    : `${r.days} ${r.cal ? 'day' : 'business day'}${r.days > 1 ? 's' : ''}`;
+  const r = recallOf(o), t = `${r.days} ${r.cal ? 'day' : 'business day'}${r.days > 1 ? 's' : ''}`;
+  if (d.phone === 'bad') return `Next number in ${t}, or on hold`;
+  return d.sameRep ? `${t}, same rep` : t;
 }
 export const MgrPages: Record<'live' | 'pool' | 'leads' | 'camp' | 'rules' | 'perf' | 'mail' | 'sync' | 'users' | 'outc', () => React.ReactNode> = {
   live: MgrLive, pool: MgrPool, leads: MgrLeads, camp: MgrCamps, rules: MgrRules, perf: MgrPerf, mail: MgrMail, sync: MgrSync, users: UsersPage, outc: OutcomesPage,

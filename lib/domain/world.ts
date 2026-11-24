@@ -10,12 +10,11 @@ import { AUDK, isLeadOut, isNoOut, setOutcomes, type AudKey } from './catalogs';
 import { DEFAULT_OUTCOMES } from './outcomes';
 import { CTS, LEADS, LN, FN, OTHER_ROLES, PROPS, SEQ, SYNC, ctsOf, mkCt, mkPhone, mkProp, P, resetData, syncLog, type Contact, type Phone } from './data';
 import { D, T0, TODAY, WDL, addBiz, addDays, fmtS, fmtWD, iso, p2, setClock, setToday, subBiz } from './dates';
-import { DAY, morningAlloc, openOf, pastAt, pastCall, resetDays, saveOutcome } from './engine';
+import { DAY, morningAlloc, openOf, pastAt, pastCall, recallOf, resetDays, saveOutcome } from './engine';
 import { resetCampaigns } from './campaigns';
 import { resetRules } from './rules';
 import { buildDaym, resetDaym } from './metrics';
 import { REPS, type RepKey } from './people';
-import { CFG } from './rules';
 import { pick, resetSeed, rint, rnd } from './seed';
 
 /** t0: the day (and time) the data is seeded for; every seeded date is relative to it. */
@@ -125,7 +124,7 @@ export function buildWorld(t0: Date = new Date()) {
     if (c.out === 'Wrong Number') c.phones[0].st = 'bad';
     if (c.out === 'Follow Up') c.nextAt = iso(addBiz(c.lastAt!, rint(4, 9)));
   }
-  cTB.nextAt = iso(addBiz(cTB.lastAt!, CFG.rc['Left VM']));
+  cTB.nextAt = iso(addBiz(cTB.lastAt!, recallOf('Left VM').days));
   /* Propagation of the history: one no or one lead stops the rest of the property */
   for (const p of PROPS) {
     const cs = ctsOf(p.k);

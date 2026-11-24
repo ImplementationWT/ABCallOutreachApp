@@ -5,7 +5,7 @@
 import { campOf } from './campaigns';
 import { OUT, PRANK, ST_RANK, isNoOut, type Pri, type Status } from './catalogs';
 import { C, CALLS, CTS, LEADS, P, SEQ, ctsOf, slotsOf, syncLog, type Call, type Contact, type Property } from './data';
-import { Dx, T0, TODAY, addBiz, addDays, fmtD, fmtS, fmtT, fmtWD, getClock, iso, isoT, nextBiz, nowT } from './dates';
+import { Dx, T0, TODAY, addBiz, addDays, fmtD, fmtS, fmtT, fmtWD, getClock, iso, isoT, nowT } from './dates';
 import { PEO, REPS, type PersonKey, type RepKey } from './people';
 import { CFG, demoN } from './rules';
 
@@ -20,17 +20,18 @@ export function pastCall(c: Contact, rep: PersonKey, at: string, out: string, no
 export function nextFor(out: string, at: string, c?: Pick<Contact, 'phones'>, fu?: string | null): string | null {
   const d = OUT[out];
   if (!d) return null;
-  if (d.needsFollowUp) return fu ? fu.slice(0, 10) : iso(addBiz(at, 2));
-  if (d.lead || d.final) return null;
-  if (d.phone === 'bad') return c && c.phones.some(x => x.st !== 'bad') ? iso(nextBiz(at)) : null;
   const r = recallOf(out);
-  return iso(r.cal ? addDays(at, r.days) : addBiz(at, r.days));
+  const after = () => iso(r.cal ? addDays(at, r.days) : addBiz(at, r.days));
+  if (d.needsFollowUp) return fu ? fu.slice(0, 10) : after();
+  if (d.lead || d.final) return null;
+  if (d.phone === 'bad') return c && c.phones.some(x => x.st !== 'bad') ? after() : null;
+  return after();
 }
-/** The waiting time of an outcome: days, and whether they are calendar days. */
+/** The waiting time of an outcome, from the catalog: days (at least 1) and whether they are calendar
+ * days. A change applies to the next results; dates already set are not recalculated. */
 export function recallOf(out: string) {
   const d = OUT[out];
-  const days = CFG.rc?.[out] ?? d?.recallDays ?? 1;
-  return d?.calendarDays ? { days, cal: true } : { days: days || 1, cal: false };
+  return { days: Math.max(1, Math.round(Number(d?.recallDays) || 1)), cal: !!d?.calendarDays };
 }
 export const pastAt = (daysAgo: number, h = 10, m = 15) => { const d = addDays(T0, -daysAgo); d.setHours(h, m); return isoT(d); };
 

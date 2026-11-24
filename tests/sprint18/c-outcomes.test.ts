@@ -91,15 +91,24 @@ describe('C2 recall window per outcome', () => {
     setToday(D('2026-11-04')); expect(elig(C('C-4')).k).toBe('due');
     setToday(D('2026-11-05')); expect(elig(C('C-4')).ok).toBe(true);
   });
-  it('edge: a window of 0 business days is treated as 1; with none in the rules, the catalog\'s days apply', () => {
-    CFG.rc['Left VM'] = 0; expect(after('Left VM')).toBe('2026-11-03');
-    household(); delete CFG.rc['Hung Up']; expect(after('Hung Up')).toBe('2026-11-04');
+  it('every window comes from the catalog (rules no longer have recall days)', () => {
+    expect(CFG).not.toHaveProperty('rc');
+    OUT['Left VM'].recallDays = 5; expect(after('Left VM')).toBe('2026-11-09'); // 5 business days
+    household(); OUT['Follow Up'].recallDays = 3; expect(after('Follow Up')).toBe('2026-11-05'); // no date: 3 business days
   });
-  it('edge: a window of 0 calendar days (Undecided) makes it callable the same day', () => {
-    CFG.rc.Undecided = 0; expect(after('Undecided')).toBe(TODAY0);
+  it('Wrong Number: the next number after its catalog window', () => {
+    load({ props: [prop('P-1', 'pp')], contacts: [ct('C-1', 'P-1')], workdays: started() });
+    const c = C('C-1'); c.phones.push({ n: '(310) 555-9999', st: 'untested' });
+    OUT['Wrong Number'].recallDays = 2;
+    saveOutcome('C-1', 'may', 'Wrong Number', '');
+    expect(C('C-1').nextAt).toBe('2026-11-04');
+  });
+  it('minimum 1 day: a 0 never makes a contact callable again the same day', () => {
+    OUT['Left VM'].recallDays = 0; expect(after('Left VM')).toBe('2026-11-03');
+    household(); OUT.Undecided.recallDays = 0; expect(after('Undecided')).toBe('2026-11-03');
   });
   it('changing a window later does not recalculate dates already set', () => {
-    after('Left VM'); CFG.rc['Left VM'] = 10;
+    after('Left VM'); OUT['Left VM'].recallDays = 10;
     expect(C('C-4').nextAt).toBe('2026-11-05');
   });
 });

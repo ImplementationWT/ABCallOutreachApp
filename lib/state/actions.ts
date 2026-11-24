@@ -193,7 +193,7 @@ A.ncsave = () => {
   S.modal = null; toast('Campaign created for ' + fmtWD(m.date));
 };
 IN.cfg = (v, k) => {
-  if (!can('mgr.manage')) return; const n = Math.max(0, Number(v) || 0); if (k.startsWith('rc.')) CFG.rc[k.slice(3).replace(/_/g, ' ')] = n; else CFG[k] = n; };
+  if (!can('mgr.manage')) return; CFG[k] = Math.max(0, Number(v) || 0); };
 A.cfgset = v => { const [k, val] = v.split('|'); CFG[k] = val; toast('Rule saved. The next allocation uses it'); };
 
 /* Performance by period (not in the artifact): Day, Week, Month or Year, moved with ‹ ›, back to

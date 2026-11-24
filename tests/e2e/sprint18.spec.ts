@@ -119,6 +119,22 @@ test.describe('C1. Outcome catalog (administrator only)', () => {
   });
 });
 
+test.describe('C2. Recall windows from the catalog', () => {
+  test('the next result uses the window an administrator set; dates already set stay', async ({ playwright }) => {
+    const admin = await api(playwright, 'admin');
+    const [r1, r2] = await withDb(db => db.collection('reservations').find({ date: DAY, rep: 'may', done: null }).limit(2).toArray());
+    const maya = await api(playwright, 'maya');
+    const save = (ct: unknown) => maya.post('/api/work', { data: { action: 'save', rep: 'may', ct, out: 'Left VM', now: `${DAY}T09:00` } });
+    expect((await save(r1.ct)).status()).toBe(200);
+    expect((await admin.post('/api/outcomes', { data: { action: 'update', name: 'Left VM', recallDays: 5 } })).status()).toBe(200);
+    expect((await save(r2.ct)).status()).toBe(200);
+    const next = (ct: unknown) => withDb(async db => { const k = String(ct); const c = await db.collection('contacts').findOne({ _id: k.split('@')[0] as never }); return k.includes('@') ? c!.pst[k.split('@')[1]].nextAt : c!.nextAt; });
+    expect(await next(r1.ct)).toBe('2026-11-05'); // 3 business days, before the change
+    expect(await next(r2.ct)).toBe('2026-11-09'); // 5 business days, after it
+    await admin.post('/api/outcomes', { data: { action: 'update', name: 'Left VM', recallDays: 3 } });
+  });
+});
+
 test.describe('A. Rep Workspace', () => {
   test('A1 reloading does not regenerate or duplicate the list', async ({ browser }) => {
     const p = await page(browser, 'maya');
@@ -141,7 +157,7 @@ test.describe('A. Rep Workspace', () => {
     const p = await page(browser, 'maya');
     // Documented rule (lib/state/rep.ts:6-9): a household's contacts stay together, households ordered
     // by the best priority among their open contacts, then by the engine's order
-    const rows = (await p.locator('.qsec', { hasText: 'To call' }).locator('xpath=following-sibling::*[@data-act="qsel"]').evaluateAll(els => els.map(e => ({ pr: (e.textContent!.match(/P[1-5]/) || [''])[0], addr: e.querySelectorAll('small')[0]?.textContent || '' }))));
+    const rows = (await p.locator('.qsec', { hasText: 'To call' }).locator('xpath=following-sibling::*[@data-act="qsel"]').evaluateAll(els => els.filter(e => !e.classList.contains('done')).map(e => ({ pr: (e.textContent!.match(/P[1-5]/) || [''])[0], addr: e.querySelectorAll('small')[0]?.textContent || '' }))));
     expect(rows.length).toBeGreaterThan(0);
     const order: string[] = []; const best: Record<string, number> = {};
     for (const r of rows) { if (order.at(-1) !== r.addr) { expect(order, `household ${r.addr} split in the queue`).not.toContain(r.addr); order.push(r.addr); } best[r.addr] = Math.min(best[r.addr] ?? 9, Number(r.pr.slice(1))); }
