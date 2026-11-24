@@ -4,6 +4,8 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { C, CFG, DAY, P, reassignOpen, dupCheck, elig, endDay, freeGroups, listOf, openOf, priOf, requestMore, saveOutcome, setToday, startAlloc, startNewDay, demoN, type RepKey } from '../../lib/domain';
 import { DAY0, TODAY0, ct, load, prop, started } from './fixture';
+import { queueSort } from '../../lib/state/rep';
+import { S } from '../../lib/state/store';
 
 const repsOf = () => Object.fromEntries((['may', 'dan', 'pri'] as RepKey[]).map(r => [r, listOf(r).map(c => c.k)]));
 const propsOf = (r: RepKey) => new Set(listOf(r).map(c => c.prop));
@@ -60,10 +62,37 @@ describe('B2 priority', () => {
     expect(['C-1', 'C-2', 'C-3', 'C-4', 'C-5'].map(k => priOf(C(k)))).toEqual(['P1', 'P2', 'P3', 'P4', 'P5']);
     expect(freeGroups('may').map(g => g.cs[0].k)).toEqual(['C-1', 'C-2', 'C-3', 'C-4', 'C-5']);
   });
-  it.fails('[No implementado] category shares (percent per audience/category) are applied', () => {
-    expect(CFG).toHaveProperty('shares');
+  it('agreed rule: no category shares (there is no share setting to apply)', () => {
+    expect(CFG).not.toHaveProperty('shares');
+  });
+  /* 3 properties of each priority, mixed in the data; P1 and P3 are Maya's own (follow-up, undecided) */
+  const mixed = (first: number) => {
+    const pri: Record<string, Partial<Parameters<typeof ct>[2]>> = {
+      P1: { out: 'Follow Up', lastAt: '2026-10-28T10:00', nextAt: TODAY0, att: 1, rep: 'may' },
+      P3: { out: 'Undecided', lastAt: '2026-10-10T10:00', nextAt: '2026-10-20', att: 1, rep: 'may' },
+      P4: { out: 'Left VM', lastAt: '2026-10-20T10:00', nextAt: '2026-10-25', att: 1 },
+      P5: {},
+    };
+    const kinds = ['P5', 'P4', 'P2', 'P3', 'P1', 'P5', 'P2', 'P4', 'P1', 'P3', 'P2', 'P5', 'P3', 'P1', 'P4'];
+    load({
+      props: kinds.map((k, i) => prop(`P-${i + 1}`, 'pp', k === 'P2' ? { permit: 'Permit Issued' } : {})),
+      contacts: kinds.map((k, i) => ct(`C-${i + 1}`, `P-${i + 1}`, k === 'P2' ? {} : pri[k])),
+      campaigns: [{ _id: 'C-T-A', date: TODAY0, auds: ['pp'], reps: ['may'], goal: 1, pos: 0 }],
+      rules: { first, scale: 1 },
+    });
+    startNewDay();
+  };
+  it('agreed rule: the rep\'s list is in strict P1 to P5 order (the queue the rep works, by property)', () => {
+    mixed(15);
+    S.user = 'may';
+    expect(openOf('may').sort(queueSort).map(c => priOf(c))).toEqual(['P1', 'P1', 'P1', 'P2', 'P2', 'P2', 'P3', 'P3', 'P3', 'P4', 'P4', 'P4', 'P5', 'P5', 'P5']);
+  });
+  it.fails('[Hallazgo] when the daily volume is short, the allocation picks strictly by priority (today the rep\'s own P3 come before P2)', () => {
+    mixed(6); // room for 6: strict order would be the 3 P1 and the 3 P2
+    expect(listOf('may').map(c => priOf(c)).sort()).toEqual(['P1', 'P1', 'P1', 'P2', 'P2', 'P2']);
   });
   it('documents the batch size rounding: max(1, round(n * scale))', () => {
+    load({ props: [], contacts: [] });
     expect([demoN(200), demoN(100), demoN(1)]).toEqual([14, 7, 1]);
   });
 });
