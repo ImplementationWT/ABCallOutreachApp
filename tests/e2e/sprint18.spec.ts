@@ -155,28 +155,56 @@ test.describe('A. Rep Workspace', () => {
     await p.click(`[data-act=saveout][data-v="${ck}"]`);
     await expect(head).toHaveText(`Today: ${Number(m[1]) + 1} of ${m[2]} documented`);
   });
-  test('A4 validations: result required, follow-up date only for Follow Up, past days disabled; notes saved whole', async ({ browser }) => {
+  test('A4 validations: result required, follow-up date and time only when the outcome needs it, nothing in the past; notes saved whole', async ({ browser }) => {
     const p = await page(browser, 'maya');
     const ck = (await p.locator('[data-act=saveout]').first().getAttribute('data-v'))!;
     const save = p.locator(`[data-act=saveout][data-v="${ck}"]`);
     await expect(save).toBeDisabled();
     await p.click(`[data-act=setout][data-v="${ck}|Follow Up"]`);
-    await expect(save).toBeDisabled(); // needs the date
+    await expect(save).toBeDisabled(); // needs the date and the time
     await p.locator('.dcard [data-act=cal]').last().click();
     await expect(p.locator('[data-act=calpick][data-v="2026-11-01"]')).toBeDisabled();
+    // today is allowed, but only at a later time (the clock is 8:20 AM)
+    await p.locator('[data-act=calpick][data-v="2026-11-02"]').first().click();
+    await p.locator(`#fut-${ck}`).fill('08:00');
+    await expect(save).toBeDisabled();
+    await expect(p.locator('.savebar')).toContainText('The call back must be later than now.');
+    await p.locator('.dcard [data-act=cal]').last().click();
     await p.locator('[data-act=calpick][data-v="2026-11-03"]', { hasNotText: 'Tomorrow' }).click();
+    await p.locator(`#fut-${ck}`).fill('10:30');
     await expect(save).toBeEnabled();
+    await expect(p.locator('.effect')).toContainText('Comes back to you (P1) on Tue, Nov 3 at 10:30 AM');
     const note = 'Long note. '.repeat(200).trim();
     await p.locator(`#note-${ck}`).fill(note);
     await save.click();
     await p.waitForLoadState('networkidle'); await p.waitForTimeout(800);
     const call = await withDb(db => db.collection('call_log').find({ ct: ck }).sort({ _id: -1 }).limit(1).next());
-    expect(call).toMatchObject({ out: 'Follow Up', rep: 'may', note });
+    expect(call).toMatchObject({ out: 'Follow Up', rep: 'may', note, key: expect.any(String) });
     const c = await withDb(db => db.collection('contacts').findOne({ _id: ck as never }));
-    expect(c).toMatchObject({ out: 'Follow Up', nextAt: '2026-11-03', rep: expect.any(String) });
-    // A3: it is in My follow-ups, on that date (no time zone shift)
+    expect(c).toMatchObject({ out: 'Follow Up', nextAt: '2026-11-03', fuAt: '2026-11-03T10:30', rep: expect.any(String) });
+    // A3: it is in My follow-ups, on that date and time (no time zone shift)
     await p.goto('/rep/fu'); await p.waitForLoadState('networkidle');
-    await expect(p.locator('.grp', { hasText: 'This week' })).toContainText('Tue, Nov 3');
+    await expect(p.locator('.grp', { hasText: 'Tue, Nov 3' })).toContainText('10:30 AM');
+  });
+  test('A4 the server checks every save: result, follow-up date and time, nothing in the past, same save once', async ({ playwright }) => {
+    const r = await withDb(db => db.collection('reservations').findOne({ date: DAY, rep: 'may', done: null }));
+    const maya = await api(playwright, 'maya');
+    const now = `${DAY}T09:00`;
+    const save = (x: object) => maya.post('/api/work', { data: { action: 'save', rep: 'may', ct: r!.ct, now, ...x } });
+    const err = async (x: object) => { const res = await save(x); return [res.status(), (await res.json()).error]; };
+    expect(await err({ out: '' })).toEqual([400, 'Pick a result']);
+    expect(await err({ out: 'Maybe' })).toEqual([400, 'Pick a result from the list']);
+    expect(await err({ out: 'Follow Up' })).toEqual([400, 'Pick the date and time of the follow-up']);
+    expect(await err({ out: 'Follow Up', fu: '2026-11-03' })).toEqual([400, 'Pick the date and time of the follow-up']);
+    expect(await err({ out: 'Follow Up', fu: `${DAY}T08:59` })).toEqual([400, 'The follow-up must be later than now']);
+    await withDb(db => db.collection('outcomes').updateOne({ _id: 'Hung Up' as never }, { $set: { active: false } }));
+    expect(await err({ out: 'Hung Up' })).toEqual([400, 'Pick a result from the list']);
+    await withDb(db => db.collection('outcomes').updateOne({ _id: 'Hung Up' as never }, { $set: { active: true } }));
+    const n0 = await withDb(db => db.collection('call_log').countDocuments({ ct: r!.ct }));
+    const [a, b] = await Promise.all([save({ out: 'Follow Up', fu: `${DAY}T15:00`, key: 'same-save-1' }), save({ out: 'Follow Up', fu: `${DAY}T15:00`, key: 'same-save-1' })]);
+    expect([a.status(), b.status()]).toEqual([200, 200]);
+    expect(await withDb(db => db.collection('call_log').countDocuments({ ct: r!.ct }))).toBe(n0 + 1);
+    expect(await withDb(db => db.collection('contacts').findOne({ _id: String(r!.ct).split('@')[0] as never }))).toMatchObject({ fuAt: `${DAY}T15:00`, nextAt: DAY });
   });
   test('A4 a double click on Save writes one call, not two', async ({ browser }) => {
     const p = await page(browser, 'maya');

@@ -32,7 +32,7 @@ export const SCHEMAS: Record<CollectionName, Schema> = {
   // address, normalized, so a load never creates the same owner twice.
   contacts: obj(['prop', 'n', 'role', 'email', 'att', 'dnc', 'supp'], {
     _id: str, prop: str, n: str, role: str, other: str, email: str, out: strN, lastAt: strN, nextAt: strN,
-    att: num, rep: enumOf(PEOPLE, true), dnc: bool, supp: bool, stop: { bsonType: ['object', 'null'] }, note: str,
+    att: num, rep: enumOf(PEOPLE, true), dnc: bool, supp: bool, stop: { bsonType: ['object', 'null'] }, note: str, fuAt: { bsonType: ['string', 'null'], pattern: dateTime.pattern },
     props: { bsonType: 'array', minItems: 1, items: str }, pst: { bsonType: 'object' }, ownerKey: str,
     firstName: strN, lastName: strN, emails: { bsonType: 'array', items: str },
     mailAddr: strN, mailCity: strN, mailState: strN, mailZip: strN,
@@ -41,7 +41,7 @@ export const SCHEMAS: Record<CollectionName, Schema> = {
   campaigns: obj(['date', 'auds', 'reps', 'goal', 'pos'], { _id: str, date, auds: { bsonType: 'array', items: enumOf(AUDK) }, reps: { bsonType: 'array', items: enumOf(REPS) }, goal: num, past: bool, pos: num }),
   reservations: obj(['ct', 'rep', 'date', 'order'], { _id: str, ct: str, rep: enumOf(REPS), date, order: num, done: numN }),
   workdays: obj(['rep', 'date', 'st', 'batches'], { _id: str, rep: enumOf(REPS), date, st: enumOf(['reserved', 'started', 'ended', 'off']), startedAt: strN, endedAt: strN, batches: { bsonType: 'array' } }),
-  call_log: obj(['ct', 'rep', 'at', 'out', 'ph'], { _id: num, ct: str, rep: enumOf(PEOPLE), at: dateTime, out: str, note: str, ph: str, live: bool, fx: { bsonType: 'array', items: str } }),
+  call_log: obj(['ct', 'rep', 'at', 'out', 'ph'], { _id: num, ct: str, rep: enumOf(PEOPLE), at: dateTime, out: str, note: str, ph: str, live: bool, fx: { bsonType: 'array', items: str }, key: str }),
   hand_offs: obj(['prop', 'ct', 'rep', 'at', 'out', 'src', 'pos'], { _id: str, prop: str, ct: str, rep: enumOf(PEOPLE), at: dateTime, out: str, note: str, src: enumOf(['Outbound', 'Inbound']), fresh: bool, pos: num }),
   reps: obj(['n', 'i', 'r'], { _id: enumOf(PEOPLE), n: str, i: str, c: str, r: str }),
   rules: obj(['first', 'more', 'scale', 'maxAtt', 'refresh', 'endDay', 'rc', 'hours'], { _id: enumOf(['default']), first: num, more: num, scale: num, maxAtt: num, refresh: enumOf(['daily', 'weekly']), endDay: enumOf(['pool', 'keep']), rc: { bsonType: 'object' }, hours: str }),
@@ -69,7 +69,7 @@ export const INDEXES: Partial<Record<CollectionName, IndexDescription[]>> = {
   phone_numbers: [{ key: { ct: 1, idx: 1 }, unique: true }, { key: { n: 1 } }],
   reservations: [{ key: { date: 1, rep: 1, order: 1 } }, { key: { ct: 1 } }],
   workdays: [{ key: { date: 1, rep: 1 }, unique: true }],
-  call_log: [{ key: { ct: 1 } }, { key: { rep: 1, at: -1 } }, { key: { at: -1 } }],
+  call_log: [{ key: { ct: 1 } }, { key: { rep: 1, at: -1 } }, { key: { at: -1 } }, { key: { key: 1 }, name: 'key_unique', unique: true, partialFilterExpression: { key: { $exists: true } } }],
   hand_offs: [{ key: { prop: 1 } }, { key: { at: -1 } }],
   daily_metrics: [{ key: { day: 1, rep: 1 }, unique: true }],
   sync_log: [{ key: { at: -1 } }],

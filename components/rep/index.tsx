@@ -6,12 +6,12 @@ import type React from 'react';
 import {
   AUDS, C, CALLS, CFG, DAY, LEADS, OUT, P, PEO, PRI, TODAY, activeOutcomes, isLeadOut, isNoOut,
   addDays, callsOn, campName, campOf, ctsOf, demoN, docOf, effectsOf, elig, first, fmtD, fmtDT, fmtS, fmtT, fmtUS, fmtWD,
-  fullAddr, iso, listOf, mOf, openOf, ownerOf, phIdx, priOf, propStatus, relDay, T0,
+  fullAddr, getClock, iso, isoT, listOf, mOf, openOf, ownerOf, phIdx, priOf, propStatus, relDay, T0,
   type Contact, type Property, type RepKey,
 } from '@/lib/domain';
 import { inp, on } from '@/lib/state/actions';
 import { myFollowUps, queueSort } from '@/lib/state/rep';
-import { S } from '@/lib/state/store';
+import { S, bump } from '@/lib/state/store';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { AudPill, Bar, DateField, Icon, Kv, OutPill, P2Tag, PageHeader, Pill, PrTag, StPill, paged } from '@/components/ui';
 
@@ -19,7 +19,11 @@ const repCamp = () => campOf(S.user);
 /* Render-time writes to S, as in the artifact (default selection and the draft of a contact). */
 const setSel = (u: RepKey, k: string | undefined) => { S.sel[u] = k; };
 const setFu = (k: string, v: string) => { S.draft[k].fu = v; };
-const draftOf = (k: string) => S.draft[k] || (S.draft[k] = { out: null, note: '', fu: null });
+const setFuT = (k: string, v: string) => { S.draft[k].fuT = v; bump(); };
+const newKey = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2));
+const draftOf = (k: string) => S.draft[k] || (S.draft[k] = { out: null, note: '', fu: null, key: newKey() });
+/** The follow-up the rep picked, 'YYYY-MM-DDTHH:MM', or null while the date or the time is missing. */
+export const fuOf = (dr: { fu: string | null; fuT?: string }) => dr.fu && dr.fuT ? `${dr.fu}T${dr.fuT}` : null;
 const roleOf = (c: Contact) => c.role === 'Other' ? c.other || 'Other' : c.role;
 
 export function RepSide() {
@@ -102,7 +106,7 @@ function RepDetail({ c }: { c: Contact }) {
   const dr = draftOf(c.k);
   const sibs = ctsOf(p.k).filter(x => x !== c);
   const ix = phIdx(c);
-  const needsFu = !!dr.out && !!OUT[dr.out]?.needsFollowUp, fuOk = !needsFu || dr.fu;
+  const needsFu = !!dr.out && !!OUT[dr.out]?.needsFollowUp, fu = fuOf(dr), fuPast = !!fu && fu <= isoT(getClock()), fuOk = !needsFu || (!!fu && !fuPast);
   return <>
     <div className="dcard"><div className="dh"><div><h2>{c.n}</h2><p>{roleOf(c)}, {fullAddr(p)}</p><div className="pills">
       {call || removed ? null : <PrTag pr={pr} sm />}{call || removed ? null : <Pill t={`${pr}: ${PRI[pr].n}`} />}
@@ -123,10 +127,10 @@ function RepDetail({ c }: { c: Contact }) {
             {c.calling ? <div className="oncall"><span className="dotc" /><div><b>Calling {c.phones[c.callPh!].n}</b> from your phone, dialed at {fmtT(c.calling)}. Record the result below when you hang up.</div></div> : null}</div>
           <div className="dcard"><h3><Icon n="edit" s={16} />Result of the call</h3>
             {groupsOf().filter(([, ks]) => ks.length).map(([t, ks]) => <Fragment key={t}><div className="lbl mt-[6px]">{t}</div><div className="outs">{ks.map(o => <button key={o} className={`ob ${OUT[o].tone}`} {...on('setout', `${c.k}|${o}`)} aria-pressed={dr.out === o}>{o}<small>{OUT[o].hint}{OUT[o].proposed ? ', proposed' : ''}</small></button>)}</div></Fragment>)}
-            {needsFu ? <><label className="lbl">Call back on <em>*</em></label><div className="max-w-[320px]"><DateField k={'fu:' + c.k} value={dr.fu} onSet={v => setFu(c.k, v)} /></div></> : null}
+            {needsFu ? <><label className="lbl">Call back on <em>*</em></label><div className="flex gap-[8px] items-center flex-wrap"><div className="max-w-[320px] flex-1 min-w-[200px]"><DateField k={'fu:' + c.k} value={dr.fu} onSet={v => setFu(c.k, v)} /></div><input className="fld w-[130px]" type="time" step={300} aria-label="Call back time" id={`fut-${c.k}`} value={dr.fuT || ''} onChange={e => setFuT(c.k, e.target.value)} /></div></> : null}
             <label className="lbl">Notes</label><textarea className="fld min-h-[70px]" id={`note-${c.k}`} key={c.k} {...inp('note.' + c.k)} placeholder="What did they say? Anything the next person should know" defaultValue={dr.note} />
-            {dr.out ? <div className="effect"><b>When you save</b><ul>{effectsOf(c, dr.out, dr.fu).map((x, i) => <li key={i}>{x}</li>)}</ul></div> : null}
-            <div className="savebar"><span className="sm muted">{dr.out ? '' : 'Pick a result to save.'}{needsFu && !dr.fu ? 'Pick the call back date.' : ''}</span><span className="sp" /><button className="btn pri" {...on('saveout', c.k)} disabled={!(dr.out && fuOk)}><Icon n="check" s={15} />Save and next</button></div></div>
+            {dr.out ? <div className="effect"><b>When you save</b><ul>{effectsOf(c, dr.out, fu || dr.fu).map((x, i) => <li key={i}>{x}</li>)}</ul></div> : null}
+            <div className="savebar"><span className="sm muted">{dr.out ? '' : 'Pick a result to save.'}{needsFu && !fu ? 'Pick the call back date and time.' : ''}{needsFu && fuPast ? 'The call back must be later than now.' : ''}</span><span className="sp" /><button className="btn pri" {...on('saveout', c.k)} disabled={!(dr.out && fuOk)}><Icon n="check" s={15} />Save and next</button></div></div>
         </>}
     <div className="dcard"><h3><Icon n="home" s={16} />The property<span className="r"><StPill s={propStatus(p)} /></span></h3><div className="grid4"><Kv l="Permit" v={p.permit === 'None' ? 'No permit yet' : p.permit} sub={p.permitDate ? fmtD(p.permitDate) : ''} /><Kv l="Construction started" v={p.started} /><Kv l="Audience" v={AUDS[p.aud].s} /><Kv l="Owner since" v={p.since ?? "—"} /></div>
       <div className="lbl mt-[12px]">Other contacts at this property</div>{sibs.length ? <div className="octs">{sibs.map(x => <SibRow key={x.k} x={x} u={u} />)}</div> : <p className="sm muted">No other contacts.</p>}</div>
@@ -162,7 +166,7 @@ function scriptFor(c: Contact, p: Property, u: RepKey) {
 function RepFollowUps() {
   const u = S.user;
   const l = myFollowUps(u).sort((a, b) => a.nextAt!.localeCompare(b.nextAt!));
-  const row = (c: Contact) => { const p = P(c.prop), pr = priOf(c); return <div key={c.k} className="row grid-cols-[40px_minmax(0,1.4fr)_minmax(0,1fr)_150px_130px]" {...on('openprop', p.k)}><PrTag pr={pr} sm /><div className="t"><b>{c.n}</b><small>{p.addr || "No address"}, {AUDS[p.aud].s}</small></div><div className="cell">{c.note || ''}</div><div className="cell"><OutPill o={c.out} /><small>{fmtS(c.lastAt)}</small></div><div className="cell"><b>{fmtWD(c.nextAt!)}</b><small>{relDay(c.nextAt!)}</small></div></div>; };
+  const row = (c: Contact) => { const p = P(c.prop), pr = priOf(c); return <div key={c.k} className="row grid-cols-[40px_minmax(0,1.4fr)_minmax(0,1fr)_150px_130px]" {...on('openprop', p.k)}><PrTag pr={pr} sm /><div className="t"><b>{c.n}</b><small>{p.addr || "No address"}, {AUDS[p.aud].s}</small></div><div className="cell">{c.note || ''}</div><div className="cell"><OutPill o={c.out} /><small>{fmtS(c.lastAt)}</small></div><div className="cell"><b>{fmtWD(c.nextAt!)}</b><small>{c.fuAt ? fmtT(c.fuAt) + ', ' : ''}{relDay(c.nextAt!)}</small></div></div>; };
   const g = (t: string, arr: Contact[]) => { if (!arr.length) return null; const pg = paged('fu:' + t, arr); return <div className="grp" key={t}><div className="grp-h"><i />{t}<span className="n">{arr.length}</span></div><div className="rows">{pg.rows.map(row)}</div>{pg.pager}</div>; };
   const wk = iso(addDays(T0, 6));
   return <>

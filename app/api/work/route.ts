@@ -21,7 +21,7 @@ export async function POST(req: Request) {
   try {
     const db = await getDb();
     switch (b.action) {
-      case 'save': return Response.json(await saveResult(db, now, rep, { ct: String(b.ct ?? ''), out: String(b.out ?? ''), note: typeof b.note === 'string' ? b.note : '', fu: typeof b.fu === 'string' ? b.fu : null }));
+      case 'save': return Response.json(await saveResult(db, now, rep, { ct: String(b.ct ?? ''), out: String(b.out ?? ''), note: typeof b.note === 'string' ? b.note : '', fu: typeof b.fu === 'string' ? b.fu : null, key: typeof b.key === 'string' ? b.key : undefined }));
       case 'endday': return Response.json(await endWorkday(db, now, rep));
       case 'reopenday': return Response.json(await reopenWorkday(db, now, rep));
       case 'reassign': {

@@ -2,7 +2,7 @@
  * `it.fails` = the criterion is NOT met today: the test states the expected behaviour and is expected
  * to fail; when the gap is fixed it starts passing and vitest reports it, so it is flipped to `it`. */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { C, CALLS, CFG, COLLECTIONS, DEFAULT_OUTCOMES, OUT, OUTK, P, activeOutcomes, elig, fromDocs, saveOutcome, setToday, toDocs, type Doc, type OutcomeDef } from '../../lib/domain';
+import { C, CALLS, CFG, COLLECTIONS, DEFAULT_OUTCOMES, OUT, OUTK, P, activeOutcomes, elig, fromDocs, openOf, saveOutcome, setClock, setToday, toDocs, type Doc, type OutcomeDef } from '../../lib/domain';
 import { DAY0, TODAY0, ct, load, prop, started } from './fixture';
 
 const D = (s: string) => new Date(s + 'T08:20');
@@ -68,7 +68,19 @@ describe('C2 recall window per outcome', () => {
     ['Follow Up', '2026-11-04'], // no date given: 2 business days
     ['Interested', null], ['Working on Plans', null], ['Already Building / Done', null], ['Do Not Contact', null],
   ])('%s -> %s', (out, next) => { expect(after(out)).toBe(next); });
-  it('Follow Up uses the date the rep picked', () => { expect(after('Follow Up', '2026-11-20')).toBe('2026-11-20'); });
+  it('Follow Up uses the date and time the rep picked (the day is the next callable date)', () => {
+    expect(after('Follow Up', '2026-11-20T10:30')).toBe('2026-11-20');
+    expect(C('C-4').fuAt).toBe('2026-11-20T10:30');
+  });
+  it('a follow-up later the same day brings the contact back to the list when its time comes', () => {
+    load({ props: [prop('P-1', 'pp')], contacts: [ct('C-1', 'P-1')], workdays: started(), reservations: [{ _id: `${TODAY0}:C-1`, ct: 'C-1', rep: 'may', date: TODAY0, order: 0, done: null }] });
+    setClock(new Date(2026, 10, 2, 9, 0));
+    saveOutcome('C-1', 'may', 'Follow Up', 'call me at 3', `${TODAY0}T15:00`);
+    expect(openOf('may').map(c => c.k)).toEqual([]);
+    setClock(new Date(2026, 10, 2, 15, 0));
+    expect(openOf('may').map(c => c.k)).toEqual(['C-1']);
+    setClock(null);
+  });
   it('Wrong Number: next business day if another number works, on hold (no date) if not', () => {
     expect(after('Wrong Number')).toBeNull();
     expect(elig(C('C-4')).k).toBe('hold');

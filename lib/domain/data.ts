@@ -33,15 +33,18 @@ export type Contact = {
   stop: { why: string; by: string | null } | null;
   res: { rep: RepKey; date: string } | null;
   note: string;
+  /** Date and time of the follow-up the contact asked for ('YYYY-MM-DDTHH:MM'); nextAt is its day. */
+  fuAt?: string | null;
   callPh?: number | null; calling?: string | false;
   base?: string; props?: string[];
   ownerKey?: string; firstName?: string | null; lastName?: string | null; emails?: string[];
   mailAddr?: string | null; mailCity?: string | null; mailState?: string | null; mailZip?: string | null;
 };
 /** The outreach state a slot keeps for its own property (the rest of the contact is the person). */
-export const SLOT_KEYS = ['out', 'lastAt', 'nextAt', 'att', 'rep', 'stop', 'note'] as const;
+export const SLOT_KEYS = ['out', 'lastAt', 'nextAt', 'att', 'rep', 'stop', 'note', 'fuAt'] as const;
 export type SlotState = Pick<Contact, (typeof SLOT_KEYS)[number]>;
-export type Call = { id: number; ct: string; rep: PersonKey; at: string; out: string; note: string; ph: string; live?: boolean; fx?: string[] };
+/** key: the id the browser gives each save, so a double submission is saved once. */
+export type Call = { id: number; ct: string; rep: PersonKey; at: string; out: string; note: string; ph: string; live?: boolean; fx?: string[]; key?: string };
 export type Lead = { k: string; prop: string; ct: string; rep: PersonKey; at: string; out: string; note: string; src: string; fresh?: boolean };
 export type SyncEntry = { at: string; board: string; item: string; what: string };
 

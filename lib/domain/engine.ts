@@ -5,7 +5,7 @@
 import { campOf } from './campaigns';
 import { OUT, PRANK, ST_RANK, isNoOut, type Pri, type Status } from './catalogs';
 import { C, CALLS, CTS, LEADS, P, SEQ, ctsOf, slotsOf, syncLog, type Call, type Contact, type Property } from './data';
-import { Dx, T0, TODAY, addBiz, addDays, fmtD, fmtS, fmtT, fmtWD, iso, isoT, nextBiz, nowT } from './dates';
+import { Dx, T0, TODAY, addBiz, addDays, fmtD, fmtS, fmtT, fmtWD, getClock, iso, isoT, nextBiz, nowT } from './dates';
 import { PEO, REPS, type PersonKey, type RepKey } from './people';
 import { CFG, demoN } from './rules';
 
@@ -20,7 +20,7 @@ export function pastCall(c: Contact, rep: PersonKey, at: string, out: string, no
 export function nextFor(out: string, at: string, c?: Pick<Contact, 'phones'>, fu?: string | null): string | null {
   const d = OUT[out];
   if (!d) return null;
-  if (d.needsFollowUp) return fu || iso(addBiz(at, 2));
+  if (d.needsFollowUp) return fu ? fu.slice(0, 10) : iso(addBiz(at, 2));
   if (d.lead || d.final) return null;
   if (d.phone === 'bad') return c && c.phones.some(x => x.st !== 'bad') ? iso(nextBiz(at)) : null;
   const r = recallOf(out);
@@ -145,8 +145,10 @@ export function startNewDay() {
   morningAlloc();
 }
 export const listOf = (rep: RepKey) => DAY[rep].list.map(C);
-export const openOf = (rep: RepKey) => listOf(rep).filter(c => !DAY[rep].done[c.k] && !c.stop && !P(c.prop).lead);
-export const docOf = (rep: RepKey) => listOf(rep).filter(c => DAY[rep].done[c.k]);
+/** A follow-up set for later today, whose time has come: the contact is to call again today. */
+export const dueAgain = (c: Contact) => !!c.fuAt && c.fuAt.slice(0, 10) === TODAY && c.fuAt <= isoT(getClock());
+export const openOf = (rep: RepKey) => listOf(rep).filter(c => (!DAY[rep].done[c.k] || dueAgain(c)) && !c.stop && !P(c.prop).lead);
+export const docOf = (rep: RepKey) => listOf(rep).filter(c => DAY[rep].done[c.k] && !dueAgain(c));
 export function requestMore(rep: RepKey) {
   const left = openOf(rep).length;
   if (left) return { ok: false, n: left };
@@ -209,7 +211,7 @@ export function effectsOf(c: Contact, out: string, fu?: string | null) {
     const other = c.phones.find((x, i) => i !== phIdx(c) && x.st !== 'bad');
     fx.push(other ? `This number is marked wrong. Next call goes to ${other.n} on ${fmtWD(nx!)}` : 'On hold until there is a new number (phase 2: automatic number search)');
   } else if (d.needsFollowUp) {
-    fx.push(`Comes back to you (${d.pri || 'P1'}) on ${fu ? fmtWD(fu) : 'the date you set'}`);
+    fx.push(`Comes back to you (${d.pri || 'P1'}) on ${fu ? fmtWD(fu) + (fu.length > 10 ? ' at ' + fmtT(fu) : '') : 'the date and time you set'}`);
   } else if (d.sameRep) {
     fx.push(`Comes back to you (${d.pri || priOf(c)}) on ${fmtWD(nx!)} (${r.days} days)`);
   } else if (d.final) {
@@ -234,6 +236,7 @@ export function saveOutcome(ck: string, rep: RepKey, out: string, note: string, 
   c.att++; c.out = out; c.lastAt = at; c.note = note || c.note;
   if (!c.rep || d.sameRep) c.rep = c.rep || rep;
   c.nextAt = nextFor(out, at, c, fu);
+  if (d.needsFollowUp && fu && fu.length > 10) c.fuAt = fu; else if (c.fuAt) c.fuAt = null;
   c.callPh = null; c.calling = false;
   DAY[rep].done[c.k] = call.id;
   syncLog('Fire Rebuild Contacts', c.n, `Last Call Outcome: ${out}, Call Attempts: ${c.att}` + (c.nextAt ? `, Next Eligible Call: ${fmtS(c.nextAt)}` : ''));

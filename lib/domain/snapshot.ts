@@ -27,7 +27,7 @@ export type Snapshot = Record<CollectionName, Doc[]>;
 export type PropertyDoc = Omit<Property, 'k'> & { _id: string };
 /** `pst`: the outreach state of the owner's other properties (`props` after the first), by property. */
 export type ContactDoc = Omit<Contact, 'k' | 'phones' | 'res' | 'base'> & { _id: string; pst?: Record<string, SlotState> };
-const SLOT0: SlotState = { out: null, lastAt: null, nextAt: null, att: 0, rep: null, stop: null, note: '' };
+const SLOT0: SlotState = { out: null, lastAt: null, nextAt: null, att: 0, rep: null, stop: null, note: '', fuAt: null };
 export type PhoneDoc = { _id: string; ct: string; idx: number; n: string; st: PhoneSt };
 export type CampaignDoc = Omit<Campaign, 'k'> & { _id: string; pos: number };
 /** One contact reserved for one rep on one day (the rep's list, in order, and whether it was documented). */

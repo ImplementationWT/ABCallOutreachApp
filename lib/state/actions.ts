@@ -151,7 +151,7 @@ A.togscript = () => { S.f.script = !S.f.script; };
 A.saveout = v => {
   const u = S.user, dr = S.draft[v];
   if (!dr || !dr.out || S.loadingMore) return false;
-  void serverAct({ action: 'save', rep: u, ct: v, out: dr.out, note: dr.note, fu: dr.fu }, () => savedToast(u, v));
+  void serverAct({ action: 'save', rep: u, ct: v, out: dr.out, note: dr.note, fu: dr.fu && dr.fuT ? `${dr.fu}T${dr.fuT}` : null, key: dr.key }, () => savedToast(u, v));
   return false;
 };
 function savedToast(u: RepKey, v: string) {
