@@ -285,6 +285,31 @@ test.describe('A. Rep Workspace', () => {
     await expect(li.locator('time')).toHaveText(/^\w{3} \d+, \d+:\d{2} (AM|PM)$/);
     await expect(p.locator('.dcard', { hasText: 'The property' })).toContainText('Other contacts at this property');
   });
+  test('A5 "Other contacts" shows who made the last call; the history keeps the newest first', async ({ browser }) => {
+    const { a, b } = await withDb(async db => {
+      const res = await db.collection('reservations').find({ date: DAY, rep: 'may', done: null }).toArray();
+      for (const r of res) {
+        const c = await db.collection('contacts').findOne({ _id: String(r.ct).split('@')[0] as never });
+        const sib = c && await db.collection('contacts').findOne({ prop: c.prop, _id: { $ne: c._id } });
+        if (c && sib && !String(r.ct).includes('@')) {
+          await db.collection('call_log').insertMany([
+            { _id: 900001 as never, ct: String(sib._id), rep: 'may', at: '2026-10-29T10:00', out: 'Left VM', note: 'first call by maya', ph: '' },
+            { _id: 900002 as never, ct: String(sib._id), rep: 'dan', at: '2026-10-30T10:00', out: 'Hung Up', note: 'last call by daniel', ph: '' },
+          ]);
+          await db.collection('contacts').updateOne({ _id: sib._id }, { $set: { out: 'Hung Up', lastAt: '2026-10-30T10:00', rep: 'may', att: 2 } });
+          return { a: String(c._id), b: String(sib.n) };
+        }
+      }
+      throw new Error('no contact with a sibling in Maya\'s list');
+    });
+    const p = await page(browser, 'maya');
+    await p.click(`[data-act=qsel][data-v="${a}"]`);
+    await expect(p.locator('.oct', { hasText: b })).toContainText('by Daniel');
+    const hist = p.locator('.dcard', { hasText: 'History at this property' }).locator('li');
+    const texts = await hist.allInnerTexts();
+    expect(texts.findIndex(t => t.includes('last call by daniel'))).toBeLessThan(texts.findIndex(t => t.includes('first call by maya')));
+    await withDb(db => db.collection('call_log').deleteMany({ _id: { $in: [900001, 900002] } as never }));
+  });
   for (const w of [375, 768, 1440]) {
     test(`A6 rep views at ${w}px: no horizontal scroll, Save reachable`, async ({ browser }) => {
       for (const path of ['/rep/today', '/rep/fu', '/rep/calls']) {

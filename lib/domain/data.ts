@@ -129,3 +129,12 @@ export const fullAddr = (p: Property) => `${p.addr || 'No address'}, ${p.city ||
 export const numOr = (n: number | null | undefined, unit = '') => n == null ? '—' : n.toLocaleString('en-US') + unit;
 
 export function syncLog(board: string, item: string, what: string) { SYNC.unshift({ at: isoT(getClock()), board, item, what }); }
+
+/** The last call made to a contact (the highest id: the call log only grows). */
+export function lastCallOf(k: string): Call | undefined {
+  let best: Call | undefined;
+  for (const x of CALLS) if (x.ct === k && (!best || x.id > best.id)) best = x;
+  return best;
+}
+/** A property's call history, newest first: by date and time, then by id (two calls in the same minute). */
+export const historyOf = (keys: string[]) => CALLS.filter(x => keys.includes(x.ct)).sort((a, b) => b.at.localeCompare(a.at) || b.id - a.id);

@@ -6,7 +6,7 @@ import type React from 'react';
 import {
   AUDS, C, CALLS, CFG, CTS, DAY, LEADS, OUT, P, PEO, PRI, TODAY, onHold, activeOutcomes, isLeadOut, isNoOut,
   callsOn, campName, emptyReason, campOf, ctsOf, demoN, docOf, effectsOf, elig, first, fmtD, fmtDT, fmtS, fmtT, fmtUS, fmtWD,
-  fullAddr, getClock, isoT, listOf, mOf, openOf, ownerOf, phIdx, priOf, propStatus, relDay,
+  fullAddr, getClock, historyOf, lastCallOf, isoT, listOf, mOf, openOf, ownerOf, phIdx, priOf, propStatus, relDay,
   type Contact, type Property, type RepKey,
 } from '@/lib/domain';
 import { inp, on } from '@/lib/state/actions';
@@ -146,13 +146,14 @@ function RepDetail({ c }: { c: Contact }) {
 export function SibRow({ x, u }: { x: Contact; u: RepKey }) {
   const e = elig(x, true);
   const today = x.res && x.res.date === TODAY ? (x.res.rep === u ? 'In your list today' : 'In ' + first(x.res.rep) + '’s list today') : '';
-  const last = x.out ? `${x.out}, ${fmtS(x.lastAt)} by ${first(x.rep || 'may')}` : 'Never called';
+  const lc = lastCallOf(x.k);
+  const last = x.out ? `${x.out}, ${fmtS(x.lastAt)}${lc ? ' by ' + first(lc.rep) : ''}` : 'Never called';
   return <div className={`oct ${x.stop || isNoOut(x.out) ? 'stop' : ''}`}><span><Icon n="user" s={15} /></span><div><b>{x.n}</b> <span className="muted sm">{roleOf(x)}</span><br /><span className="sm muted">{last}{x.note && x.out ? ': ' + x.note : ''}</span></div><div className="r">{today ? <Pill t={today} cls="blue" /> : null}{!e.ok || e.k !== 'pool' ? <Pill t={e.ok ? 'Eligible' : e.why.length > 34 ? e.why.slice(0, 32) + '...' : e.why} cls={e.ok ? 'green' : e.tone} /> : <Pill t="Eligible" cls="green" />}</div></div>;
 }
 const TL_TONE: Record<string, string> = { g: 'tg', a: 'ta', r: 'tr', b: 'tb', n: '' };
 export function HistList({ pk }: { pk: string }) {
   const ids = ctsOf(pk).map(c => c.k);
-  const cl = CALLS.filter(x => ids.includes(x.ct)).sort((a, b) => b.at.localeCompare(a.at));
+  const cl = historyOf(ids);
   const lead = LEADS.find(l => l.prop === pk);
   if (!cl.length && !lead) return <p className="sm muted">No calls yet at this property.</p>;
   return <ul className="tl">
