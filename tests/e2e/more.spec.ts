@@ -1,6 +1,6 @@
 /* A second walk over the actions the first one does not touch, again on both targets. */
 import { expect, test, type Page } from '@playwright/test';
-import { TOASTS, noPager, btn, idle, openApp, openArtifact, toastText , openAsAndrew, openAsMaya, switchApp, userMenu } from './targets';
+import { TOASTS, noPager, sprint18, btn, idle, openApp, openArtifact, toastText , openAsAndrew, openAsMaya, switchApp, userMenu } from './targets';
 import { STORAGE, reseed } from './db';
 
 test.beforeEach(async () => { await reseed(); });
@@ -23,6 +23,9 @@ async function walk(page: Page) {
   await page.locator('.pop.cal button[data-act="calnav"]').last().click(); await idle(page);
   await note('calendar next', text('.pop.cal .ch'));
   await btn(page, 'Next week', '.pop').click(); await idle(page);
+  // Sprint 18: in the app a follow-up also needs its time (the artifact only had the date)
+  const time = page.locator('input[type=time]');
+  if (await time.count()) { await time.first().fill('10:00'); await idle(page); }
   await note('effects', text('.effect'));
   await page.locator('textarea.fld').first().fill('Call after lunch');
   await btn(page, 'Save and next').click(); await idle(page);
@@ -101,7 +104,9 @@ test('artifact and app agree on the remaining actions', async ({ browser }) => {
   await openApp(pb, '/');
   const b = await walk(pb);
   expect(b.length).toBe(a.length);
-  for (let i = 0; i < a.length; i++) expect(b[i], `step ${i}`).toBe(a[i]);
+  // Sprint 18: the follow-up shows its time in the app ("on <day> at 10:00 AM")
+  const same = (s: string) => s.startsWith('effects:') ? s.replace(/atT/g, '') : s;
+  for (let i = 0; i < a.length; i++) expect(same(b[i]), `step ${i}`).toBe(sprint18(a[i]));
 });
 
 test('app: old #vista links, back button and the rename', async ({ page }) => {

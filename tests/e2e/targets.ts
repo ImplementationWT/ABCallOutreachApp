@@ -25,6 +25,10 @@ export async function settle(page: Page) {
 /** Every toast shown, in order (both write the toast's content anew on each call). */
 /** The app's table pager ("1–20 of 96 Rows per page 20 30 50 Page 1 of 5", whitespace already removed):
  * the artifact has none, so it is left out when texts are compared. */
+/** Sprint 18 (agreed rules), applied to the artifact's text: Reassign moves the pending follow-ups to
+ * the new rep ("Own follow-ups stay with their rep." reads differently), and at the max attempts a
+ * contact goes on hold (the pool's "Max attempts" is "On hold, max attempts"). */
+export const sprint18 = (s: string) => s.replace(/Ownfollow-upsstaywiththeirrep\./g, 'Theirpendingfollow-upsgotothenewrep.').replace(/Maxattempts(\d)/g, 'Onhold,maxattempts$1');
 export const noPager = (s: string) => s.replace(/[\d,]+–[\d,]+of[\d,]+Rowsperpage203050Page\d+of\d+/g, '');
 export const TOASTS = `window.__toasts = []; new MutationObserver(ms => { for (const m of ms) { const t = (m.target).closest && (m.target).closest('#toast'); if (t && m.type === 'childList' && t.textContent) { window.__toasts.push(t.textContent.trim()); return; } } }).observe(document, { subtree: true, childList: true });`;
 const seen = new WeakMap<Page, number>();

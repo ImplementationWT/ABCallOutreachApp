@@ -1,7 +1,7 @@
 /* The full demo walk, run on the artifact and on the app with the same clicks.
  * Every toast and key text is collected and both transcripts must match. */
 import { expect, test, type Page } from '@playwright/test';
-import { TOASTS, noPager, btn, idle, openApp, openArtifact, settle, toastText , openAsAndrew, openAsMaya, switchApp, userMenu } from './targets';
+import { TOASTS, noPager, sprint18, btn, idle, openApp, openArtifact, settle, toastText , openAsAndrew, openAsMaya, switchApp, userMenu } from './targets';
 import { STORAGE, reseed } from './db';
 
 async function walk(page: Page, who: string) {
@@ -96,5 +96,15 @@ test('artifact and app walk the same', async ({ browser }) => {
   // And the app's table pager, which the artifact does not have.
   const bare = (s?: string) => noPager(s?.replace(/\s+/g, '').replace(/\d{1,2}:\d{2}(AM|PM)/g, 'T') ?? '');
   expect(b.length).toBe(a.length);
-  for (let i = 0; i < a.length; i++) expect(bare(b[i]), `step ${i}: ${a[i].slice(0, 40)}`).toBe(bare(a[i]));
+  // Sprint 18 (agreed): My follow-ups has a new subtitle and splits Overdue, Today and Upcoming, so
+  // that step is checked on its own: the same contacts, in the new groups.
+  const CHANGED = ['follow-ups:'];
+  for (let i = 0; i < a.length; i++) {
+    if (CHANGED.some(k => a[i].startsWith(k))) {
+      expect(bare(b[i])).toContain(bare('Your follow-ups and undecided contacts come back to you, and only to you'));
+      for (const name of ['SandraLiu']) { expect(bare(a[i])).toContain(name); expect(bare(b[i])).toContain(name); }
+      continue;
+    }
+    expect(bare(b[i]), `step ${i}: ${a[i].slice(0, 40)}`).toBe(sprint18(bare(a[i])));
+  }
 });
