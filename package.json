@@ -13,7 +13,8 @@
     "db:users": "tsx --env-file=.env.local scripts/db-users.mts",
     "db:backup": "tsx --env-file=.env.local scripts/db-backup.mts",
     "db:restore": "tsx --env-file=.env.local scripts/db-restore.mts",
-    "db:import-properties": "tsx --env-file=.env.local scripts/import-properties.mts"
+    "db:import-properties": "tsx --env-file=.env.local scripts/import-properties.mts",
+    "db:migrate": "tsx --env-file=.env.local scripts/db-migrate.mts"
   },
   "dependencies": {
     "mongodb": "^6.22.0",

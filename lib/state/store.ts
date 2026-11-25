@@ -9,7 +9,8 @@ import type { RepKey } from '@/lib/domain';
 
 export type AppKey = 'rep' | 'mgr' | 'prp' | 'p2';
 export type ViewKey = 'in' | AppKey | 'db';
-export type Draft = { out: string | null; note: string; fu: string | null };
+/** A result being written: fu is the follow-up day, fuT its time; key makes the save idempotent. */
+export type Draft = { out: string | null; note: string; fu: string | null; fuT?: string; key?: string };
 export type Pop =
   | { t: 'pick'; key: string; x: number; y: number; q: string; kb: number; cur?: string }
   | { t: 'cal'; key: string; x: number; y: number; m: Date; sel?: string };

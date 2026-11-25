@@ -8,6 +8,8 @@
 import { create } from 'zustand';
 import { COLLECTIONS, TODAY, fromDocs, isoT, setToday, toDocs, type CollectionName, type Doc, type RepKey, type Snapshot } from '@/lib/domain';
 import { bump, toast, useRev } from './store';
+import { getMe } from './auth';
+import { isLockedRep } from '@/lib/auth/roles';
 
 type Status = 'loading' | 'ready' | 'error';
 export const useData = create<{ status: Status; error?: string }>(() => ({ status: 'loading' }));
@@ -55,6 +57,19 @@ export async function allocate(body: { kind: 'morning' } | { kind: 'more' | 'sta
   } catch { return null; }
 }
 
+/** A rep or manager action on the server (POST /api/work), after the pending writes are saved.
+ * Returns the answer, or { error } with the server's message. */
+export async function work(body: Record<string, unknown>): Promise<Record<string, unknown> & { error?: string }> {
+  while (busy) await new Promise(r => setTimeout(r, 50));
+  await persist();
+  try {
+    const res = await fetch('/api/work', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...body, now: isoT(new Date()) }) });
+    if (res.status === 401) { toLogin(); return { error: 'Sign in first' }; }
+    const d = await res.json().catch(() => ({}));
+    return res.ok ? d : { error: d.error || 'Could not save. Try again' };
+  } catch { return { error: 'Could not reach the server. Try again' }; }
+}
+
 /** The session expired or was closed: back to the login, then to this same page. */
 // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- full reload on purpose (fresh session and state)
 const toLogin = () => { location.href = '/login?next=' + encodeURIComponent(location.pathname); };
@@ -64,6 +79,7 @@ function diff(now: Hashes): Partial<Record<CollectionName, Change>> | null {
   const out: Partial<Record<CollectionName, Change>> = {};
   let any = false;
   for (const n of COLLECTIONS) {
+    if (SERVER_ONLY.includes(n)) continue;
     const before = saved![n], after = now[n], ch: Change = { upsert: [], delete: [] };
     for (const [id, h] of after) if (before.get(id) !== h) ch.upsert.push(JSON.parse(h));
     for (const id of before.keys()) if (!after.has(id)) ch.delete.push(id);
@@ -72,8 +88,13 @@ function diff(now: Hashes): Partial<Record<CollectionName, Change>> | null {
   return any ? out : null;
 }
 
+/** Collections the browser never writes: the server actions save them (/api/work, /api/allocate). */
+const SERVER_ONLY: CollectionName[] = ['call_log', 'outcomes', 'reservations'];
+/** A rep's browser writes nothing here: every rep action is a server action. */
+const writesState = () => { const me = getMe(); return !!me && !isLockedRep(me); };
+
 export async function persist() {
-  if (!saved) return;
+  if (!saved || !writesState()) return;
   if (busy) { again = true; return; }
   busy = true;
   try {

@@ -6,6 +6,7 @@ export * from './dates';
 export * from './seed';
 export * from './people';
 export * from './catalogs';
+export * from './outcomes';
 export * from './rules';
 export * from './campaigns';
 export * from './data';

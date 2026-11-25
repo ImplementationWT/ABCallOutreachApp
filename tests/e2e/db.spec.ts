@@ -44,8 +44,11 @@ test('a saved call, a new campaign and a rule survive a reload', async ({ page }
 });
 
 test('the database rejects a malformed document', async ({ request }) => {
-  const res = await request.post('/api/state', { data: { changes: { call_log: { upsert: [{ _id: 1, ct: 'C-5001', rep: 'nobody', at: 'yesterday', out: 'Maybe', ph: '' }] } } } });
+  const res = await request.post('/api/state', { data: { changes: { hand_offs: { upsert: [{ _id: 'L-1', prop: 'P-1', ct: 'C-5001', rep: 'nobody', at: 'yesterday', out: 'Maybe', src: 'Outbound', pos: 0 }] } } } });
   expect(res.status()).toBe(500);
+  // call results are only saved by the server (/api/work)
+  const call = await request.post('/api/state', { data: { changes: { call_log: { upsert: [{ _id: 1, ct: 'C-5001', rep: 'may', at: '2026-11-02T09:00', out: 'Left VM', ph: '' }] } } } });
+  expect(call.status()).toBe(403);
   const bad = await request.post('/api/state', { data: { changes: { users: { upsert: [{ _id: 'x' }] } } } });
   expect(bad.status()).toBe(400);
 });

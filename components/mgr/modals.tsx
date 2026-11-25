@@ -34,7 +34,7 @@ export const MODALS: Record<string, (m: Modal) => ModalDef> = {
     const movable = open.filter(c => ownerOf(c) !== r);
     m.n = Math.min(m.n, movable.length);
     return {
-      t: `Reassign from ${PEO[r].n}`, s: 'Contacts not called yet move to another rep, with the whole property. Own follow-ups stay with their rep.',
+      t: `Reassign from ${PEO[r].n}`, s: 'Contacts not called yet move to another rep, with the whole property. Their pending follow-ups go to the new rep.',
       body: <>
         <label className="lbl">Move to</label>
         <div className="segs">{REPS.filter(x => x !== r).map(x => <button key={x} className="seg" {...on('rato', x)} aria-pressed={m.to === x}>{PEO[x].n}</button>)}</div>

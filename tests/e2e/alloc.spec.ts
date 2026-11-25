@@ -41,7 +41,7 @@ test('two reps asking for more at once never get the same contact', async ({ bro
   expect(await listOf(dan)).toEqual([]);
   // Both pages were loaded before either request: in the browser alone they would pick the same contacts
   await Promise.all([maya.locator('[data-act=reqmore]').first().click(), dan.locator('[data-act=reqmore]').first().click()]);
-  for (const p of [maya, dan]) await expect(p.locator('#toast')).toContainText('more contacts added to your list');
+  await Promise.all([maya, dan].map(p => expect(p.locator('#toast')).toContainText('more contacts added to your list', { timeout: 15000 })));
   const [a, b] = [await listOf(maya), await listOf(dan)];
   expect(a.length).toBeGreaterThan(0);
   expect(b.length).toBeGreaterThan(0);

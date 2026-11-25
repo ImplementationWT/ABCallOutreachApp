@@ -4,14 +4,14 @@
 import { Fragment } from 'react';
 import type React from 'react';
 import {
-  AUDS, C, CALLS, CFG, DAY, LEADS, LEAD_OUT, NO_OUT, OUT, P, PEO, PRI, TODAY,
-  addDays, callsOn, campName, campOf, ctsOf, demoN, docOf, effectsOf, elig, first, fmtD, fmtDT, fmtS, fmtT, fmtUS, fmtWD,
-  fullAddr, iso, listOf, mOf, openOf, ownerOf, phIdx, priOf, propStatus, relDay, T0,
+  AUDS, C, CALLS, CFG, CTS, DAY, LEADS, OUT, P, PEO, PRI, TODAY, onHold, activeOutcomes, isLeadOut, isNoOut,
+  callsOn, campName, emptyReason, campOf, ctsOf, demoN, docOf, effectsOf, elig, first, fmtD, fmtDT, fmtS, fmtT, fmtUS, fmtWD,
+  fullAddr, getClock, historyOf, lastCallOf, isoT, listOf, mOf, openOf, ownerOf, phIdx, priOf, propStatus, relDay,
   type Contact, type Property, type RepKey,
 } from '@/lib/domain';
 import { inp, on } from '@/lib/state/actions';
 import { myFollowUps, queueSort } from '@/lib/state/rep';
-import { S } from '@/lib/state/store';
+import { S, bump } from '@/lib/state/store';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { AudPill, Bar, DateField, Icon, Kv, OutPill, P2Tag, PageHeader, Pill, PrTag, StPill, paged } from '@/components/ui';
 
@@ -19,7 +19,11 @@ const repCamp = () => campOf(S.user);
 /* Render-time writes to S, as in the artifact (default selection and the draft of a contact). */
 const setSel = (u: RepKey, k: string | undefined) => { S.sel[u] = k; };
 const setFu = (k: string, v: string) => { S.draft[k].fu = v; };
-const draftOf = (k: string) => S.draft[k] || (S.draft[k] = { out: null, note: '', fu: null });
+const setFuT = (k: string, v: string) => { S.draft[k].fuT = v; bump(); };
+const newKey = () => (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()) + Math.random().toString(36).slice(2));
+const draftOf = (k: string) => S.draft[k] || (S.draft[k] = { out: null, note: '', fu: null, key: newKey() });
+/** The follow-up the rep picked, 'YYYY-MM-DDTHH:MM', or null while the date or the time is missing. */
+export const fuOf = (dr: { fu: string | null; fuT?: string }) => dr.fu && dr.fuT ? `${dr.fu}T${dr.fuT}` : null;
 const roleOf = (c: Contact) => c.role === 'Other' ? c.other || 'Other' : c.role;
 
 export function RepSide() {
@@ -38,11 +42,13 @@ function RepToday() {
 function RepStart() {
   const u = S.user, cs = listOf(u), cp = repCamp();
   const own = cs.filter(c => ownerOf(c) === u).length;
+  const why = emptyReason(u);
   return <>
     <PageHeader t="My Outbound Dashboard" sub={fmtWD(TODAY)} acts={<Pill t="Not Started" cls="dot" />} />
     <div className="startw"><div className="sico"><Icon n="headset" s={30} /></div><h2>Ready to start calling?</h2><p>Start your workday to receive your first daily allocation of eligible contacts. They are reserved for you, so nobody else calls them today.</p><button className="btn pri" {...on('startday')} disabled={S.loadingMore} aria-busy={S.loadingMore}>{S.loadingMore ? <span className="ld-spin" aria-hidden="true" /> : <Icon n="play" s={16} />}{S.loadingMore ? 'Getting your contacts…' : 'Start Workday'}</button>
+      {why ? <div className="nextstep grey mt-[14px] text-left" data-empty={why.k}><span className="ic"><Icon n="info" s={17} /></span><div><b>{why.t}</b><small>{why.d}</small></div></div> : null}
       <div className="pre"><Pill t={cs.length + ' contacts waiting'} cls="green" />{own ? <Pill t={own + ' are your follow-ups'} cls="red" /> : null}{cp ? <Pill t={campName(cp)} cls="blue" /> : null}</div></div>
-    <p className="sm muted text-center">The morning allocation ran at 7:00 AM with Andrew’s rules. Daily allocation per rep: {CFG.first} contacts ({demoN(CFG.first)} in this demo, scaled to its data).</p>
+    <p className="sm muted text-center">Your list comes from today’s campaign with Andrew’s rules. Daily allocation per rep: {CFG.first} contacts ({demoN(CFG.first)} in this demo, scaled to its data).</p>
   </>;
 }
 function RepEnded() {
@@ -55,7 +61,7 @@ function RepEnded() {
 function QItem({ c, u, cur }: { c: Contact; u: RepKey; cur: boolean }) {
   const p = P(c.prop), done = DAY[u].done[c.k], call = done ? CALLS.find(x => x.id === done) : undefined;
   const pr = priOf(c);
-  const removed = c.stop || (p.lead && !(call && LEAD_OUT.includes(call.out)));
+  const removed = c.stop || (p.lead && !(call && isLeadOut(call.out)));
   const left = removed ? <span className="pr ok bg-r50 text-r500"><Icon n="ban" s={14} /></span> : done ? <span className="pr ok"><Icon n="check" s={15} /></span> : <PrTag pr={pr} />;
   const sub = done ? `${call!.out} at ${fmtT(call!.at)}` : removed ? (c.stop ? c.stop.why : 'Property handed to sales') : `${c.out ? c.out + ' ' + fmtS(c.lastAt) : 'Never called'}, attempt ${c.att + 1}`;
   const tags = done || removed ? null : <div className="tags">{ownerOf(c) === u ? <Pill t={pr === 'P1' ? 'Your follow-up' : 'Your undecided'} cls={pr === 'P1' ? 'red' : 'violet'} /> : null}{p.permit === 'Permit Issued' ? <Pill t="Permit issued" cls="green" /> : p.permit === 'Plans Submitted' ? <Pill t="Plans submitted" cls="amber" /> : null}<Pill t={AUDS[p.aud].s} /></div>;
@@ -77,6 +83,7 @@ function RepWork() {
   return <>
     <PageHeader t="My Outbound Dashboard" sub={`${fmtWD(TODAY)}, ${m.calls} calls, ${m.con} connects, ${m.leads} lead${m.leads === 1 ? '' : 's'} so far`}
       acts={<><Pill t="Calling" cls="green dot blink" /><button className="btn sec sm" {...on('reqmore')} disabled={busy} aria-busy={busy}>{busy ? <span className="ld-spin" aria-hidden="true" /> : <Icon n="plus" s={14} />}{busy ? 'Requesting…' : 'Request more'}</button><button className="btn sec sm" {...on('endday')}><Icon n="logout" s={14} />End workday</button></>} />
+    {!busy && !all.length && emptyReason(u) ? <div className="nextstep grey" data-empty={emptyReason(u)!.k}><span className="ic"><Icon n="info" s={17} /></span><div><b>{emptyReason(u)!.t}</b><small>{emptyReason(u)!.d}</small></div></div> : null}
     {busy ? <div className="morebox ld-box" role="status" aria-live="polite"><span className="ld-ring" aria-hidden="true" /><div><b>Finding your next contacts</b><small>The engine checks today’s campaign and reserves the contacts for you only, so nobody else gets them.</small></div></div> : open.length ? null : <div className="morebox"><Icon n="check" s={22} /><div><b>Your list is documented</b><small>Every contact has a result. Request more and the engine checks the list before giving you the next batch.</small></div><div className="acts"><button className="btn pri" {...on('reqmore')}><Icon n="plus" s={15} />Request more contacts</button></div></div>}
     <div className="work">
       <div className="qlist"><div className="qhead"><b>Today: {ndoc} of {all.length} documented</b><Bar n={ndoc} d={all.length} /><small>Called contacts go to the end of the queue, so nobody is skipped.</small></div><div className="qscroll">
@@ -89,7 +96,11 @@ function RepWork() {
     </div>
   </>;
 }
-const GRP: [string, string[]][] = [['Nobody answered', ['Not Contacted', 'Left VM', 'Wrong Number']], ['Answered', ['Hung Up', 'Undecided', 'Follow Up', 'Working on Plans', 'Interested']], ['Said no', ['Not Interested', 'Already Building / Done', 'Do Not Contact']]];
+/** The result buttons, grouped, from the outcome catalog (active outcomes only). */
+const groupsOf = (): [string, string[]][] => {
+  const act = activeOutcomes();
+  return [['Nobody answered', act.filter(o => OUT[o].group === 'none' && !isNoOut(o) && !isLeadOut(o))], ['Answered', act.filter(o => OUT[o].group !== 'none' && !isNoOut(o))], ['Said no', act.filter(o => isNoOut(o))]];
+};
 function RepDetail({ c }: { c: Contact }) {
   const u = S.user, p = P(c.prop), d = DAY[u];
   const doneId = d.done[c.k], call = doneId ? CALLS.find(x => x.id === doneId) : undefined;
@@ -98,7 +109,7 @@ function RepDetail({ c }: { c: Contact }) {
   const dr = draftOf(c.k);
   const sibs = ctsOf(p.k).filter(x => x !== c);
   const ix = phIdx(c);
-  const fuOk = dr.out !== 'Follow Up' || dr.fu;
+  const needsFu = !!dr.out && !!OUT[dr.out]?.needsFollowUp, fu = fuOf(dr), fuPast = !!fu && fu <= isoT(getClock()), fuOk = !needsFu || (!!fu && !fuPast);
   return <>
     <div className="dcard"><div className="dh"><div><h2>{c.n}</h2><p>{roleOf(c)}, {fullAddr(p)}</p><div className="pills">
       {call || removed ? null : <PrTag pr={pr} sm />}{call || removed ? null : <Pill t={`${pr}: ${PRI[pr].n}`} />}
@@ -109,7 +120,7 @@ function RepDetail({ c }: { c: Contact }) {
       ? <div className="nextstep red"><span className="ic"><Icon n="ban" s={17} /></span><div><b>Do not call: removed from your list</b><small>{c.stop ? c.stop.why : 'The property is with AB sales'}. The rule removes every other contact of a property when one says no or becomes a lead.</small></div></div>
       : call
         ? <>
-          <div className={`nextstep ${LEAD_OUT.includes(call.out) ? '' : NO_OUT.includes(call.out) ? 'red' : 'grey'}`}><span className="ic"><Icon n="check" s={17} /></span><div><b>Documented: {call.out} at {fmtT(call.at)}</b><small>{call.note ? call.note : 'No notes'}</small></div></div>
+          <div className={`nextstep ${isLeadOut(call.out) ? '' : isNoOut(call.out) ? 'red' : 'grey'}`}><span className="ic"><Icon n="check" s={17} /></span><div><b>Documented: {call.out} at {fmtT(call.at)}</b><small>{call.note ? call.note : 'No notes'}</small></div></div>
           {call.fx ? <div className="effect m-[-4px_0_12px]"><b>What the rules did</b><ul>{call.fx.map((x, i) => <li key={i}>{x}</li>)}</ul></div> : null}
         </>
         : <>
@@ -118,11 +129,11 @@ function RepDetail({ c }: { c: Contact }) {
           </div>
             {c.calling ? <div className="oncall"><span className="dotc" /><div><b>Calling {c.phones[c.callPh!].n}</b> from your phone, dialed at {fmtT(c.calling)}. Record the result below when you hang up.</div></div> : null}</div>
           <div className="dcard"><h3><Icon n="edit" s={16} />Result of the call</h3>
-            {GRP.map(([t, ks]) => <Fragment key={t}><div className="lbl mt-[6px]">{t}</div><div className="outs">{ks.map(o => <button key={o} className={`ob ${OUT[o].tone}`} {...on('setout', `${c.k}|${o}`)} aria-pressed={dr.out === o}>{o}<small>{OUT[o].hint}{OUT[o].prop ? ', proposed' : ''}</small></button>)}</div></Fragment>)}
-            {dr.out === 'Follow Up' ? <><label className="lbl">Call back on <em>*</em></label><div className="max-w-[320px]"><DateField k={'fu:' + c.k} value={dr.fu} onSet={v => setFu(c.k, v)} /></div></> : null}
+            {groupsOf().filter(([, ks]) => ks.length).map(([t, ks]) => <Fragment key={t}><div className="lbl mt-[6px]">{t}</div><div className="outs">{ks.map(o => <button key={o} className={`ob ${OUT[o].tone}`} {...on('setout', `${c.k}|${o}`)} aria-pressed={dr.out === o}>{o}<small>{OUT[o].hint}{OUT[o].proposed ? ', proposed' : ''}</small></button>)}</div></Fragment>)}
+            {needsFu ? <><label className="lbl">Call back on <em>*</em></label><div className="flex gap-[8px] items-center flex-wrap"><div className="max-w-[320px] flex-1 min-w-[200px]"><DateField k={'fu:' + c.k} value={dr.fu} onSet={v => setFu(c.k, v)} /></div><input className="fld w-[130px]" type="time" step={300} aria-label="Call back time" id={`fut-${c.k}`} value={dr.fuT || ''} onChange={e => setFuT(c.k, e.target.value)} /></div></> : null}
             <label className="lbl">Notes</label><textarea className="fld min-h-[70px]" id={`note-${c.k}`} key={c.k} {...inp('note.' + c.k)} placeholder="What did they say? Anything the next person should know" defaultValue={dr.note} />
-            {dr.out ? <div className="effect"><b>When you save</b><ul>{effectsOf(c, dr.out, dr.fu).map((x, i) => <li key={i}>{x}</li>)}</ul></div> : null}
-            <div className="savebar"><span className="sm muted">{dr.out ? '' : 'Pick a result to save.'}{dr.out === 'Follow Up' && !dr.fu ? 'Pick the call back date.' : ''}</span><span className="sp" /><button className="btn pri" {...on('saveout', c.k)} disabled={!(dr.out && fuOk)}><Icon n="check" s={15} />Save and next</button></div></div>
+            {dr.out ? <div className="effect"><b>When you save</b><ul>{effectsOf(c, dr.out, fu || dr.fu).map((x, i) => <li key={i}>{x}</li>)}</ul></div> : null}
+            <div className="savebar"><span className="sm muted">{dr.out ? '' : 'Pick a result to save.'}{needsFu && !fu ? 'Pick the call back date and time.' : ''}{needsFu && fuPast ? 'The call back must be later than now.' : ''}</span><span className="sp" /><button className="btn pri" {...on('saveout', c.k)} disabled={!(dr.out && fuOk)}><Icon n="check" s={15} />Save and next</button></div></div>
         </>}
     <div className="dcard"><h3><Icon n="home" s={16} />The property<span className="r"><StPill s={propStatus(p)} /></span></h3><div className="grid4"><Kv l="Permit" v={p.permit === 'None' ? 'No permit yet' : p.permit} sub={p.permitDate ? fmtD(p.permitDate) : ''} /><Kv l="Construction started" v={p.started} /><Kv l="Audience" v={AUDS[p.aud].s} /><Kv l="Owner since" v={p.since ?? "—"} /></div>
       <div className="lbl mt-[12px]">Other contacts at this property</div>{sibs.length ? <div className="octs">{sibs.map(x => <SibRow key={x.k} x={x} u={u} />)}</div> : <p className="sm muted">No other contacts.</p>}</div>
@@ -135,18 +146,19 @@ function RepDetail({ c }: { c: Contact }) {
 export function SibRow({ x, u }: { x: Contact; u: RepKey }) {
   const e = elig(x, true);
   const today = x.res && x.res.date === TODAY ? (x.res.rep === u ? 'In your list today' : 'In ' + first(x.res.rep) + '’s list today') : '';
-  const last = x.out ? `${x.out}, ${fmtS(x.lastAt)} by ${first(x.rep || 'may')}` : 'Never called';
-  return <div className={`oct ${x.stop || NO_OUT.includes(x.out!) ? 'stop' : ''}`}><span><Icon n="user" s={15} /></span><div><b>{x.n}</b> <span className="muted sm">{roleOf(x)}</span><br /><span className="sm muted">{last}{x.note && x.out ? ': ' + x.note : ''}</span></div><div className="r">{today ? <Pill t={today} cls="blue" /> : null}{!e.ok || e.k !== 'pool' ? <Pill t={e.ok ? 'Eligible' : e.why.length > 34 ? e.why.slice(0, 32) + '...' : e.why} cls={e.ok ? 'green' : e.tone} /> : <Pill t="Eligible" cls="green" />}</div></div>;
+  const lc = lastCallOf(x.k);
+  const last = x.out ? `${x.out}, ${fmtS(x.lastAt)}${lc ? ' by ' + first(lc.rep) : ''}` : 'Never called';
+  return <div className={`oct ${x.stop || isNoOut(x.out) ? 'stop' : ''}`}><span><Icon n="user" s={15} /></span><div><b>{x.n}</b> <span className="muted sm">{roleOf(x)}</span><br /><span className="sm muted">{last}{x.note && x.out ? ': ' + x.note : ''}</span></div><div className="r">{today ? <Pill t={today} cls="blue" /> : null}{!e.ok || e.k !== 'pool' ? <Pill t={e.ok ? 'Eligible' : e.why.length > 34 ? e.why.slice(0, 32) + '...' : e.why} cls={e.ok ? 'green' : e.tone} /> : <Pill t="Eligible" cls="green" />}</div></div>;
 }
 const TL_TONE: Record<string, string> = { g: 'tg', a: 'ta', r: 'tr', b: 'tb', n: '' };
 export function HistList({ pk }: { pk: string }) {
   const ids = ctsOf(pk).map(c => c.k);
-  const cl = CALLS.filter(x => ids.includes(x.ct)).sort((a, b) => b.at.localeCompare(a.at));
+  const cl = historyOf(ids);
   const lead = LEADS.find(l => l.prop === pk);
   if (!cl.length && !lead) return <p className="sm muted">No calls yet at this property.</p>;
   return <ul className="tl">
     {lead ? <li className="tg"><span className="d"><Icon n="hand" s={15} /></span><div className="x"><b>{lead.src === 'Inbound' ? 'Inbound call taken by the office' : 'Handed to AB sales'}: {lead.k}</b><br /><span className="muted">{lead.note || ''}</span><time>{fmtDT(lead.at)}</time></div></li> : null}
-    {cl.map(x => <li key={x.id} className={OUT[x.out] ? TL_TONE[OUT[x.out].tone] : ''}><span className="d"><Icon n={x.out === 'Left VM' ? 'vm' : OUT[x.out] && OUT[x.out].g === 'none' ? 'call' : 'msg'} s={15} /></span><div className="x"><b>{C(x.ct).n}: {x.out}</b> <span className="muted">by {PEO[x.rep].n}, {x.ph}</span>{x.note ? <><br />{x.note}</> : null}<time>{fmtDT(x.at)}</time></div></li>)}
+    {cl.map(x => <li key={x.id} className={OUT[x.out] ? TL_TONE[OUT[x.out].tone] : ''}><span className="d"><Icon n={OUT[x.out]?.tone === 'b' ? 'vm' : OUT[x.out] && OUT[x.out].group === 'none' ? 'call' : 'msg'} s={15} /></span><div className="x"><b>{C(x.ct).n}: {x.out}</b> <span className="muted">by {PEO[x.rep].n}, {x.ph}</span>{x.note ? <><br />{x.note}</> : null}<time>{fmtDT(x.at)}</time></div></li>)}
   </ul>;
 }
 function scriptFor(c: Contact, p: Property, u: RepKey) {
@@ -157,13 +169,14 @@ function scriptFor(c: Contact, p: Property, u: RepKey) {
 
 function RepFollowUps() {
   const u = S.user;
-  const l = myFollowUps(u).sort((a, b) => a.nextAt!.localeCompare(b.nextAt!));
-  const row = (c: Contact) => { const p = P(c.prop), pr = priOf(c); return <div key={c.k} className="row grid-cols-[40px_minmax(0,1.4fr)_minmax(0,1fr)_150px_130px]" {...on('openprop', p.k)}><PrTag pr={pr} sm /><div className="t"><b>{c.n}</b><small>{p.addr || "No address"}, {AUDS[p.aud].s}</small></div><div className="cell">{c.note || ''}</div><div className="cell"><OutPill o={c.out} /><small>{fmtS(c.lastAt)}</small></div><div className="cell"><b>{fmtWD(c.nextAt!)}</b><small>{relDay(c.nextAt!)}</small></div></div>; };
+  const l = myFollowUps(u).filter(c => !onHold(c)).sort((a, b) => a.nextAt!.localeCompare(b.nextAt!));
+  const held = CTS.filter(c => c.rep === u && onHold(c) && !c.stop && !P(c.prop).lead);
+  const row = (c: Contact) => { const p = P(c.prop), pr = priOf(c); return <div key={c.k} className="row grid-cols-[40px_minmax(0,1.4fr)_minmax(0,1fr)_150px_130px]" {...on('openprop', p.k)}><PrTag pr={pr} sm /><div className="t"><b>{c.n}</b><small>{p.addr || "No address"}, {AUDS[p.aud].s}</small></div><div className="cell">{c.note || ''}</div><div className="cell"><OutPill o={c.out} /><small>{fmtS(c.lastAt)}</small></div><div className="cell"><b>{fmtWD(c.nextAt!)}</b><small>{c.fuAt ? fmtT(c.fuAt) + ', ' : ''}{relDay(c.nextAt!)}</small></div></div>; };
   const g = (t: string, arr: Contact[]) => { if (!arr.length) return null; const pg = paged('fu:' + t, arr); return <div className="grp" key={t}><div className="grp-h"><i />{t}<span className="n">{arr.length}</span></div><div className="rows">{pg.rows.map(row)}</div>{pg.pager}</div>; };
-  const wk = iso(addDays(T0, 6));
   return <>
-    <PageHeader t="My follow-ups" sub="Follow Up (P1) and Undecided (P3) contacts always come back to you, on the date you set or after the waiting time in the rules." />
-    {g('Due today or earlier', l.filter(c => c.nextAt! <= TODAY))}{g('This week', l.filter(c => c.nextAt! > TODAY && c.nextAt! <= wk))}{g('Later', l.filter(c => c.nextAt! > wk))}{l.length ? null : <div className="empty">No follow-ups yet.</div>}
+    <PageHeader t="My follow-ups" sub="Your follow-ups and undecided contacts come back to you, and only to you, on the date and time you set or after the waiting time of the result. If a contact is reassigned, its follow-ups go to the new rep." />
+    {g('Overdue', l.filter(c => c.nextAt! < TODAY))}{g('Today', l.filter(c => c.nextAt! === TODAY))}{g('Upcoming', l.filter(c => c.nextAt! > TODAY))}{l.length ? null : <div className="empty">No follow-ups yet.</div>}
+    {held.length ? <div className="grp" data-hold><div className="grp-h"><i />On hold: max attempts reached<span className="n">{held.length}</span></div><div className="rows">{held.map(c => { const p = P(c.prop); return <div key={c.k} className="row grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_150px_130px]"><div className="t"><b>{c.n}</b><small>{p.addr || "No address"}, {AUDS[p.aud].s}</small></div><div className="cell"><OutPill o={c.out} /><small>{fmtS(c.lastAt)}</small></div><div className="cell"><b>{c.att} attempts</b><small>max {CFG.maxAtt}</small></div><div className="cell"><button className="btn sec sm" {...on('reactivate', c.k)}><Icon n="refresh" s={14} />Reactivate</button></div></div>; })}</div></div> : null}
   </>;
 }
 function RepCalls() {

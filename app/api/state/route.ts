@@ -2,20 +2,26 @@ import { connection } from 'next/server';
 import type { AnyBulkWriteOperation } from 'mongodb';
 import { getDb } from '@/lib/db/mongodb';
 import { currentUserDoc, forbidden, unauthorized } from '@/lib/auth/session';
-import type { Perm } from '@/lib/auth/roles';
+import { isLockedRep, type Perm } from '@/lib/auth/roles';
+import { scopeFor } from '@/lib/db/scope';
+import { readSnapshot } from '@/lib/db/server-state';
+import { ensureOutcomes } from '@/lib/db/outcomes';
 import { COLLECTIONS, type CollectionName, type Doc, type Snapshot } from '@/lib/domain';
 
-/* GET /api/state: every collection, to build the app's state (lib/state/persist.ts).
- * POST /api/state: the documents that changed after an action, { changes: { [collection]: { upsert, delete } } }.
- * Both need a session (POST /api/auth/login). */
+/* GET /api/state: the collections that build the app's state (lib/state/persist.ts). A rep gets only
+ * their own data (lib/db/scope.ts).
+ * POST /api/state: the documents that changed after a manager's action, { changes: { [collection]: { upsert, delete } } }.
+ * A rep never writes here: their writes go through /api/work and /api/allocate, validated on the server.
+ * Nobody writes call results here (call_log): they are saved by /api/work. Both need a session. */
 
 export async function GET() {
   await connection();
   try {
-    if (!(await currentUserDoc())) return unauthorized();
+    const user = await currentUserDoc();
+    if (!user) return unauthorized();
     const db = await getDb();
-    const entries = await Promise.all(COLLECTIONS.map(async n => [n, await db.collection<Doc>(n).find({}).toArray()] as const));
-    return Response.json(Object.fromEntries(entries) as Snapshot);
+    if (await ensureOutcomes(db)) console.log('outcomes: catalog seeded');
+    return Response.json(scopeFor(await readSnapshot(db), user) satisfies Snapshot);
   } catch (e) {
     console.error('GET /api/state failed', e);
     return Response.json({ error: 'Could not read the database' }, { status: 503 });
@@ -25,17 +31,22 @@ export async function GET() {
 type Change = { upsert?: Doc[]; delete?: (string | number)[] };
 /** Collections only some roles may write (the rest change with the reps' daily work). */
 const WRITE_PERM: Partial<Record<CollectionName, Perm>> = { campaigns: 'mgr.manage', rules: 'mgr.manage', reps: 'users.manage' };
+/** Written only by the server: call results and the lists (/api/work, /api/allocate, with their
+ * property locks) and the outcome catalog (/api/outcomes). The browser never writes reservations. */
+const SERVER_ONLY: CollectionName[] = ['call_log', 'outcomes', 'reservations'];
 const MAX_DOCS = 2000;
 
 export async function POST(req: Request) {
   let user;
   try { user = await currentUserDoc(); } catch { return Response.json({ error: 'Could not reach the database' }, { status: 503 }); }
   if (!user) return unauthorized();
+  if (isLockedRep({ perms: user.perms, person: user.person ?? null })) return forbidden();
   let body: { changes?: Partial<Record<CollectionName, Change>> };
   try { body = await req.json(); } catch { return Response.json({ error: 'Invalid JSON' }, { status: 400 }); }
   const changes = body.changes || {};
   const names = Object.keys(changes);
   if (names.some(n => !(COLLECTIONS as readonly string[]).includes(n))) return Response.json({ error: 'Unknown collection' }, { status: 400 });
+  if (names.some(n => SERVER_ONLY.includes(n as CollectionName))) return forbidden();
   if (names.some(n => WRITE_PERM[n as CollectionName] && !user.perms.includes(WRITE_PERM[n as CollectionName]!))) return forbidden();
   const total = names.reduce((a, n) => a + (changes[n as CollectionName]!.upsert?.length || 0) + (changes[n as CollectionName]!.delete?.length || 0), 0);
   if (total > MAX_DOCS) return Response.json({ error: 'Too many changes' }, { status: 413 });

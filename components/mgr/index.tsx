@@ -4,7 +4,7 @@
 import type React from 'react';
 import {
   lastDay, pastDays, PERIODS, chartTitle, isCurrentPeriod, periodBuckets, periodDays, periodLabel, sumDays, type PeriodKind,
-  AUDK, AUDS, C, CALLS, CAMPS, CFG, CTS, D, DAY, LEADS, LEAD_OUT, OUT, OUTK, P, PEO, PRANK, PRI, PROPS, REPS, SYNC, TODAY, WD,
+  AUDK, AUDS, C, CALLS, CAMPS, CFG, CTS, D, DAY, LEADS, OUT, OUTK, recallOf, P, PEO, PRANK, PRI, PROPS, REPS, SYNC, TODAY, WD,
   callsOn, campName, campOf, demoN, docOf, dupCheck, elig, first, fmtS, fmtT, fmtUS, fmtWD, listOf, mDay, mOf, openOf, ownerOf, propStatus, relDay,
   type Metrics, type Pri, type RepKey,
 } from '@/lib/domain';
@@ -12,13 +12,15 @@ import { inp, on } from '@/lib/state/actions';
 import { S, bump, toast } from '@/lib/state/store';
 import { can } from '@/lib/state/auth';
 import { UsersPage } from './users';
+import { OutcomesPage } from './outcomes';
+import { getMe } from '@/lib/state/auth';
 import { TeamChart } from './TeamChart';
 import type { SbItem } from '@/components/shell/Sidebar';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { Avatar, Bar, Icon, KPI_GRID, Kv, OutPill, PageHeader, Pill, PrTag, StatFilter, paged } from '@/components/ui';
 
 export function MgrSide() {
-  return <Sidebar k="mgr" items={[['Today'], ['live', 'The day by rep', 'target'], ['pool', 'Contact pool', 'users'], ['leads', 'Hand-offs to sales', 'hand', LEADS.filter(l => l.fresh).length], ['Plan'], ['camp', 'Campaigns', 'cal'], ['rules', 'Assignment rules', 'gear'], ['Results'], ['perf', 'Performance', 'chart'], ['mail', 'Daily emails', 'mail'], ['monday'], ['sync', 'monday sync', 'sync'], ...(can('users.manage') ? [['Admin'], ['users', 'Users', 'key']] as SbItem[] : [])]} />;
+  return <Sidebar k="mgr" items={[['Today'], ['live', 'The day by rep', 'target'], ['pool', 'Contact pool', 'users'], ['leads', 'Hand-offs to sales', 'hand', LEADS.filter(l => l.fresh).length], ['Plan'], ['camp', 'Campaigns', 'cal'], ['rules', 'Assignment rules', 'gear'], ['Results'], ['perf', 'Performance', 'chart'], ['mail', 'Daily emails', 'mail'], ['monday'], ['sync', 'monday sync', 'sync'], ...(can('users.manage') || getMe()?.role === 'admin' ? [['Admin'], ...(can('users.manage') ? [['users', 'Users', 'key']] : []), ...(getMe()?.role === 'admin' ? [['outc', 'Call outcomes', 'list']] : [])] as SbItem[] : [])]} />;
 }
 
 /* ----- The day by rep ----- */
@@ -56,7 +58,7 @@ function MgrLive() {
 }
 
 /* ----- Contact pool ----- */
-const POOLF: [string, string, string][] = [['pool', 'Eligible, not reserved', 'green'], ['res', 'Reserved today', 'blue'], ['due', 'Not due yet', ''], ['hold', 'On hold, no number', 'amber'], ['stop', 'Removed by the property', 'red'], ['closed', 'Closed', 'red'], ['dnc', 'Do Not Call or suppressed', 'red'], ['pipe', 'In AB sales pipeline', 'blue'], ['lead', 'Handed to sales', 'green'], ['max', 'Max attempts', ''], ['all', 'All contacts', '']];
+const POOLF: [string, string, string][] = [['pool', 'Eligible, not reserved', 'green'], ['res', 'Reserved today', 'blue'], ['due', 'Not due yet', ''], ['hold', 'On hold, no number', 'amber'], ['stop', 'Removed by the property', 'red'], ['closed', 'Closed', 'red'], ['dnc', 'Do Not Call or suppressed', 'red'], ['pipe', 'In AB sales pipeline', 'blue'], ['lead', 'Handed to sales', 'green'], ['max', 'On hold, max attempts', 'amber'], ['all', 'All contacts', '']];
 const POOL_COLS = 'grid-cols-[40px_minmax(0,1.2fr)_minmax(0,1fr)_150px_150px_minmax(0,1.3fr)]';
 function MgrPool() {
   const E = CTS.map(c => [c, elig(c)] as const);
@@ -80,7 +82,7 @@ function MgrPool() {
           <div className="t"><b className="font-semibold">{p.addr || "No address"}</b><small>{AUDS[p.aud].s}, {p.permit === 'None' ? 'no permit' : p.permit}</small></div>
           <div className="cell"><OutPill o={c.out} /><small>{c.lastAt ? fmtS(c.lastAt) + (c.rep ? ' by ' + first(c.rep) : '') : ''}</small></div>
           <div className="cell">{c.nextAt ? <><b>{fmtWD(c.nextAt)}</b><small>{relDay(c.nextAt)}</small></> : <span className="muted">Any day</span>}</div>
-          <div className="cell"><Pill t={e.why.length > 46 ? e.why.slice(0, 44) + '...' : e.why} cls={e.tone} /></div>
+          <div className="cell"><Pill t={e.why.length > 46 ? e.why.slice(0, 44) + '...' : e.why} cls={e.tone} />{e.k === 'max' && getMe()?.role === 'admin' ? <button className="btn sec sm mt-[4px]" {...on('reactivate', c.k)}><Icon n="refresh" s={14} />Reactivate</button> : null}</div>
         </div>;
       })}
     </div>
@@ -122,7 +124,7 @@ function CampRow({ c }: { c: (typeof CAMPS)[number] }) {
     <div className="cell"><b>{fmtUS(c.date)}</b><small>{WD[D(c.date)!.getDay()]}</small></div>
     <div className="t"><b>{c.auds.map(a => AUDS[a].n).join(', ')}</b><small>{c.k}, goal {c.goal} potential lead per rep</small></div>
     <div className="cell flex gap-[4px]">{c.reps.map(r => <Avatar key={r} k={r} sm />)}</div>
-    <div className="cell">{res != null ? res + ' reserved' : c.date > TODAY ? 'Allocates at 7:00 AM' : 'Closed'}</div>
+    <div className="cell">{res != null ? res + ' reserved' : c.date > TODAY ? 'Allocates on its day' : 'Closed'}</div>
     <div className="cell">{m ? m.calls + ' calls' : ''}</div>
     <div className="cell">{m ? m.leads + ' leads' : ''}</div>
   </div>;
@@ -165,7 +167,8 @@ function MgrRules() {
         </div>
         <div className="card p-[6px_4px]"><h3 className="p-[10px_14px_0]"><Icon n="shield" s={16} />Eligibility, checked in this order</h3>
           {eligRows.map(([i, t, d, tg], ix) => <Rule key={ix} icon={i} t={t} d={d} r="" tag={tg} />)}
-          <Rule icon="flag" t="Max attempts per contact" d="Counts every call, answered or not." r={<><Num k="maxAtt" v={CFG.maxAtt} /><span className="sm muted">calls</span></>} />
+          <Rule icon="flag" t="Max attempts per contact" d="Counts every call, answered or not. At the max the contact goes on hold; a follow-up set on the last attempt is kept." r={<><Num k="maxAtt" v={CFG.maxAtt} /><span className="sm muted">calls</span></>} />
+          <Rule icon="refresh" t="Reactivating an on-hold contact" d="Its rep or an administrator puts it back in the pool. Pending with Andrew: keep its attempts or start again at 0." r={<span className="segs">{[['false', 'Keep the attempts'], ['true', 'Back to 0']].map(([k, l]) => <button key={k} className="seg" {...on('cfgset', `reactivateReset|${k}`)} aria-pressed={String(!!CFG.reactivateReset) === k}>{l}</button>)}</span>} />
         </div>
       </div>
       <div>
@@ -175,9 +178,7 @@ function MgrRules() {
         </div>
         <div className="card"><h3><Icon n="cal" s={16} />When a contact can be called again</h3>
           <table className="ptbl"><tbody><tr><th>Result</th><th>Property status</th><th>Eligible again</th></tr>
-            {OUTK.map(o => <tr key={o}><td>{o}{OUT[o].prop ? <> <Pill t="Proposed" cls="amber" /></> : null}</td><td>{OUT[o].st}</td><td>{CFG.rc[o] != null
-              ? <span className="inline-flex gap-[6px] items-center"><Num k={'rc.' + o.replace(/ /g, '_')} v={CFG.rc[o]} w={62} /><span className="sm muted">{o === 'Undecided' || o === 'Not Interested' ? 'days, same rep for Undecided' : 'business days'}</span></span>
-              : o === 'Follow Up' ? 'On the date the rep sets, same rep' : LEAD_OUT.includes(o) ? 'Goes to AB sales' : o === 'Wrong Number' ? 'Next number, or on hold' : 'Never'}</td></tr>)}
+            {OUTK.map(o => <tr key={o}><td>{o}{OUT[o].proposed ? <> <Pill t="Proposed" cls="amber" /></> : null}</td><td>{OUT[o].status}</td><td>{waitText(o)}</td></tr>)}
           </tbody></table>
           <p className="sm muted mt-[8px]">With several contacts, the property takes the most advanced status: Potential Lead, then Not Interested, then Contacted, then Not Contacted.</p>
         </div>
@@ -285,6 +286,16 @@ function MgrSync() {
   </>;
 }
 
-export const MgrPages: Record<'live' | 'pool' | 'leads' | 'camp' | 'rules' | 'perf' | 'mail' | 'sync' | 'users', () => React.ReactNode> = {
-  live: MgrLive, pool: MgrPool, leads: MgrLeads, camp: MgrCamps, rules: MgrRules, perf: MgrPerf, mail: MgrMail, sync: MgrSync, users: UsersPage,
+/** "Eligible again" for an outcome of the catalog (the days are edited in Call outcomes). */
+function waitText(o: string): string {
+  const d = OUT[o];
+  if (d.needsFollowUp) return 'On the date and time the rep sets, same rep';
+  if (d.lead) return 'Goes to AB sales';
+  if (d.final) return 'Never';
+  const r = recallOf(o), t = `${r.days} ${r.cal ? 'day' : 'business day'}${r.days > 1 ? 's' : ''}`;
+  if (d.phone === 'bad') return `Next number in ${t}, or on hold`;
+  return d.sameRep ? `${t}, same rep` : t;
+}
+export const MgrPages: Record<'live' | 'pool' | 'leads' | 'camp' | 'rules' | 'perf' | 'mail' | 'sync' | 'users' | 'outc', () => React.ReactNode> = {
+  live: MgrLive, pool: MgrPool, leads: MgrLeads, camp: MgrCamps, rules: MgrRules, perf: MgrPerf, mail: MgrMail, sync: MgrSync, users: UsersPage, outc: OutcomesPage,
 };

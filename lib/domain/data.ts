@@ -33,15 +33,20 @@ export type Contact = {
   stop: { why: string; by: string | null } | null;
   res: { rep: RepKey; date: string } | null;
   note: string;
+  /** Date and time of the follow-up the contact asked for ('YYYY-MM-DDTHH:MM'); nextAt is its day. */
+  fuAt?: string | null;
+  /** Attempts the contact had when it was last reactivated from on-hold: a new round of attempts starts there. */
+  react?: number | null;
   callPh?: number | null; calling?: string | false;
   base?: string; props?: string[];
   ownerKey?: string; firstName?: string | null; lastName?: string | null; emails?: string[];
   mailAddr?: string | null; mailCity?: string | null; mailState?: string | null; mailZip?: string | null;
 };
 /** The outreach state a slot keeps for its own property (the rest of the contact is the person). */
-export const SLOT_KEYS = ['out', 'lastAt', 'nextAt', 'att', 'rep', 'stop', 'note'] as const;
+export const SLOT_KEYS = ['out', 'lastAt', 'nextAt', 'att', 'rep', 'stop', 'note', 'fuAt', 'react'] as const;
 export type SlotState = Pick<Contact, (typeof SLOT_KEYS)[number]>;
-export type Call = { id: number; ct: string; rep: PersonKey; at: string; out: string; note: string; ph: string; live?: boolean; fx?: string[] };
+/** key: the id the browser gives each save, so a double submission is saved once. */
+export type Call = { id: number; ct: string; rep: PersonKey; at: string; out: string; note: string; ph: string; live?: boolean; fx?: string[]; key?: string };
 export type Lead = { k: string; prop: string; ct: string; rep: PersonKey; at: string; out: string; note: string; src: string; fresh?: boolean };
 export type SyncEntry = { at: string; board: string; item: string; what: string };
 
@@ -124,3 +129,12 @@ export const fullAddr = (p: Property) => `${p.addr || 'No address'}, ${p.city ||
 export const numOr = (n: number | null | undefined, unit = '') => n == null ? '—' : n.toLocaleString('en-US') + unit;
 
 export function syncLog(board: string, item: string, what: string) { SYNC.unshift({ at: isoT(getClock()), board, item, what }); }
+
+/** The last call made to a contact (the highest id: the call log only grows). */
+export function lastCallOf(k: string): Call | undefined {
+  let best: Call | undefined;
+  for (const x of CALLS) if (x.ct === k && (!best || x.id > best.id)) best = x;
+  return best;
+}
+/** A property's call history, newest first: by date and time, then by id (two calls in the same minute). */
+export const historyOf = (keys: string[]) => CALLS.filter(x => keys.includes(x.ct)).sort((a, b) => b.at.localeCompare(a.at) || b.id - a.id);

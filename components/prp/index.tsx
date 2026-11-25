@@ -3,7 +3,7 @@
 import type React from 'react';
 import {
   T0, addDays,
-  AUDK, AUDS, C, CALLS, CFG, LEADS, NO_OUT, PROPS, TODAY,
+  AUDK, AUDS, C, CALLS, CFG, LEADS, OUT, PROPS, TODAY, isNoOut,
   P, ctsOf, elig, first, numOr, owners, fmtD, fmtS, propStatus, relDay, type Status,
 } from '@/lib/domain';
 import { denied, inp, on } from '@/lib/state/actions';
@@ -59,7 +59,7 @@ export function PrpRecord({ k }: { k: string }) {
   if (!p) return <div className="empty">Property not found.</div>;
   const tab = S.tab.prp || 'cts', cs = ctsOf(p.k), lead = LEADS.find(l => l.prop === p.k);
   const ids = cs.map(c => c.k), ncalls = CALLS.filter(x => ids.includes(x.ct)).length;
-  const reopenable = propStatus(p) === 'Not Interested' && !cs.some(c => c.dnc || c.out === 'Do Not Contact');
+  const reopenable = propStatus(p) === 'Not Interested' && !cs.some(c => c.dnc || (!!c.out && OUT[c.out]?.propagates === 'person'));
   let body: React.ReactNode = null;
   if (tab === 'cts') body = <div className="grid2">{cs.map(c => {
     const e = elig(c, true);
@@ -103,7 +103,7 @@ export function PrpRecord({ k }: { k: string }) {
     {cs.map(c => <div key={c.k} className="mrow"><b>Fire Rebuild Contacts</b><span>{c.n}</span><span className="muted ml-auto">{c.out || 'Not Contacted'}{c.nextAt ? ', next ' + fmtS(c.nextAt) : ''}</span></div>)}
     {lead ? <div className="mrow"><b>AB Leads</b><span>{lead.k}</span><span className="muted ml-auto">{lead.out}, {fmtS(lead.at)}</span></div> : null}
   </div>;
-  const no = cs.find(c => NO_OUT.includes(c.out!));
+  const no = cs.find(c => isNoOut(c.out));
   const ns = lead
     ? <div className="nextstep"><span className="ic"><Icon n="hand" s={17} /></span><div><b>With AB sales: {lead.k}</b><small>{lead.src === 'Inbound' ? 'Came in by phone to the office' : `${C(lead.ct).n} said ${lead.out} to ${first(lead.rep)} on ${fmtS(lead.at)}`}. The property is out of outbound lists.</small></div><div className="acts"><button className="btn sec sm" {...on('go_mgr_leads')}>See hand-offs</button></div></div>
     : p.inPipe

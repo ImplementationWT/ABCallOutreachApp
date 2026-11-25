@@ -15,7 +15,9 @@ import { PNG } from 'pngjs';
 import { openApp, openArtifact, settle } from './targets';
 
 type Case = { n: string; art: string; app: string; artClick?: string };
-const CHANGED = ['mgr-live', 'mgr-pool', 'mgr-rules', 'mgr-perf', 'prp-props', 'prp-cts', 'mgr-camp'];
+// Sprint 18 (fix/sprint-18), agreed changes: My follow-ups splits Overdue, Today and Upcoming with the
+// time and an On hold section; the manager's help no longer promises a fixed 7:00 AM allocation.
+const CHANGED = ['mgr-live', 'mgr-pool', 'mgr-rules', 'mgr-perf', 'prp-props', 'prp-cts', 'mgr-camp', 'rep-fu', 'mgr-help'];
 const CASES: Case[] = ([
   ...['today', 'fu', 'calls', 'help'].map(p => ({ n: 'rep-' + p, art: `vista=rep&pagina=${p}`, app: `/rep/${p}` })),
   ...['live', 'pool', 'leads', 'camp', 'rules', 'perf', 'mail', 'sync', 'help'].map(p => ({ n: 'mgr-' + p, art: `vista=mgr&pagina=${p}`, app: `/mgr/${p}` })),
