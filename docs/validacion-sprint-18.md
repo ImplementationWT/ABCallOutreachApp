@@ -2,15 +2,15 @@
 
 Ramas:
 - `validation/sprint-18`: la validación (pruebas y documentos, sin cambios de producción).
-- `fix/sprint-18`: los 10 arreglos aprobados, un commit por arreglo. No tiene merge.
+- `fix/sprint-18`: los 10 arreglos aprobados y la corrección de B2, un commit por arreglo.
 
 Terminología: "household" se traduce como **propiedad**, es decir, la propiedad con su permiso, a la que pueden pertenecer varios contactos.
 
 ## Resumen
 
-- Después de los arreglos, de 19 criterios (A1 a C4 más el acceso por API) cumplen 15, 1 es parcial (B2) y 3 quedan en espera por decisión (B1, B3 y B7).
+- Después de los arreglos, de 19 criterios (A1 a C4 más el acceso por API) cumplen 16 y 3 quedan en espera por decisión (B1, B3 y B7).
 - Lo más grave de la validación, el acceso por API, quedó resuelto: un rep solo lee sus datos y todas sus escrituras pasan por endpoints validados en el servidor.
-- Queda un hallazgo nuevo en B2. Cuando el volumen diario no alcanza, el reparto toma primero los P1 y P3 propios del rep, así que un P3 propio puede entrar antes que un P2. No se cambió el código porque B2 estaba aprobado sin construcción; queda para decidir.
+- El hallazgo de B2 (un P3 propio entraba antes que un P2 cuando el volumen no alcanzaba) se corrigió con la regla acordada: orden estricto P1 a P5 también en ese caso.
 
 ## Mapa del repo
 
@@ -44,7 +44,7 @@ En las pruebas, `it.fails` y `test.fail()` marcan un criterio que todavía no se
 | A5 | Ficha de contacto y propiedad, con lo que dijeron | **Cumple** | `historyOf` y `lastCallOf` `lib/domain/data.ts`; `HistList` y `SibRow` `components/rep/index.tsx`. e2e: "A5 the detail shows the property…" y "A5 \"Other contacts\" shows who made the last call…". Unit: "A5 contact detail" (2 pruebas). | — | Arreglo 9: historial por fecha y luego por id; autor de la última llamada. | 1 | 0.2 |
 | A6 | Responsive | **Cumple** | e2e: "A6 rep views at 375px / 768px / 1440px…". | — | — | 0 | 0 |
 | B1 | Pool filtrado por campaña activa, categoría y periodo de enfoque | **En espera** | `elig` y `freeGroups` `lib/domain/engine.ts`. Unit: "B1 callable pool…" (un caso por exclusión). | No existe "periodo de enfoque". | En espera de la definición. | 4 | — |
-| B2 | Prioridad y reparto por porcentajes | **Parcial** | `priOf` `lib/domain/engine.ts`; `morningAlloc`. Unit: "agreed rule: no category shares…", "agreed rule: the rep's list is in strict P1 to P5 order…" y `it.fails` "[Hallazgo] when the daily volume is short, the allocation picks strictly by priority…". | La lista que trabaja el rep está en orden estricto y no hay porcentajes, como dice la regla. Pero cuando el volumen diario no alcanza, `morningAlloc` reserva primero los P1 y P3 propios del rep: un P3 propio puede entrar antes que un P2 de otro. | Por decidir: tomar los propios también en orden estricto, P1 propios, luego P2, luego P3 propios… (unas 2 h). No se cambió el código porque B2 estaba aprobado sin construcción. | 0 | <0.1 |
+| B2 | Prioridad y reparto por porcentajes | **Cumple** | `morningAlloc` y `startAlloc` `lib/domain/engine.ts`; `priOf`. Unit: "agreed rule: no category shares…", "agreed rule: the rep's list is in strict P1 to P5 order…" y "agreed rule: when the daily volume is short, the allocation still picks strictly by priority…". | — | Regla acordada: orden estricto P1 a P5, también cuando el volumen no alcanza. Los follow-ups propios entran primero porque son P1; un indeciso propio (P3) espera detrás de todos los P2. No hay porcentajes. El seed del demo (`world.ts`, `artifactMorning`) conserva el reparto del artifact para que las e2e lo puedan comparar; el motor de la app usa el orden estricto. | 2 | 0.2 |
 | B3 | Lista diaria por volumen del rep | **En espera** | `morningAlloc` `lib/domain/engine.ts`. Unit: "B3 daily list by volume…", con 2 `it.fails`. | Se entrega la propiedad completa aunque pase el volumen; el volumen es uno solo para todos. | En espera. | 4 | — |
 | B4 | Follow-ups vencidos vuelven a su rep | **Cumple** | `saveOutcome` y `reassignOpen` `lib/domain/engine.ts`; `freeGroups`. Unit: "the follow-up belongs to the rep assigned…", "if its rep is not available, nobody else takes it…" y "Reassign moves… their pending follow-ups". e2e: "B4 Reassign (on the server)…". | — | Arreglo 5: dueño = rep asignado; si no está disponible, nadie más lo toma; Reassign pasa sus follow-ups al rep nuevo. | 2 | 0.1 |
 | B5 | Una propiedad, un rep por día | **Cumple** | `commit` en `lib/db/server-state.ts` (transacción con `property_locks`, `_id` "fecha:propiedad"); `PLOCK` en `freeGroups`. e2e: "B5 the property lock is in MongoDB…", "B5 the browser never writes reservations", "B5 + B8 two reps ask for more at once…" y `alloc.spec.ts`. | — | Arreglo 4: bloqueo atómico en MongoDB, en transacción con las reservas. Reassign mueve el bloqueo y End workday lo libera. El navegador no escribe reservas. | 6 | 0.6 |
@@ -57,7 +57,7 @@ En las pruebas, `it.fails` y `test.fail()` marcan un criterio que todavía no se
 | C4 | Intentos máximos y on-hold | **Cumple** | `onHold`, `attemptsOf` y `reactivate` `lib/domain/engine.ts`; `reactivateContact` `lib/db/work.ts`. Unit: "C4 maximum attempts and on-hold" (8 pruebas). e2e: "the assigned rep or an administrator reactivates an on-hold contact…". | — | Arreglo 7: cada llamada cuenta 1 intento. El máximo es 6, el valor que ya usa la app en `rules/default.maxAtt`. Al máximo, on-hold. Excepción: un follow-up en el sexto intento se respeta. Reactivar lo hacen el rep asignado o un administrador, sin tocar el contador. El reinicio a 0 está detrás de `reactivateReset`, apagado y pendiente de Andrew. | 4 | 0.4 |
 | API | Acceso por API (un rep contra otro rep) | **Cumple** | `lib/db/scope.ts`; `app/api/state/route.ts`; `app/api/work/route.ts`; `mayActFor` `lib/auth/roles.ts`. e2e: las 5 pruebas de "6. API: a rep cannot read or change another rep's data" y `db.spec.ts`. | — | Arreglo 1: GET filtrado por rol; escrituras del rep solo por `/api/work` y `/api/allocate`; Reassign en el servidor. | 12 | 0.2 |
 
-**Horas reales:** es el tiempo que me tomó a mí cada arreglo, medido en el reloj entre commits: 11:31 a 13:57, unas 2.4 horas en total. No incluye la revisión humana ni el despliegue. Las horas estimadas eran de desarrollo humano.
+**Horas reales:** es el tiempo que me tomó a mí cada arreglo, medido en el reloj entre commits: 11:31 a 13:57, unas 2.4 horas en total, más unas 0.2 horas de la corrección de B2. No incluye la revisión humana ni el despliegue. Las horas estimadas eran de desarrollo humano.
 
 ## Estado de D
 
@@ -72,7 +72,7 @@ En las pruebas, `it.fails` y `test.fail()` marcan un criterio que todavía no se
 | Tarea | Estado sugerido | Por qué |
 | --- | --- | --- |
 | Rep Workspace | **Completed** | A1 a A6 y el acceso por API cumplen. |
-| Daily Assignment Engine | **In progress** | B4, B5, B6 y B8 cumplen. B2 es parcial (hallazgo por decidir). B1, B3 y B7 están en espera. |
+| Daily Assignment Engine | **In progress** | B2, B4, B5, B6 y B8 cumplen. B1, B3 y B7 están en espera. |
 | Call Outcomes & Rules | **Completed** | C1 a C4 cumplen. Queda una regla pendiente con Andrew (reiniciar el contador al reactivar), ya implementada como opción. |
 | Discovery & Rules Definition | **In progress** | Faltan la sesión con Andrew y el cierre de D3. RingCentral queda fuera hasta tener la cuenta. |
 
@@ -120,7 +120,7 @@ Datos usados:
 | 1 | Audiencias (categorías de hoy) | `AUDS` `lib/domain/catalogs.ts` | Pacific Palisades, Sunset Mesa, Malibu y Altadena | No (código) | B1 |
 | 2 | Campaña: fecha, audiencias y reps | Colección `campaigns` | Una por día; sin campaña del día, nadie recibe lista (lo dice la pantalla de inicio) | Sí (Campaigns) | B1, A1 |
 | 3 | Periodo de enfoque | No existe | — | — | B1 (en espera) |
-| 4 | Prioridades P1 a P5 | `priOf` (campo `pri` del catálogo); permiso emitido = P2 | P1 follow-up, P2 permiso, P3 indeciso, P4 buzón y P5 el resto; orden estricto | El `pri` de cada resultado sí | B2, A2 |
+| 4 | Prioridades P1 a P5 | `priOf` (campo `pri` del catálogo); permiso emitido = P2; `morningAlloc` y `startAlloc` | P1 follow-up, P2 permiso, P3 indeciso, P4 buzón y P5 el resto; orden estricto, también cuando el volumen no alcanza | El `pri` de cada resultado sí | B2, A2 |
 | 5 | Porcentajes por categoría | No existen (regla acordada) | — | — | B2 |
 | 6 | Lote diario por rep | `rules/default.first` y `scale` | 200 × 0.07 = 14, igual para todos | Sí | B3 (en espera) |
 | 7 | Lote de "Request more" | `rules/default.more` | 100 × 0.07 = 7 | Sí | B8 |
@@ -146,5 +146,4 @@ Datos usados:
 
 1. **Días hábiles contra horario.** Los días hábiles son de lunes a viernes, pero el horario dice "Monday to Saturday".
 2. **Refresco semanal.** "Weekly" se puede elegir en Assignment rules, pero el motor no lo usa.
-3. **Orden de los propios.** Cuando el volumen diario no alcanza, los P1 y P3 propios del rep se toman antes que los P2 (hallazgo de B2).
-4. **Correos diarios.** El correo diario simulado (reportes, fuera de alcance) sigue diciendo "Sent: 7:00 AM".
+3. **Correos diarios.** El correo diario simulado (reportes, fuera de alcance) sigue diciendo "Sent: 7:00 AM".

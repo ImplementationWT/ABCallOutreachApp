@@ -140,19 +140,21 @@ export function reserve(g: Group, rep: RepKey) {
   for (const c of g.cs) { if (ownerBusy(c)) continue; c.res = { rep, date: TODAY }; if (!d.list.includes(c.k)) d.list.push(c.k); }
 }
 export const load = (rep: RepKey) => DAY[rep].list.length;
-/* Morning allocation: owned follow-ups first, then the rest to whoever has the lowest load */
+/* Morning allocation: strict priority, each group to whoever has the lowest load (own groups only to their rep) */
 /** `at`: when it ran (the seeded demo day keeps the artifact's 7:00 AM; the app passes the real time). */
 export function morningAlloc(at = fmtT(nowT())) {
   const reps = REPS.filter(r => DAY[r].st !== 'off' && campOf(r));
   const cap = demoN(CFG.first);
-  for (const r of reps) for (const g of freeGroups(r).filter(g => g.own === r)) if (load(r) < cap) reserve(g, r);
+  // Strict priority (P1 to P5), also when the daily volume runs out: each rep takes, in turn (lowest
+  // load first), the best group of their own pool. Their own follow-ups come first because they are
+  // P1; their own undecided (P3) wait behind every P2 (freeGroups is sorted by priority).
   const full = new Set<RepKey>();
   let guard = 0;
   while (guard++ < 600) {
     const open = reps.filter(r => load(r) < cap && !full.has(r)).sort((a, b) => load(a) - load(b) || reps.indexOf(a) - reps.indexOf(b));
     if (!open.length) break;
     const r = open[0];
-    const g = freeGroups(r).find(x => !x.own);
+    const g = freeGroups(r)[0];
     if (!g) { full.add(r); continue; }
     reserve(g, r);
   }
@@ -197,8 +199,8 @@ export function startAlloc(rep: RepKey) {
   startDay(rep);
   if (openOf(rep).length) return 0;
   const cap = demoN(CFG.first), before = load(rep);
-  for (const g of freeGroups(rep).filter(g => g.own === rep)) if (load(rep) - before < cap) reserve(g, rep);
-  for (const g of freeGroups(rep).filter(g => !g.own)) { if (load(rep) - before >= cap) break; reserve(g, rep); }
+  // Strict priority, like the morning run (own follow-ups first because they are P1)
+  for (const g of freeGroups(rep)) { if (load(rep) - before >= cap) break; reserve(g, rep); }
   const n = load(rep) - before;
   if (n) DAY[rep].batches.push({ at: fmtT(nowT()), n, k: 'Start of workday' });
   return n;

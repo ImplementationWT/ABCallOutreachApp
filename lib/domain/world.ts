@@ -10,9 +10,9 @@ import { AUDK, isLeadOut, isNoOut, setOutcomes, type AudKey } from './catalogs';
 import { DEFAULT_OUTCOMES } from './outcomes';
 import { CTS, LEADS, LN, FN, OTHER_ROLES, PROPS, SEQ, SYNC, ctsOf, mkCt, mkPhone, mkProp, P, resetData, syncLog, type Contact, type Phone } from './data';
 import { D, T0, TODAY, WDL, addBiz, addDays, fmtS, fmtWD, iso, p2, setClock, setToday, subBiz } from './dates';
-import { DAY, morningAlloc, openOf, pastAt, pastCall, recallOf, resetDays, saveOutcome } from './engine';
-import { resetCampaigns } from './campaigns';
-import { resetRules } from './rules';
+import { DAY, freeGroups, load, openOf, pastAt, pastCall, recallOf, reserve, resetDays, saveOutcome } from './engine';
+import { campOf, resetCampaigns } from './campaigns';
+import { CFG, demoN, resetRules } from './rules';
 import { buildDaym, resetDaym } from './metrics';
 import { REPS, type RepKey } from './people';
 import { pick, resetSeed, rint, rnd } from './seed';
@@ -144,7 +144,7 @@ export function buildWorld(t0: Date = new Date()) {
   buildDaym();
 
   /* ===== MORNING STATE ===== */
-  morningAlloc('7:00 AM');
+  artifactMorning();
   /* Priya and Daniel started before Maya and made a few calls */
   DAY.pri.st = 'started'; DAY.pri.startedAt = TODAY + 'T07:58';
   DAY.dan.st = 'started'; DAY.dan.startedAt = TODAY + 'T08:01';
@@ -166,4 +166,25 @@ export function buildWorld(t0: Date = new Date()) {
     syncLog('Fire Rebuild Contacts', 'Morning allocation', `${REPS.reduce((a, r) => a + DAY[r].list.length, 0)} contacts reserved for 3 reps, Reserved For and Campaign columns updated`);
     syncLog('Outreach Daily Metrics', fmtWD(subBiz(T0, 1)), 'Daily totals by rep pushed for the dashboard');
   })();
+}
+
+/** The demo day's morning lists exactly as artifact/app.html built them (each rep's own follow-ups and
+ * undecided first, then the rest by priority), so the seeded demo matches the artifact the e2e tests
+ * compare with. Only the seed uses it: the app's engine (morningAlloc) allocates in strict P1 to P5
+ * order, also when the daily volume runs out (Sprint 18, agreed rule). */
+function artifactMorning() {
+  const reps = REPS.filter(r => DAY[r].st !== 'off' && campOf(r));
+  const cap = demoN(CFG.first);
+  for (const r of reps) for (const g of freeGroups(r).filter(g => g.own === r)) if (load(r) < cap) reserve(g, r);
+  const full = new Set<RepKey>();
+  let guard = 0;
+  while (guard++ < 600) {
+    const open = reps.filter(r => load(r) < cap && !full.has(r)).sort((a, b) => load(a) - load(b) || reps.indexOf(a) - reps.indexOf(b));
+    if (!open.length) break;
+    const r = open[0];
+    const g = freeGroups(r).find(x => !x.own);
+    if (!g) { full.add(r); continue; }
+    reserve(g, r);
+  }
+  for (const r of REPS) DAY[r].batches.push({ at: '7:00 AM', n: DAY[r].list.length, k: 'Morning allocation' });
 }

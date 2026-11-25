@@ -3,7 +3,7 @@
 Duración máxima: 60 minutos. Primero van las preguntas marcadas como **PRIORITARIA**, luego las de ajuste. Las marcadas **EN ESPERA** solo se registran: no se construyen todavía.
 
 Ya están acordadas y no se preguntan, ver `docs/reglas-call-outreach.md`:
-- orden estricto de prioridades P1 a P5, sin porcentajes por categoría;
+- orden estricto de prioridades P1 a P5, también cuando el volumen diario no alcanza, sin porcentajes por categoría;
 - el follow-up pertenece al rep asignado y espera si ese rep no está;
 - follow-up con fecha y hora;
 - ventanas de recall de al menos 1 día, sin recalcular las fechas ya puestas;
@@ -26,7 +26,7 @@ El esfuerzo está en horas de desarrollo.
 | Minutos | Tema |
 | --- | --- |
 | 0 a 5 | Qué cambió desde la validación (reglas ya acordadas, catálogo editable) |
-| 5 a 25 | PRIORITARIAS: 1.1, 1.3, 2.1, 6.1 |
+| 5 a 25 | PRIORITARIAS: 1.1, 1.3, 6.1 |
 | 25 a 40 | Catálogo de resultados (tabla de la sección 5) |
 | 40 a 55 | Ajuste: 3.1, 3.2, 4.1, 7.2, 8.1, 8.2, 9.1, 9.2; registrar las de EN ESPERA (1.2, 7.1) |
 | 55 a 60 | Repaso de lo acordado |
@@ -58,16 +58,6 @@ El esfuerzo está en horas de desarrollo.
 - **Ejemplos de respuesta:** "una por día está bien"; "una campaña con fecha de inicio y fin"; "si no hay campaña, que use la del día anterior"; "si no hay campaña, todas las zonas".
 - **Acordado:** ☐ ______________________
 - **Impacto si cambia:** campaña con inicio y fin, 4 a 6 h. Regla para los días sin campaña, 2 h.
-
-## 2. Prioridades
-
-### 2.1 PRIORITARIA. Follow-ups e indecisos propios cuando no alcanza el número del día
-
-- **Pregunta:** si el número diario de un rep no alcanza para todo, ¿sus propios indecisos van antes que los permisos emitidos de cualquiera, o se respeta el orden estricto (P1, P2, P3…)?
-- **Hoy:** el reparto toma primero los follow-ups y los indecisos propios del rep, y después el resto. Así, un indeciso propio (P3) puede entrar antes que un permiso emitido (P2). En la lista que ve el rep el orden sí es estricto.
-- **Ejemplos de respuesta:** "orden estricto siempre"; "primero lo propio del rep, como ahora".
-- **Acordado:** ☐ ______________________
-- **Impacto si cambia:** 2 h.
 
 ## 3. Volumen diario (EN ESPERA)
 

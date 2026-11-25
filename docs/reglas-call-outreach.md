@@ -19,10 +19,9 @@ Usa la misma estructura que `docs/reglas-call-outreach-plantilla.md`. "Propiedad
 
 | # | Regla | Valor | Estado |
 | --- | --- | --- | --- |
-| 2.0 | Orden de prioridad | P1 Follow Up, P2 Permit Issued, P3 Undecided, P4 Left VM y P5 el resto, en orden estricto | Acordada |
+| 2.0 | Orden de prioridad | P1 Follow Up, P2 Permit Issued, P3 Undecided, P4 Left VM y P5 el resto, en orden estricto, también cuando el volumen diario no alcanza: los follow-ups propios entran primero porque son P1, y un indeciso propio (P3) no entra antes que un permiso emitido (P2) | Acordada |
 | 2.0b | Porcentaje por categoría | No hay porcentajes | Acordada |
 | 2.0c | Orden de la lista del día | Los contactos de una misma propiedad salen juntos | Acordada |
-| 2.1 | Propios cuando no alcanza el número del día | Hoy el reparto toma primero los follow-ups y los indecisos propios, así que un P3 propio puede entrar antes que un P2 | Pendiente de confirmar con Andrew |
 
 ## 3. Volumen diario
 

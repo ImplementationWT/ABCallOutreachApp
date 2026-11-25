@@ -87,7 +87,7 @@ describe('B2 priority', () => {
     S.user = 'may';
     expect(openOf('may').sort(queueSort).map(c => priOf(c))).toEqual(['P1', 'P1', 'P1', 'P2', 'P2', 'P2', 'P3', 'P3', 'P3', 'P4', 'P4', 'P4', 'P5', 'P5', 'P5']);
   });
-  it.fails('[Hallazgo] when the daily volume is short, the allocation picks strictly by priority (today the rep\'s own P3 come before P2)', () => {
+  it('agreed rule: when the daily volume is short, the allocation still picks strictly by priority (own P1 first, own P3 after every P2)', () => {
     mixed(6); // room for 6: strict order would be the 3 P1 and the 3 P2
     expect(listOf('may').map(c => priOf(c)).sort()).toEqual(['P1', 'P1', 'P1', 'P2', 'P2', 'P2']);
   });
