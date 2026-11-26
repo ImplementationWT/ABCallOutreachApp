@@ -6,7 +6,7 @@ import { REP_PEOPLE, mayActFor } from '@/lib/auth/roles';
 import type { RepKey } from '@/lib/domain';
 
 /* POST /api/work { action, rep, now: 'YYYY-MM-DDTHH:MM' (the browser's local time), ... }
- *   save      { ct, out, note, fu }   result of a call on a contact of the rep's list today
+ *   save      { ct, out, note, fu, ph } result of a call on a contact of the rep's list today (ph: number dialed)
  *   endday / reopenday                the rep's workday
  *   reassign  { to, n }               Outreach Manager: change (contacts of `rep` move to `to`)
  *   reactivate { ct }                 a contact on hold: its assigned rep or an administrator
@@ -24,7 +24,7 @@ export async function POST(req: Request) {
     if (b.action === 'reactivate') return Response.json(await reactivateContact(db, now, { admin: a.user.role === 'admin', person: me.person, name: a.user.name }, String(b.ct ?? '')));
     if (!mayActFor(me, rep)) return forbidden();
     switch (b.action) {
-      case 'save': return Response.json(await saveResult(db, now, rep, { ct: String(b.ct ?? ''), out: String(b.out ?? ''), note: typeof b.note === 'string' ? b.note : '', fu: typeof b.fu === 'string' ? b.fu : null, key: typeof b.key === 'string' ? b.key : undefined }));
+      case 'save': return Response.json(await saveResult(db, now, rep, { ct: String(b.ct ?? ''), out: String(b.out ?? ''), note: typeof b.note === 'string' ? b.note : '', fu: typeof b.fu === 'string' ? b.fu : null, key: typeof b.key === 'string' ? b.key : undefined, ph: b.ph == null ? null : Number(b.ph) }));
       case 'endday': return Response.json(await endWorkday(db, now, rep));
       case 'reopenday': return Response.json(await reopenWorkday(db, now, rep));
       case 'reassign': {

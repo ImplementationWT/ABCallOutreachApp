@@ -232,10 +232,13 @@ export function endDay(rep: RepKey) {
 /** The person's slots for their other properties that are still in outreach. */
 const otherSlots = (c: Contact) => slotsOf(c).filter(x => x !== c && !x.stop && !isFinal(x));
 export const phIdx =(c: Contact) => { const i = c.phones.findIndex(x => x.st !== 'bad'); return i < 0 ? 0 : i; };
+/** The number the rep is calling: the one dialed (if it is not marked wrong), or the next valid one. */
+export const dialedIdx = (c: Contact) => c.callPh != null && c.phones[c.callPh] && c.phones[c.callPh].st !== 'bad' ? c.callPh : phIdx(c);
 /* What a result will do, written from the rules (same text before and after saving) */
 export function effectsOf(c: Contact, out: string, fu?: string | null) {
   const p = P(c.prop), d = OUT[out], sib = ctsOf(p.k).filter(x => x !== c && !x.stop && !isFinal(x) && !x.dnc);
-  const nx = nextFor(out, TODAY, Object.assign({}, c, { phones: d.phone === 'bad' ? c.phones.map((x, i) => i === phIdx(c) ? { n: x.n, st: 'bad' as const } : x) : c.phones }), fu);
+  const ix = dialedIdx(c);
+  const nx = nextFor(out, TODAY, Object.assign({}, c, { phones: d.phone === 'bad' ? c.phones.map((x, i) => i === ix ? { n: x.n, st: 'bad' as const } : x) : c.phones }), fu);
   const fx: string[] = [];
   const st = d.status;
   const after = ST_RANK[st] > ST_RANK[propStatus(p)] || d.lead ? st : propStatus(p);
@@ -253,8 +256,9 @@ export function effectsOf(c: Contact, out: string, fu?: string | null) {
     if (d.propagates === 'person' && more) fx.push(`${c.n} also owns ${more} other propert${more > 1 ? 'ies' : 'y'}: ${more > 1 ? 'they leave' : 'it leaves'} the lists too`);
     if (d.propagates === 'property' && !d.final && more) fx.push(`Only this property: ${c.n}’s other ${more} propert${more > 1 ? 'ies stay' : 'y stays'} in outreach`);
   } else if (d.phone === 'bad') {
-    const other = c.phones.find((x, i) => i !== phIdx(c) && x.st !== 'bad');
-    fx.push(other ? `This number is marked wrong. Next call goes to ${other.n} on ${fmtWD(nx!)}` : 'On hold until there is a new number (phase 2: automatic number search)');
+    const other = c.phones.find((x, i) => i !== ix && x.st !== 'bad');
+    fx.push(other ? `${c.phones[ix]?.n || 'This number'} is marked wrong and is not offered again. Next call goes to ${other.n} on ${fmtWD(nx!)}` : `${c.phones[ix]?.n || 'This number'} is marked wrong. No other valid number: the contact leaves the pool until a new number is added`);
+    if (!d.countsAsAttempt) fx.push('Not counted as an attempt');
   } else if (d.needsFollowUp) {
     fx.push(`Comes back to you (${d.pri || 'P1'}) on ${fu ? fmtWD(fu) + (fu.length > 10 ? ' at ' + fmtT(fu) : '') : 'the date and time you set'}`);
   } else if (d.sameRep) {
@@ -273,8 +277,7 @@ export function saveOutcome(ck: string, rep: RepKey, out: string, note: string, 
   const c = C(ck), p = P(c.prop), d = OUT[out];
   const fx = effectsOf(c, out, fu);
   const at = isoT(nowT(4));
-  const ix = c.callPh != null ? c.callPh : phIdx(c);
-  const ph = c.phones[ix];
+  const ph = c.phones[dialedIdx(c)];
   const call: Call = { id: SEQ.call++, ct: c.k, rep, at, out, note, ph: ph?.n || '', live: true };
   CALLS.push(call);
   if (ph && d.phone === 'bad') ph.st = 'bad';

@@ -76,9 +76,12 @@ export const INDEXES: Partial<Record<CollectionName, IndexDescription[]>> = {
 };
 
 /** Server-only collections (not part of the app's state): the property locks of each day
- * (lib/db/server-state.ts). _id "date:property" is unique, so a property has one rep a day. */
+ * (lib/db/server-state.ts; _id "date:property" is unique, so a property has one rep a day) and the
+ * one-time migrations already run. */
 const SERVER_SCHEMAS: Record<string, Schema> = {
   property_locks: obj(['date', 'prop', 'rep'], { _id: str, date, prop: str, rep: enumOf(REPS) }),
+  // One-time data changes already applied (lib/db/migrations.ts)
+  migrations: obj(['at', 'what', 'result'], { _id: str, at: str, what: str, result: str }),
 };
 const SERVER_INDEXES: Record<string, IndexDescription[]> = { property_locks: [{ key: { date: 1, rep: 1 } }] };
 

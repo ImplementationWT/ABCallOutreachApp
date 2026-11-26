@@ -7,7 +7,7 @@ import type { Pri, Status, Tone } from './catalogs';
 export type OutcomeDef = {
   /** Shown to the rep; false = not offered any more, history keeps it. */
   active: boolean;
-  /** The call adds one attempt to the contact (rule: every call counts). */
+  /** The call adds one attempt to the contact (rule: every call counts, except Wrong Number). */
   countsAsAttempt: boolean;
   /** Days until the contact can be called again (minimum 1). */
   recallDays: number;
@@ -45,11 +45,12 @@ const o = (x: Partial<OutcomeDef> & Pick<OutcomeDef, 'group' | 'status' | 'tone'
   sameRep: false, pri: null, phone: 'ok', started: false, proposed: false, ...x,
 });
 
-/** Seed of the catalog: the 11 outcomes with the values the app used until now. */
+/** Seed of the catalog: the 11 outcomes, with the rules agreed with Andrew. */
 export const DEFAULT_OUTCOMES: [string, OutcomeDef][] = [
   ['Not Contacted', o({ group: 'none', status: 'Not Contacted', tone: 'n', hint: 'No answer, no voicemail', recallDays: 1, phone: 'keep' })],
   ['Left VM', o({ group: 'none', status: 'Not Contacted', tone: 'b', hint: 'Voicemail left', recallDays: 3, phone: 'keep', pri: 'P4' })],
-  ['Wrong Number', o({ group: 'none', status: 'Not Contacted', tone: 'n', hint: 'Number is not theirs', recallDays: 1, phone: 'bad' })],
+  // Wrong Number is not an attempt on the person (agreed with Andrew): only the number is marked wrong
+  ['Wrong Number', o({ group: 'none', status: 'Not Contacted', tone: 'n', hint: 'Number is not theirs', recallDays: 1, phone: 'bad', countsAsAttempt: false })],
   ['Hung Up', o({ group: 'con', status: 'Not Contacted', tone: 'n', hint: 'Answered, no conversation', recallDays: 2, proposed: true })],
   ['Undecided', o({ group: 'conv', status: 'Contacted', tone: 'a', hint: 'Talked, not sure yet', recallDays: 10, calendarDays: true, sameRep: true, pri: 'P3' })],
   ['Follow Up', o({ group: 'conv', status: 'Contacted', tone: 'a', hint: 'Asked for a call back', recallDays: 2, needsFollowUp: true, sameRep: true, pri: 'P1' })],

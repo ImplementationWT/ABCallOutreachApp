@@ -28,7 +28,7 @@ describe('C1 configurable outcome catalog', () => {
       const d = OUT[k] as OutcomeDef & Record<string, unknown>;
       for (const f of ['active', 'countsAsAttempt', 'recallDays', 'propagates', 'needsFollowUp']) expect(d, k).toHaveProperty(f);
       expect(d.recallDays, k).toBeGreaterThanOrEqual(1);
-      expect(d.countsAsAttempt, k).toBe(true);
+      expect(d.countsAsAttempt, k).toBe(k !== 'Wrong Number'); // agreed with Andrew: Wrong Number is not an attempt
     }
   });
   it('what an outcome does comes from the catalog in the database, not from the code', () => {
@@ -135,8 +135,8 @@ describe('C3 household propagation', () => {
 });
 
 describe('C4 maximum attempts and on-hold', () => {
-  it('every outcome adds one attempt (rule: every call counts)', () => {
-    for (const out of OUTK) { household(); saveOutcome('C-4', 'may', out, ''); expect(C('C-4').att, out).toBe(1); }
+  it('every outcome adds one attempt, except Wrong Number (agreed with Andrew)', () => {
+    for (const out of OUTK) { household(); saveOutcome('C-4', 'may', out, ''); expect(C('C-4').att, out).toBe(out === 'Wrong Number' ? 0 : 1); }
   });
   it('an outcome set not to count as an attempt in the catalog does not add one', () => {
     OUT['Not Contacted'].countsAsAttempt = false;
