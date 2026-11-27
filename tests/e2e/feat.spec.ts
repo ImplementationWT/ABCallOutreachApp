@@ -194,7 +194,13 @@ test.describe('4. Metrics', () => {
     }));
     const per = (rep?: string) => { const cs = calls.filter(c => !rep || c.rep === rep); return { calls: cs.length, con: cs.filter(c => out[c.out].connect).length, leads: cs.filter(c => out[c.out].lead).length }; };
     const p = await page(browser, 'admin', '/mgr/reports');
-    await expect(p.locator('[data-report-day]')).toHaveText('Mon, Nov 2, today (Pacific time)');
+    // the day picker: the date centered in the field, the arrows as tall as the field, no repeated date
+    await expect(p.locator('[data-report-day]')).toHaveText('Mon, Nov 2');
+    await expect(p.locator('[data-act=repnow]')).toHaveCount(0); // already today
+    const field = (await p.locator('[data-report-day] .pk-b').boundingBox())!;
+    for (const b of await p.locator('[data-report-bar] .rnav').all()) expect(Math.abs((await b.boundingBox())!.height - field.height)).toBeLessThanOrEqual(1);
+    expect(await p.locator('[data-report-day] .pk-b').evaluate(e => getComputedStyle(e).justifyContent)).toBe('center');
+    await expect(p.locator('#main')).not.toContainText('How each number is counted');
     const team = per();
     expect(team.calls).toBeGreaterThan(0);
     await expect(p.locator('[data-activity] [data-metric=calls] b')).toHaveText(String(team.calls));
@@ -216,7 +222,7 @@ test.describe('4. Metrics', () => {
     await p.click('[data-act=repnav][data-v="-1"]');
     await expect(p.locator('[data-report-day]')).toHaveText('Sun, Nov 1');
     await p.click('[data-act=repnow]');
-    await expect(p.locator('[data-report-day]')).toContainText('today');
+    await expect(p.locator('[data-report-day]')).toHaveText('Mon, Nov 2');
     await withDb(db => db.collection('call_log').deleteMany({ _id: { $in: [800001, 800002] } as never }));
   });
   test('the Outreach Manager (manager) and an administrator see Reports; a rep does not', async ({ browser }) => {
@@ -231,30 +237,32 @@ test.describe('4. Metrics', () => {
   });
 });
 
-test.describe('5. Settings in the five areas of the Assignment Engine brief', () => {
-  const AREAS = ['Campaign Management', 'Rep Assignment Profiles', 'Contact Priority Rules', 'Call Outcome & Eligibility', 'Global Assignment Rules'];
-  test('the sidebar has the five areas, in order, and each existing setting is in its area', async ({ browser }) => {
+test.describe('5. Settings: Campaign Management and one Global Assignment Rules tab', () => {
+  test('the sidebar: Campaign Management, Global Assignment Rules and Reports; no Performance, Daily emails or monday sync', async ({ browser }) => {
     const a = await page(browser, 'admin', '/mgr/live');
-    const nav = await a.locator('.sb button.nav').allTextContents();
-    const at = AREAS.map(n => nav.findIndex(t => t.trim() === n));
+    const nav = (await a.locator('.sb button.nav').allTextContents()).map(t => t.trim());
+    const at = ['Campaign Management', 'Global Assignment Rules', 'Reports'].map(n => nav.indexOf(n));
     expect(at.every(i => i >= 0)).toBe(true);
     expect(at).toEqual([...at].sort((x, y) => x - y));
-    expect(nav.map(t => t.trim())).not.toContain('Assignment rules');
-    expect(nav.map(t => t.trim())).not.toContain('Call outcomes'); // inside Call Outcome & Eligibility now
-    const where: [string, string, string[]][] = [
-      ['/mgr/camp', 'Campaign Management', ['[data-camps=active]']],
-      ['/mgr/rules', 'Rep Assignment Profiles', ['#cfg-first', '#cfg-more', '[data-act=cfgset][data-v="refresh|daily"]', '[data-act=cfgset][data-v="endDay|pool"]']],
-      ['/mgr/prio', 'Contact Priority Rules', ['[data-area=priority] .ptbl']],
-      ['/mgr/elig', 'Call Outcome & Eligibility Rules', ['#cfg-maxAtt', '[data-act=cfgset][data-v="reactivateReset|false"]', '[data-outcome="Wrong Number"]']],
-      ['/mgr/glob', 'Global Assignment Rules', ['[data-area=global]']],
-    ];
-    for (const [path, title, sels] of where) {
-      await a.goto(path); await a.waitForLoadState('networkidle');
-      await expect(a.locator('.op-h h1')).toHaveText(title);
-      for (const s of sels) await expect(a.locator(s).first(), `${title}: ${s}`).toBeVisible();
-    }
-    // each setting in one area only
-    for (const [path] of where.filter(w => w[0] !== '/mgr/rules')) { await a.goto(path); await a.waitForLoadState('networkidle'); await expect(a.locator('#cfg-first')).toHaveCount(0); }
+    for (const gone of ['Assignment rules', 'Call outcomes', 'Rep Assignment Profiles', 'Contact Priority Rules', 'Call Outcome & Eligibility', 'Performance', 'Daily emails', 'monday sync']) expect(nav, gone).not.toContain(gone);
+  });
+  test('Global Assignment Rules has every rule: first what can be changed, then what is fixed', async ({ browser }) => {
+    const a = await page(browser, 'admin', '/mgr/rules');
+    await expect(a.locator('.op-h h1')).toHaveText('Global Assignment Rules');
+    const change = ['#cfg-first', '#cfg-more', '[data-act=cfgset][data-v="refresh|daily"]', '[data-act=cfgset][data-v="endDay|pool"]', '#cfg-maxAtt', '[data-act=cfgset][data-v="reactivateReset|false"]', '[data-outcome="Wrong Number"]'];
+    const fixed = ['[data-area=priority] .ptbl', '[data-area=global]', '[data-area=elig]'];
+    for (const s of [...change, ...fixed]) await expect(a.locator(s).first(), s).toBeVisible();
+    // order on the page: every setting that changes comes before the fixed part
+    const y = async (s: string) => (await a.locator(s).first().boundingBox())!.y;
+    const fixedTop = await y('[data-rules-part=fixed]');
+    expect(await y('[data-rules-part=change]')).toBeLessThan(fixedTop);
+    for (const s of change) expect(await y(s), s).toBeLessThan(fixedTop);
+    for (const s of fixed) expect(await y(s), s).toBeGreaterThan(fixedTop);
+  });
+  test('the removed pages are gone: their old links open The day by rep', async ({ browser }) => {
+    const a = await page(browser, 'admin', '/mgr/perf');
+    await expect(a.locator('.op-h h1')).toHaveText('The day by rep');
+    for (const p of ['/mgr/mail', '/mgr/sync']) { await a.goto(p); await a.waitForLoadState('networkidle'); await expect(a.locator('.op-h h1'), p).toHaveText('The day by rep'); }
   });
   test('a setting changed in its area is saved and used: daily allocation', async ({ browser }) => {
     const a = await page(browser, 'admin', '/mgr/rules');
@@ -264,11 +272,11 @@ test.describe('5. Settings in the five areas of the Assignment Engine brief', ()
     expect(await withDb(db => db.collection('rules').findOne({ _id: 'default' as never }))).toMatchObject({ first: 150 });
     await withDb(db => db.collection('rules').updateOne({ _id: 'default' as never }, { $set: { first: 200 } }));
   });
-  test('the old Call outcomes link lands in Call Outcome & Eligibility; the manager edits the catalog there', async ({ browser }) => {
+  test('the old Call outcomes link lands in Global Assignment Rules; the manager edits the catalog there', async ({ browser }) => {
     const a = await page(browser, 'admin', '/mgr/outc');
-    await expect(a.locator('.op-h h1')).toHaveText('Call Outcome & Eligibility Rules');
+    await expect(a.locator('.op-h h1')).toHaveText('Global Assignment Rules');
     await expect(a.locator('[data-outcome]')).toHaveCount(11);
-    const m = await page(browser, 'andrew', '/mgr/elig');
+    const m = await page(browser, 'andrew', '/mgr/rules');
     await expect(m.locator('[data-outcome]')).toHaveCount(11);
     await expect(m.locator('#cfg-maxAtt')).not.toHaveAttribute('readonly', '');
     await m.locator('[data-outcome="Hung Up"] button', { hasText: 'Edit' }).click();
@@ -311,16 +319,34 @@ test.describe('6. Roles: the Outreach Manager (manager) does everything in Outre
     await withDb(async db => { const ct = await db.collection('contacts').findOne({ n: 'Raymond Varga' }); await db.collection('contacts').updateOne({ _id: ct!._id }, { $set: { react: null } }); });
     const m = await page(browser, 'andrew', '/mgr/live');
     const nav = (await m.locator('.sb button.nav').allTextContents()).map(t => t.trim());
-    for (const n of ['Campaign Management', 'Rep Assignment Profiles', 'Contact Priority Rules', 'Call Outcome & Eligibility', 'Global Assignment Rules', 'Reports']) expect(nav, n).toContain(n);
+    for (const n of ['Campaign Management', 'Global Assignment Rules', 'Reports']) expect(nav, n).toContain(n);
     await m.goto('/mgr/camp'); await m.waitForLoadState('networkidle');
     await expect(m.locator('[data-camp=C-PPSM] [data-act=camppause]')).toBeVisible();
     await m.goto('/mgr/pool'); await m.waitForLoadState('networkidle');
     await m.locator('.stat', { hasText: 'On hold, max attempts' }).click();
     await m.locator('#srpool').fill('Raymond Varga');
     await expect(m.locator('.row', { hasText: 'Raymond Varga' }).locator('[data-act=reactivate]')).toBeVisible();
-    for (const path of ['/mgr/live', '/mgr/camp', '/mgr/elig', '/mgr/reports']) {
+    for (const path of ['/mgr/live', '/mgr/camp', '/mgr/rules', '/mgr/reports']) {
       const r = await page(browser, 'maya', path);
       await expect(r, path).toHaveURL(/\/rep\/today$/);
+    }
+  });
+});
+
+test.describe('7. Layout', () => {
+  test('The day by rep: no Rules or Campaigns buttons in the header, and room between the count and the progress bar', async ({ browser }) => {
+    const a = await page(browser, 'admin', '/mgr/live');
+    await expect(a.locator('.op-h button')).toHaveCount(0);
+    const card = a.locator('.repc').first();
+    const gap = (await card.locator('.bar').boundingBox())!.y - ((await card.locator('.repc-prog').boundingBox())!.y + (await card.locator('.repc-prog').boundingBox())!.height);
+    expect(gap).toBeGreaterThanOrEqual(7);
+  });
+  test('the top bar shows whose account it is: name and role', async ({ browser }) => {
+    for (const [u, name, role] of [['admin', 'Administrator', 'Administrator'], ['andrew', 'Andrew Vaitkevicius', 'Manager'], ['maya', 'Maya Torres', 'Sales rep']]) {
+      const p = await page(browser, u, u === 'maya' ? '/rep/fu' : '/mgr/live');
+      await expect(p.locator('#usermenu [data-me] b'), u).toHaveText(name);
+      await expect(p.locator('#usermenu [data-me] small'), u).toHaveText(role);
+      await expect(p.locator('#usermenu [data-me]'), u).toBeVisible();
     }
   });
 });

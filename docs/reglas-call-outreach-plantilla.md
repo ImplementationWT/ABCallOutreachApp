@@ -96,7 +96,7 @@ Ya no se pregunta. Las campañas se crean una vez y siguen activas hasta que alg
 ## 5. Catálogo de resultados (tabla para llenar)
 
 - **Pregunta:** ¿estos días y efectos por resultado son los correctos?
-- **Hoy:** el catálogo ya se edita sin desplegar, en Outreach Manager → Call Outcome & Eligibility Rules (el Outreach Manager o un administrador). Cada llamada cuenta como intento, excepto Wrong Number (acordado), y los días son al menos 1. Working on Plans e Interested crean un lead (acordado).
+- **Hoy:** el catálogo ya se edita sin desplegar, en Outreach Manager → Global Assignment Rules (el Outreach Manager o un administrador). Cada llamada cuenta como intento, excepto Wrong Number (acordado), y los días son al menos 1. Working on Plans e Interested crean un lead (acordado).
 - **Impacto si cambia:** ninguno de código. Los valores los cambia el administrador.
 
 | Resultado | Hoy: vuelve en | Hoy: afecta además a | Hoy: pide fecha y hora | Acordado: días (hábiles o naturales) | Acordado: afecta además a (nadie / la propiedad / la persona) | Acordado: pide fecha y hora |

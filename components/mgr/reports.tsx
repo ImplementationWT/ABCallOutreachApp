@@ -6,7 +6,7 @@
  * metrics service (lib/domain/report.ts), which reads a call source: today the results recorded in
  * the app. Nothing is emailed or written to monday from here. */
 import type React from 'react';
-import { OUT, OUTK, PEO, REPORT_METRICS, appCallSource, dailyReport, fmtRate, fmtS, fmtWD, pacificDay, trend, type ReportKey, type ReportMetrics } from '@/lib/domain';
+import { PEO, REPORT_METRICS, appCallSource, dailyReport, fmtRate, fmtS, pacificDay, trend, type ReportKey, type ReportMetrics } from '@/lib/domain';
 import { can } from '@/lib/state/auth';
 import { on } from '@/lib/state/actions';
 import { S } from '@/lib/state/store';
@@ -29,16 +29,14 @@ export function ReportsPage() {
   if (!allowed()) return <div className="empty">Only the Outreach Manager or an administrator can see Reports.</div>;
   const day = reportDay(), today = pacificDay();
   const r = dailyReport(appCallSource, day);
-  const connects = OUTK.filter(k => OUT[k].connect), leads = OUTK.filter(k => OUT[k].lead);
   const cell = (m: ReportMetrics, prev: ReportMetrics, k: ReportKey): React.ReactNode => <td className="n" key={k}><b>{val(m, k)}</b><br /><small className="muted">{val(prev, k)} last week</small></td>;
   return <>
     <PageHeader t="Reports" sub={`Calls Made, Connects and New Leads by rep for one day, against the same day of the week before. Source: ${r.source.toLowerCase()}.`} />
-    <div className="flex items-center gap-[8px] flex-wrap mb-[14px]" data-report-bar>
-      <button className="btn sec sm px-[8px]" {...on('repnav', -1)} aria-label="Previous day"><Icon n="chl" s={15} /></button>
-      <div className="w-[220px]"><DateField k="repday" value={day} onSet={v => { S.f.repd = v; }} /></div>
-      <button className="btn sec sm px-[8px]" {...on('repnav', 1)} aria-label="Next day" disabled={day >= today}><Icon n="chr" s={15} /></button>
-      {day !== today ? <button className="btn ghost sm" {...on('repnow')}>Today</button> : null}
-      <b className="ml-auto text-[13.5px]" data-report-day>{fmtWD(day)}{day === today ? ', today (Pacific time)' : ''}</b>
+    <div className="rbar" data-report-bar>
+      <button className="rnav" {...on('repnav', -1)} aria-label="Previous day"><Icon n="chl" s={16} /></button>
+      <div className="rday" data-report-day><DateField k="repday" value={day} onSet={v => { S.f.repd = v; }} /></div>
+      <button className="rnav" {...on('repnav', 1)} aria-label="Next day" disabled={day >= today}><Icon n="chr" s={16} /></button>
+      {day !== today ? <button className="rnav rnow" {...on('repnow')}>Today</button> : null}
     </div>
 
     <h3 className="rsec">Activity</h3>
@@ -56,11 +54,5 @@ export function ReportsPage() {
       <tr className="tot" data-rep="team"><td>Team</td>{REPORT_METRICS.map(m => cell(r.team.m, r.team.prev, m.k))}</tr>
     </tbody></table></div>
 
-    <div className="card mt-[14px]"><h3><Icon n="info" s={16} />How each number is counted</h3><div className="sm">
-      <p><b>Calls Made:</b> every result a rep records, one per call.</p>
-      <p className="mt-[6px]"><b>Connects:</b> results marked “Counts as connect” in Call outcomes: {connects.join(', ') || 'none'}. <span className="muted">Proposal pending with Andrew.</span></p>
-      <p className="mt-[6px]"><b>New Leads:</b> results marked “Creates a lead”: {leads.join(', ') || 'none'}.</p>
-      <p className="mt-[6px]"><b>Dial to Connect</b> is Connects out of Calls Made; <b>Connect to Lead</b> is New Leads out of Connects. The comparison is the same day of the week before ({fmtWD(r.prevDay)}).</p>
-    </div></div>
   </>;
 }

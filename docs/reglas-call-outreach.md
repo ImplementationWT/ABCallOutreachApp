@@ -50,7 +50,7 @@ Usa la misma estructura que `docs/reglas-call-outreach-plantilla.md`. "Propiedad
 
 ## 5. Catálogo de resultados
 
-El catálogo está en la colección `outcomes` y lo edita el Outreach Manager (o un administrador) en Outreach Manager → Call Outcome & Eligibility Rules, sin desplegar. Desactivar un resultado lo quita del formulario y conserva el historial.
+El catálogo está en la colección `outcomes` y lo edita el Outreach Manager (o un administrador) en Outreach Manager → Global Assignment Rules, sin desplegar. Desactivar un resultado lo quita del formulario y conserva el historial.
 
 "Cuenta como intento" de Wrong Number y "Crea lead" están acordados con Andrew. "Cuenta como connect" es una propuesta pendiente de Andrew (regla 5.4). Los días de espera y los efectos siguen pendientes de confirmar.
 
@@ -84,7 +84,7 @@ El catálogo está en la colección `outcomes` y lo edita el Outreach Manager (o
 | 6.0b | Máximo | 6 (es el valor que usa hoy la app: `rules/default.maxAtt`). Al llegar, el contacto pasa a on-hold y sale del pool | Acordada |
 | 6.0c | Excepción del sexto intento | Si en el sexto intento se agenda un follow-up, se respeta. El contacto pasa a on-hold solo si esa llamada tampoco se concreta | Acordada |
 | 6.0d | Quién reactiva | El rep asignado, el Outreach Manager (Andrew, rol manager) o un administrador; el contacto vuelve al pool | Acordada |
-| 6.1 | El contador al reactivar | Los intentos no vuelven a 0 (empieza una nueva ronda). La opción "Back to 0" de Call Outcome & Eligibility Rules queda apagada | Acordada |
+| 6.1 | El contador al reactivar | Los intentos no vuelven a 0 (empieza una nueva ronda). La opción "Back to 0" de Global Assignment Rules queda apagada | Acordada |
 | 6.2 | Wrong Number | No cuenta como intento. El número marcado queda inválido y no se vuelve a ofrecer para llamar. Si el contacto no tiene otro número válido, sale del pool hasta que se agregue uno | Acordada |
 | 6.2b | Números alternativos verificados | Usar solo números alternativos verificados (brief Assignment Engine) | Pendiente de confirmar con Andrew |
 

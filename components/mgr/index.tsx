@@ -3,10 +3,9 @@
  * mgrCamps, mgrRules, perfTable, mgrPerf, mgrMail, mgrSync. Modals are in ./modals.tsx. */
 import type React from 'react';
 import {
-  lastDay, pastDays, PERIODS, chartTitle, isCurrentPeriod, periodBuckets, periodDays, periodLabel, sumDays, type PeriodKind,
-  AUDK, AUDS, C, CALLS, CAMPS, CFG, CTS, DAY, LEADS, OUT, OUTK, recallOf, P, PEO, PRANK, PRI, PROPS, REPS, SYNC, TODAY,
-  CAMP_ST, activeCamps, audsOf, callsOn, campName, campsName, campsOf, demoN, docOf, dupCheck, elig, first, fmtS, fmtT, fmtUS, fmtWD, listOf, mDay, mOf, openOf, ownerOf, propStatus, relDay,
-  type Metrics, type Pri, type RepKey,
+  AUDK, AUDS, C, CALLS, CAMPS, CFG, CTS, DAY, LEADS, OUT, OUTK, recallOf, P, PEO, PRANK, PRI, PROPS, REPS, TODAY,
+  CAMP_ST, activeCamps, callsOn, campName, campsName, demoN, docOf, dupCheck, elig, first, fmtS, fmtT, fmtUS, fmtWD, listOf, mOf, openOf, ownerOf, propStatus, relDay,
+  type Pri, type RepKey,
 } from '@/lib/domain';
 import { inp, on } from '@/lib/state/actions';
 import { S, bump, toast } from '@/lib/state/store';
@@ -14,13 +13,12 @@ import { can } from '@/lib/state/auth';
 import { UsersPage } from './users';
 import { OutcomesPage } from './outcomes';
 import { ReportsPage } from './reports';
-import { TeamChart } from './TeamChart';
 import type { SbItem } from '@/components/shell/Sidebar';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { Avatar, Bar, Icon, KPI_GRID, Kv, OutPill, PageHeader, Pill, PrTag, StatFilter, paged } from '@/components/ui';
 
 export function MgrSide() {
-  return <Sidebar k="mgr" items={[['Today'], ['live', 'The day by rep', 'target'], ['pool', 'Contact pool', 'users'], ['leads', 'Hand-offs to sales', 'hand', LEADS.filter(l => l.fresh).length], ['Settings'], ['camp', 'Campaign Management', 'cal'], ['rules', 'Rep Assignment Profiles', 'users'], ['prio', 'Contact Priority Rules', 'list'], ['elig', 'Call Outcome & Eligibility', 'flag'], ['glob', 'Global Assignment Rules', 'gear'], ['Results'], ['perf', 'Performance', 'chart'], ...(can('mgr.manage') ? [['reports', 'Reports', 'chart']] as SbItem[] : []), ['mail', 'Daily emails', 'mail'], ['monday'], ['sync', 'monday sync', 'sync'], ...(can('users.manage') ? [['Admin'], ['users', 'Users', 'key']] as SbItem[] : [])]} />;
+  return <Sidebar k="mgr" items={[['Today'], ['live', 'The day by rep', 'target'], ['pool', 'Contact pool', 'users'], ['leads', 'Hand-offs to sales', 'hand', LEADS.filter(l => l.fresh).length], ['Settings'], ['camp', 'Campaign Management', 'cal'], ['rules', 'Global Assignment Rules', 'gear'], ...(can('mgr.manage') ? [['Results'], ['reports', 'Reports', 'chart']] as SbItem[] : []), ...(can('users.manage') ? [['Admin'], ['users', 'Users', 'key']] as SbItem[] : [])]} />;
 }
 
 /* ----- The day by rep ----- */
@@ -30,7 +28,7 @@ function RepCard({ r }: { r: RepKey }) {
   const own = listOf(r).filter(c => ownerOf(c) === r).length;
   return <div className={`repc ${d.st === 'off' ? 'off' : ''}`}>
     <div className="h"><Avatar k={r} /><div><b>{PEO[r].n}</b><small>{cn || 'No active campaign'}</small></div><span className="r">{st}</span></div>
-    <div className="sm flex justify-between"><span>{dn} of {all} documented</span><span className="muted">{own} own follow-ups</span></div><Bar n={dn} d={all} />
+    <div className="sm flex justify-between repc-prog"><span>{dn} of {all} documented</span><span className="muted">{own} own follow-ups</span></div><Bar n={dn} d={all} />
     <div className="nums"><div><small>Calls</small><b>{m.calls}</b></div><div><small>Connects</small><b>{m.con}</b></div><div><small>Convos</small><b>{m.conv}</b></div><div><small>Leads</small><b>{m.leads}</b></div></div>
     <div className="foot"><button className="btn sec sm" {...on('replist', r)}><Icon n="list" s={14} />See list</button><button className="btn sec sm" {...on('reassign', r)} disabled={!openOf(r).length}><Icon n="shuffle" s={14} />Reassign</button><button className="btn ghost sm" {...on('viewas', r)}>Open as {first(r)}</button></div>
   </div>;
@@ -43,8 +41,7 @@ function MgrLive() {
   const dup = dupCheck();
   const today = LEADS.filter(l => l.at.slice(0, 10) === TODAY);
   return <>
-    <PageHeader t="The day by rep" sub={`${fmtWD(TODAY)}. Each rep got an even share from the morning allocation, follow-ups went back to the rep who set them, and every contact is reserved for one rep only.`}
-      acts={<><button className="btn sec" {...on('pg_mgr', 'rules')}><Icon n="gear" s={15} />Rules</button><button className="btn pri" {...on('pg_mgr', 'camp')}><Icon n="cal" s={15} />Campaigns</button></>} />
+    <PageHeader t="The day by rep" sub={`${fmtWD(TODAY)}. Each rep got an even share from the morning allocation, follow-ups went back to the rep who set them, and every contact is reserved for one rep only.`} />
     <div className={`stats ${KPI_GRID}`}><div className="stat"><small>Reserved today</small><b>{res}</b></div><div className="stat green"><small>Documented</small><b>{docd}</b></div><div className="stat"><small>Calls so far</small><b>{mt.calls}</b></div><div className="stat green"><small>New leads today</small><b>{mt.leads}</b></div><div className="stat blue"><small>Eligible, not reserved</small><b>{pool}</b></div><div className={`stat ${dup ? 'red' : 'green'}`}><small>Same house, two reps</small><b>{dup}</b></div></div>
     <div className="reps">{REPS.map(r => <RepCard key={r} r={r} />)}</div>
     <div className="grid2">
@@ -154,174 +151,52 @@ function Num({ k, v, w = 70 }: { k: string; v: number; w?: number }) {
 function Rule({ icon, t, d, r, tag }: { icon: string; t: string; d: React.ReactNode; r?: React.ReactNode; tag?: React.ReactNode }) {
   return <div className="rule"><span className="ic2"><Icon n={icon} s={15} /></span><div><b>{t}</b> {tag}<br /><span className="sm muted">{d}</span></div><div className="r flex-none whitespace-nowrap [&_.segs]:flex-nowrap">{r}</div></div>;
 }
-/* ===== Settings: the five areas of Andrew's Assignment Engine brief (docs/andrew, page 5) =====
- * Each existing setting lives in the area it belongs to; an area is shown only with real settings.
- * Changing anything, the outcome catalog included, needs Outreach Manager: change (mgr.manage). */
-const SETTINGS_NOTE = 'Changes apply to the next allocation.';
-/** 02 Rep Assignment Profiles: workload, request more, refresh and the end of the day (the same for every rep today). */
-function MgrProfiles() {
+/* ===== Global Assignment Rules: every rule of the engine on one page =====
+ * First what can be changed (Outreach Manager: change, mgr.manage), then what is fixed in this
+ * version. Campaigns are on their own page (Campaign Management). */
+function MgrRules() {
+  const man = can('mgr.manage'), dup = dupCheck();
+  const eligRows: [string, string, string, React.ReactNode][] = [['ban', 'Not on Do Not Call or suppression lists', 'National registry filter is confirmed by AB.', ''], ['hand', 'Not already an AB client or in an active sale', 'Cross check with the AB Leads board by phone and address, including inbound calls.', ''], ['ban', 'Not removed by another contact of the property', 'One no, or one lead, takes the rest of the house out.', <Pill key="m" t="Manuel’s rule" cls="blue" />], ['call', 'Valid and callable phone', 'A Wrong Number marks that number and is not an attempt; with no other number the contact waits.', ''], ['flag', 'Under the max attempts', `After ${CFG.maxAtt} attempts the contact leaves the lists.`, ''], ['cal', 'Due according to the last result', 'The waiting time of each call outcome.', '']];
   return <>
-    <PageHeader t="Rep Assignment Profiles" sub={`How much each rep gets and what happens with what they do not call. The same values apply to every rep for now. ${SETTINGS_NOTE}`} />
+    <PageHeader t="Global Assignment Rules" sub="Every rule of the assignment engine: first what you can change, then what is fixed in this version. Changes apply to the next allocation." />
+    <h2 className="rsec" data-rules-part="change">What you can change</h2>
     <div className="grid2">
-      <div className="card p-[6px_4px]" data-area="profiles"><h3 className="p-[10px_14px_0]"><Icon n="users" s={16} />Workload</h3>
+      <div className="card p-[6px_4px]" data-area="workload"><h3 className="p-[10px_14px_0]"><Icon n="users" s={16} />Workload, the same for every rep</h3>
         <Rule icon="target" t="Daily allocation per rep" d={`Up to this many eligible contacts each morning. Today reps make about 108 calls a day. In this demo: ${demoN(CFG.first)}, scaled to its data.`} r={<><Num k="first" v={CFG.first} /><span className="sm muted">contacts</span></>} />
         <Rule icon="plus" t="Request more" d={`Next batch when the rep has documented the whole list. In this demo: ${demoN(CFG.more)}.`} r={<><Num k="more" v={CFG.more} /><span className="sm muted">contacts</span></>} />
         <Rule icon="refresh" t="List refresh" d="Daily is what the engine does. Weekly is pending with Andrew: the engine does not use it yet." r={<span className="segs">{['daily', 'weekly'].map(k => <button key={k} className="seg" {...on('cfgset', `refresh|${k}`)} aria-pressed={CFG.refresh === k}>{k === 'daily' ? 'Daily' : 'Weekly'}</button>)}</span>} />
         <Rule icon="logout" t="Not called at the end of the day" d="Back to the pool with its priority, or kept by the same rep tomorrow." r={<span className="segs">{[['pool', 'Back to pool'], ['keep', 'Same rep']].map(([k, l]) => <button key={k} className="seg" {...on('cfgset', `endDay|${k}`)} aria-pressed={CFG.endDay === k}>{l}</button>)}</span>} />
       </div>
-      <div className="card"><h3><Icon n="cal" s={16} />Each rep’s campaigns</h3>
-        {REPS.map(r => <div key={r} className="mrow" data-profile={r}><Avatar k={r} sm /><b>{PEO[r].n}</b><span className="muted ml-auto text-right">{campsName(r) || 'No active campaign'}</span></div>)}
-        <p className="sm muted mt-[8px]">A rep works every active campaign they are in. Change it in Campaign Management.</p>
-      </div>
-    </div>
-  </>;
-}
-/** 03 Contact Priority Rules: which eligible contacts go first. */
-function MgrPriority() {
-  return <>
-    <PageHeader t="Contact Priority Rules" sub="Which eligible contacts each rep gets first. Strict order, P1 to P5, also when the daily allocation runs out; the same order applies across all active campaigns." />
-    <div className="grid2">
-      <div className="card" data-area="priority"><h3><Icon n="list" s={16} />Priorities</h3>
-        <table className="ptbl"><tbody><tr><th>Priority</th><th>Criteria</th><th>Assignment</th></tr>{(Object.entries(PRI) as [Pri, (typeof PRI)[Pri]][]).map(([k, x]) => <tr key={k}><td><PrTag pr={k} sm /></td><td>{x.d}</td><td>{x.who === 'Original rep' ? <Pill t="Original rep" cls="violet" /> : <Pill t="Any rep" />}</td></tr>)}</tbody></table>
-        <p className="sm muted mt-[8px]">Which outcome gives P1, P3 or P4 is set per outcome in Call Outcome &amp; Eligibility Rules.</p>
-      </div>
-      <div className="card p-[6px_4px]"><h3 className="p-[10px_14px_0]"><Icon n="clock" s={16} />Ties</h3>
-        <Rule icon="clock" t="Oldest waiting first" d="Inside a priority, the property that waited longest since its last call goes first (never called counts as oldest), so the whole base gets worked and not only the top of the list." r={<Pill t="Always on" cls="green" />} />
-        <Rule icon="home" t="A property’s contacts stay together" d="The list keeps every contact of a property in a row, ordered by the best priority among them." r={<Pill t="Always on" cls="green" />} />
-      </div>
-    </div>
-  </>;
-}
-/** 04 Call Outcome & Eligibility Rules: eligibility, attempts, reactivation, and the outcome catalog. */
-function MgrElig() {
-  const eligRows: [string, string, string, React.ReactNode][] = [['ban', 'Not on Do Not Call or suppression lists', 'National registry filter is confirmed by AB.', ''], ['hand', 'Not already an AB client or in an active sale', 'Cross check with the AB Leads board by phone and address, including inbound calls.', ''], ['ban', 'Not removed by another contact of the property', 'One no, or one lead, takes the rest of the house out.', <Pill key="m" t="Manuel’s rule" cls="blue" />], ['call', 'Valid and callable phone', 'A Wrong Number marks that number and is not an attempt; with no other number the contact waits.', ''], ['flag', 'Under the max attempts', `After ${CFG.maxAtt} attempts the contact leaves the lists.`, ''], ['cal', 'Due according to the last result', 'See the waiting times of each outcome below.', '']];
-  return <>
-    <PageHeader t="Call Outcome & Eligibility Rules" sub={`When a contact can be called, how many attempts it gets and what each call outcome does. ${SETTINGS_NOTE}`} />
-    <div className="grid2">
-      <div className="card p-[6px_4px]" data-area="elig"><h3 className="p-[10px_14px_0]"><Icon n="shield" s={16} />Eligibility, checked in this order</h3>
-        {eligRows.map(([i, t, d, tg], ix) => <Rule key={ix} icon={i} t={t} d={d} r="" tag={tg} />)}
-      </div>
-      <div className="card p-[6px_4px]"><h3 className="p-[10px_14px_0]"><Icon n="flag" s={16} />Attempts</h3>
+      <div className="card p-[6px_4px]" data-area="attempts"><h3 className="p-[10px_14px_0]"><Icon n="flag" s={16} />Attempts</h3>
         <Rule icon="flag" t="Max attempts per contact" d="Every call counts except Wrong Number (each outcome says if it counts). At the max the contact goes on hold; a follow-up set on the last attempt is kept." r={<><Num k="maxAtt" v={CFG.maxAtt} /><span className="sm muted">calls</span></>} />
         <Rule icon="refresh" t="Reactivating an on-hold contact" d="Its rep or the Outreach Manager puts it back in the pool. Agreed with Andrew: it keeps its attempts." r={<span className="segs">{[['false', 'Keep the attempts'], ['true', 'Back to 0']].map(([k, l]) => <button key={k} className="seg" {...on('cfgset', `reactivateReset|${k}`)} aria-pressed={String(!!CFG.reactivateReset) === k}>{l}</button>)}</span>} />
       </div>
     </div>
-    {can('mgr.manage') ? <OutcomesPage embedded /> : <div className="card"><h3><Icon n="cal" s={16} />When a contact can be called again</h3>
+    {man ? <OutcomesPage embedded /> : <div className="card"><h3><Icon n="cal" s={16} />When a contact can be called again</h3>
       <table className="ptbl"><tbody><tr><th>Result</th><th>Property status</th><th>Eligible again</th></tr>
         {OUTK.map(o => <tr key={o}><td>{o}{OUT[o].proposed ? <> <Pill t="Proposed" cls="amber" /></> : null}</td><td>{OUT[o].status}</td><td>{waitText(o)}</td></tr>)}
       </tbody></table>
-      <p className="sm muted mt-[8px]">The Outreach Manager edits the outcomes. With several contacts, the property takes the most advanced status: Potential Lead, then Not Interested, then Contacted, then Not Contacted.</p>
+      <p className="sm muted mt-[8px]">The Outreach Manager edits the outcomes.</p>
     </div>}
-  </>;
-}
-/** 05 Global Assignment Rules: what holds for every rep and campaign. */
-function MgrGlobal() {
-  const dup = dupCheck();
-  return <>
-    <PageHeader t="Global Assignment Rules" sub="What holds for every rep and every campaign." />
-    <div className="card p-[6px_4px]" data-area="global">
-      <Rule icon="users" t="No duplicates" d="A contact is in one list only, even when it is in two campaigns, and a property and all its contacts stay with one rep for the day (locked in the database)." r={<Pill t={`Same house, two reps today: ${dup}`} cls={dup ? 'red' : 'green'} />} />
-      <Rule icon="shuffle" t="Even split" d="Each new property goes to the rep with the lowest load who can take it. A rep’s own follow-ups and undecided contacts go back to them." r={<Pill t="Least loaded" cls="green" />} />
-      <Rule icon="clock" t="Calling hours" d={CFG.hours + '. Shown to the team; the app does not block calls outside these hours yet.'} r="" />
-    </div>
-  </>;
-}
 
-/* ----- Performance ----- */
-/** By rep for one day (the daily email) or for a list of days (Performance by period). */
-export function PerfTable({ day, days }: { day?: string; days?: string[] }) {
-  const of = (r: RepKey | null) => days ? sumDays(r, days) : mDay(r, day!);
-  const rows = REPS.map(r => [r, of(r)] as const), t = of(null);
-  const tr = (key: string, n: React.ReactNode, m: Metrics, cls = '') => <tr key={key} className={cls}><td>{n}</td><td className="n">{m.calls}</td><td className="n">{m.con}</td><td className="n">{m.conv}</td><td className="n">{m.leads}</td><td className="n">{m.d2c}</td><td className="n">{m.c2v}</td><td className="n">{m.v2l}</td></tr>;
-  return <table className="ptbl"><tbody>
-    <tr><th>Rep</th><th className="n">Calls Made</th><th className="n">Connects</th><th className="n">Conversations</th><th className="n">New Leads</th><th className="n">Dial to Connect</th><th className="n">Connect to Convo</th><th className="n">Convo to Lead</th></tr>
-    {rows.map(([r, m]) => tr(r, <span className="inline-flex gap-[8px] items-center"><Avatar k={r} sm />{PEO[r].n}</span>, m))}
-    {tr('team', 'Team', t, 'tot')}
-  </tbody></table>;
-}
-function MgrPerf() {
-  const kind = S.f.perfp as PeriodKind, anchor = (S.f.perfd as string) || TODAY;
-  const days = periodDays(kind, anchor), current = isCurrentPeriod(kind, anchor);
-  return <>
-    <PageHeader t="Performance" sub="Calls, connects, conversations and leads by rep, with the rates from Andrew’s daily email. Each number comes from the call log." />
-    {/* Period type on the left, the date and its arrows on the right (same row, so nothing moves) */}
-    <div className="flex items-center gap-[8px] flex-wrap mb-[12px]" data-period-bar>
-      <span className="segs" role="group" aria-label="Period">{PERIODS.map(([k, l]) => <button key={k} className="seg" {...on('perfp', k)} aria-pressed={kind === k}>{l}</button>)}</span>
-      <span className="inline-flex items-center gap-[4px] flex-none ml-auto" data-period>
-          <button className="btn sec sm px-[8px]" {...on('perfnav', -1)} aria-label="Previous period"><Icon n="chl" s={15} /></button>
-          <b className="w-[160px] text-center text-[13.5px] whitespace-nowrap select-none" data-period-label>{periodLabel(kind, anchor)}</b>
-          <button className="btn sec sm px-[8px]" {...on('perfnav', 1)} aria-label="Next period" disabled={current}><Icon n="chr" s={15} /></button>
-          {/* Always takes its place (hidden on the current period), so changing the date never moves the page */}
-          <button className={`btn ghost sm px-[8px] ${current ? 'invisible' : ''}`} {...on('perfnow')} aria-hidden={current} tabIndex={current ? -1 : 0}
-            aria-label={kind === 'day' ? 'Back to today' : `Back to this ${kind}`} title={kind === 'day' ? 'Back to today' : `Back to this ${kind}`}><Icon n="refresh" s={15} /></button>
-        </span>
-    </div>
-    <PerfTable days={days} />
-    <p className="sm muted mt-[6px]">{days.length ? `${days.length} day${days.length > 1 ? 's' : ''}, ${fmtS(days[0])}${days.length > 1 ? ' – ' + fmtS(days[days.length - 1]) : ''}${current && kind !== 'day' ? ', so far' : ''}.` : 'No days yet in this period.'}</p>
-    <div className="grid2 mt-[14px]">
-      <div className="card"><h3><Icon n="chart" s={16} />{chartTitle(kind, anchor)}</h3>
-        <TeamChart buckets={periodBuckets(kind, anchor)} />
-        <p className="sm muted mt-[6px]">Days before the app started are sample totals at today’s pace (about 108 calls per rep a day). Click a bar to open its {kind === 'year' ? 'month' : 'day'}.</p>
-      </div>
-      <div className="card"><h3><Icon n="info" s={16} />How each number is counted</h3>
-        <div className="sm">
-          <p><b>Call:</b> every attempt the rep records.</p>
-          <p className="mt-[6px]"><b>Connect:</b> someone answered. Every result except Not Contacted, Left VM and Wrong Number.</p>
-          <p className="mt-[6px]"><b>Conversation:</b> a connect with a real answer. Every connect except Hung Up. Without a result like Hung Up, connects and conversations would always be the same number.</p>
-          <p className="mt-[6px]"><b>Lead:</b> Working on Plans or Interested.</p>
-          <p className="mt-[8px] muted">Bonuses: in phase 1 the rep records the calls, so they are not verified. Paying for calls attempted needs the phone provider’s call data (phase 2), or a rule such as a minimum duration.</p>
+    <h2 className="rsec mt-[22px]" data-rules-part="fixed">Fixed in this version</h2>
+    <div className="grid2">
+      <div>
+        <div className="card" data-area="priority"><h3><Icon n="list" s={16} />Priorities</h3>
+          <table className="ptbl"><tbody><tr><th>Priority</th><th>Criteria</th><th>Assignment</th></tr>{(Object.entries(PRI) as [Pri, (typeof PRI)[Pri]][]).map(([k, x]) => <tr key={k}><td><PrTag pr={k} sm /></td><td>{x.d}</td><td>{x.who === 'Original rep' ? <Pill t="Original rep" cls="violet" /> : <Pill t="Any rep" />}</td></tr>)}</tbody></table>
+          <p className="sm muted mt-[8px]">Strict order, P1 to P5, also when the daily allocation runs out, across all active campaigns. Which outcome gives P1, P3 or P4 is set in the call outcomes above.</p>
+        </div>
+        <div className="card p-[6px_4px]" data-area="global"><h3 className="p-[10px_14px_0]"><Icon n="gear" s={16} />For every rep and campaign</h3>
+          <Rule icon="clock" t="Oldest waiting first" d="Inside a priority, the property that waited longest since its last call goes first (never called counts as oldest)." r="" />
+          <Rule icon="home" t="A property’s contacts stay together" d="The list keeps every contact of a property in a row, ordered by the best priority among them." r="" />
+          <Rule icon="users" t="No duplicates" d="A contact is in one list only, even when it is in two campaigns, and a property and all its contacts stay with one rep for the day." r={<Pill t={`Same house, two reps today: ${dup}`} cls={dup ? 'red' : 'green'} />} />
+          <Rule icon="shuffle" t="Even split" d="Each new property goes to the rep with the lowest load who can take it. A rep’s own follow-ups and undecided contacts go back to them." r="" />
+          <Rule icon="clock" t="Calling hours" d={CFG.hours + '. Shown to the team; the app does not block calls outside these hours yet.'} r="" />
         </div>
       </div>
-    </div>
-  </>;
-}
-
-/* ----- Daily emails ----- */
-function MgrMail() {
-  const r = S.f.mailrep as RepKey, cp = campsOf(r)[0] || activeCamps()[0] || CAMPS[0], auds = audsOf(r).size ? [...audsOf(r)] : cp.auds, a = AUDS[auds[0]];
-  const own = listOf(r).filter(c => ownerOf(c) === r).length;
-  const body = `Good morning ${first(r)},
-
-Today’s Goals
-Contact ${CFG.first} contacts
-Identify ${cp.goal} Potential Lead
-
-Audience: ${auds.map(x => AUDS[x].n).join(', ')}
-You have ${DAY[r].list.length} contacts reserved${own ? `, ${own} of them your own follow-ups` : ''}.
-
-Audience background
-${a.s} was devastated by the January 2025 fires. Arzuman Brothers is rebuilding homes with a full design-build service, from plans and permits to construction.
-
-Script: open in the app
-Call queue: open My Outbound Dashboard
-
-Bonus reminder
-Leads identified $$$
-Contacts made $$
-Calls attempted $`;
-  const repMail = <div className="mail"><div className="mh2"><b>To:</b> {PEO[r].n}<br /><b>Subject:</b> Today’s Outreach Campaign | {fmtUS(TODAY)}<br /><b>Sent:</b> {fmtWD(TODAY)}, 7:00 AM</div><div className="mb2">{body}</div></div>;
-  const day = lastDay();
-  const perfMail = <div className="mail"><div className="mh2"><b>To:</b> Andrew Vaitkevicius, Harut Arzumanyan, Edgar<br /><b>Subject:</b> Outreach Performance | {fmtUS(day)}<br /><b>Sent:</b> {fmtWD(day)}, 7:30 PM</div>
-    <div className="mb2 whitespace-normal">{fmtWD(day)}<br /><br /><b>Activity</b><PerfTable day={day} /><p className="sm muted mt-[8px]">Bonus by rep is calculated with the amounts AB sets.</p></div></div>;
-  return <>
-    <PageHeader t="Daily emails" sub="Two automatic emails from Andrew’s design: each rep’s campaign in the morning and the performance report at the end of the day. Both read the same data as the app."
-      acts={<span className="segs"><button className="seg" {...on('filt', 'mail|rep')} aria-pressed={S.f.mail === 'rep'}>Rep, morning</button><button className="seg" {...on('filt', 'mail|perf')} aria-pressed={S.f.mail === 'perf'}>Management, end of day</button></span>} />
-    {S.f.mail === 'rep'
-      ? <><div className="toolbar">{REPS.map(x => <button key={x} className="seg" {...on('filt', `mailrep|${x}`)} aria-pressed={r === x}>{PEO[x].n}</button>)}</div><div className="pv">{repMail}</div></>
-      : <div className="pv max-w-[980px]">{perfMail}</div>}
-  </>;
-}
-
-/* ----- monday sync ----- */
-function MgrSync() {
-  const sy = paged('sync', SYNC);
-  const boards: [string, string, number][] = [['Fire Rebuild Properties', 'Outreach Status, Permit, Construction Started', PROPS.length], ['Fire Rebuild Contacts', 'Last Call Outcome, Last Call Date, Next Eligible Call, Call Attempts', CTS.length], ['AB Leads', 'Potential Leads with their call history', LEADS.length], ['Outreach Daily Metrics', 'Calls, connects, conversations and leads by rep and day', pastDays().length * REPS.length]];
-  return <>
-    <PageHeader t="monday sync" sub="The engine and the app run outside monday; monday stays where AB sees the information. Every result, hand-off and daily total is pushed to these boards." />
-    <div className="grid4 mb-[14px]">{boards.map(([n, d, c]) => <div key={n} className="kv"><small>{n}</small><b>{c} items</b><span className="sub">{d}</span></div>)}</div>
-    <div className="card synclog"><h3><Icon n="sync" s={16} />Today’s pushes<span className="r"><Pill t="Connected" cls="green dot" /></span></h3>
-      {sy.rows.map((s, i) => <div key={i} className="mrow"><span className="muted w-[70px]">{fmtT(s.at)}</span><b>{s.board}</b><span>{s.item}</span><span className="muted ml-auto text-right">{s.what}</span></div>)}
-      {sy.pager}
+      <div className="card p-[6px_4px]" data-area="elig"><h3 className="p-[10px_14px_0]"><Icon n="shield" s={16} />Eligibility, checked in this order</h3>
+        {eligRows.map(([i, t, d, tg], ix) => <Rule key={ix} icon={i} t={t} d={d} r="" tag={tg} />)}
+      </div>
     </div>
   </>;
 }
@@ -336,8 +211,8 @@ function waitText(o: string): string {
   if (d.phone === 'bad') return `Next number in ${t}, or on hold`;
   return d.sameRep ? `${t}, same rep` : t;
 }
-/* rules: Rep Assignment Profiles (the old "Assignment rules" route, so old links still land);
- * outc: the outcome catalog, now inside Call Outcome & Eligibility Rules. */
-export const MgrPages: Record<'live' | 'pool' | 'leads' | 'camp' | 'rules' | 'prio' | 'elig' | 'glob' | 'perf' | 'mail' | 'sync' | 'users' | 'outc' | 'reports', () => React.ReactNode> = {
-  live: MgrLive, pool: MgrPool, leads: MgrLeads, camp: MgrCamps, rules: MgrProfiles, prio: MgrPriority, elig: MgrElig, glob: MgrGlobal, perf: MgrPerf, mail: MgrMail, sync: MgrSync, users: UsersPage, outc: MgrElig, reports: ReportsPage,
+/* rules: Global Assignment Rules (the old Assignment rules route, so old links still land);
+ * outc: the old Call outcomes page, now inside Global Assignment Rules. */
+export const MgrPages: Record<'live' | 'pool' | 'leads' | 'camp' | 'rules' | 'users' | 'outc' | 'reports', () => React.ReactNode> = {
+  live: MgrLive, pool: MgrPool, leads: MgrLeads, camp: MgrCamps, rules: MgrRules, users: UsersPage, outc: MgrRules, reports: ReportsPage,
 };
