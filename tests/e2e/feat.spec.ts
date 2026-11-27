@@ -41,7 +41,8 @@ test.describe('1. Wrong Number', () => {
   test('it is not an attempt; the number dialed is marked wrong; a wrong number cannot be the one saved', async ({ playwright }) => {
     expect(await withDb(db => db.collection('outcomes').findOne({ _id: 'Wrong Number' as never }))).toMatchObject({ countsAsAttempt: false });
     const ct = await mayaOpen();
-    await withDb(db => db.collection('phone_numbers').insertOne({ _id: `${ct}#1` as never, ct, idx: 1, n: '(310) 555-0999', st: 'untested' }));
+    // the contact's numbers: only the first one, plus a second number the rep dials
+    await withDb(async db => { await db.collection('phone_numbers').deleteMany({ ct, idx: { $ne: 0 } }); await db.collection('phone_numbers').updateOne({ ct, idx: 0 }, { $set: { st: 'untested' } }); await db.collection('phone_numbers').insertOne({ _id: `${ct}#1` as never, ct, idx: 1, n: '(310) 555-0999', st: 'untested' }); });
     const att = (await withDb(db => db.collection('contacts').findOne({ _id: ct as never })))!.att;
     const maya = await api(playwright, 'maya');
     const res = await maya.post('/api/work', { data: { action: 'save', rep: 'may', ct, out: 'Wrong Number', ph: 1, now: NOW } });
@@ -69,14 +70,14 @@ test.describe('1. Wrong Number', () => {
 test.describe('2. Permanent campaigns', () => {
   test('migration: the daily campaigns that exist are ended with their history; running it again changes nothing', async () => {
     await withDb(async db => {
-      await db.collection('campaigns').insertOne({ _id: 'C-1030-A' as never, date: '2026-10-30', auds: ['pp'], reps: ['may'], goal: 1, pos: 50 });
+      await db.collection('campaigns').insertOne({ _id: 'C-0915-Z' as never, date: '2026-09-15', auds: ['pp'], reps: ['may'], goal: 1, pos: 50 });
       await db.collection('migrations').deleteOne({ _id: '2026-11-permanent-campaigns' as never });
       const r = await runMigrations(db);
       expect(r.find(x => x.name === '2026-11-permanent-campaigns')).toMatchObject({ skipped: false, result: '1 daily campaign ended' });
-      expect(await db.collection('campaigns').findOne({ _id: 'C-1030-A' as never })).toMatchObject({ status: 'ended', since: '2026-10-30', date: '2026-10-30', auds: ['pp'] });
+      expect(await db.collection('campaigns').findOne({ _id: 'C-0915-Z' as never })).toMatchObject({ status: 'ended', since: '2026-09-15', date: '2026-09-15', auds: ['pp'] });
       expect(await db.collection('campaigns').countDocuments({ status: 'active' })).toBe(2);
       expect((await runMigrations(db)).every(x => x.skipped)).toBe(true);
-      await db.collection('campaigns').deleteOne({ _id: 'C-1030-A' as never });
+      await db.collection('campaigns').deleteOne({ _id: 'C-0915-Z' as never });
     });
   });
   test('the Campaigns page groups active, paused and ended; several are active at once', async ({ browser }) => {
@@ -201,8 +202,11 @@ test.describe('4. Metrics', () => {
     await expect(p.locator('[data-activity] [data-metric=leads] b')).toHaveText(String(team.leads));
     await expect(p.locator('[data-rates] [data-metric=d2c] b')).toHaveText(Math.round(team.con * 100 / team.calls) + '%');
     for (const r of ['may', 'dan', 'pri']) await expect(p.locator(`[data-report-table] [data-rep=${r}] td`).nth(1).locator('b')).toHaveText(String(per(r).calls));
-    // against the same day last week (2 calls then)
-    await expect(p.locator('[data-activity] [data-metric=calls] .rtrend')).toContainText('vs Oct 26 (2)');
+    // against the same day last week (the seed's calls that day plus the two above)
+    const prev = await withDb(db => db.collection('call_log').countDocuments({ at: { $regex: '^2026-10-26' }, rep: { $in: ['may', 'dan', 'pri'] } }));
+    expect(prev).toBeGreaterThanOrEqual(2);
+    await expect(p.locator('[data-activity] [data-metric=calls] .rtrend')).toContainText(`vs Oct 26 (${prev})`);
+    await expect(p.locator('[data-activity] [data-metric=calls] .rtrend')).toHaveAttribute('data-trend', String(team.calls - prev));
     // leaderboard: one per metric, the most calls first
     await expect(p.locator('[data-leaderboard] [data-rank]')).toHaveCount(5);
     const best = ['may', 'dan', 'pri'].sort((x, y) => per(y).calls - per(x).calls)[0];

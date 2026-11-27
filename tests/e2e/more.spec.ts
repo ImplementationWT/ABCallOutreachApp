@@ -107,7 +107,9 @@ test('artifact and app agree on the remaining actions', async ({ browser }) => {
   expect(b.length).toBe(a.length);
   // Sprint 18: the follow-up shows its time in the app ("on <day> at 10:00 AM")
   const same = (s: string) => s.startsWith('effects:') ? s.replace(/atT/g, '') : s;
-  for (let i = 0; i < a.length; i++) expect(same(b[i]), `step ${i}`).toBe(sprint18(a[i]));
+  // Permanent campaigns (Andrew's round 1): the data model's Campaigns table has no date now
+  const camp = (s: string) => s.replace('Campaigns1row=campaignofaday.5rowsinthedemo.DateDateAudiencesDropdown', 'Campaigns1row=campaign(activeuntilpausedorended).5rowsinthedemo.NameTextStatusActive,Paused,EndedAudiencesDropdown').replace('+Newcampaignfortomorrow', '+Newcampaign');
+  for (let i = 0; i < a.length; i++) expect(same(b[i]), `step ${i}`).toBe(camp(sprint18(a[i])));
 });
 
 test('app: old #vista links, back button and the rename', async ({ page }) => {

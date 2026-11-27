@@ -41,7 +41,7 @@ async function walk(page: Page, who: string) {
   await note('reassign modal', page.locator('.modal').textContent());
   await page.locator('.modal .mf .btn.pri').click(); await idle(page);
   await note('reassign', toastText(page));
-  await btn(page, 'Campaigns', '.sb').click(); await idle(page);
+  await btn(page, page.url().startsWith('file:') ? 'Campaigns' : 'Campaign Management', '.sb').click(); await idle(page);
   await btn(page, 'New campaign').click(); await idle(page);
   await note('new campaign modal', page.locator('.modal').textContent());
   await btn(page, 'Create campaign').click(); await idle(page);
