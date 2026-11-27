@@ -69,10 +69,10 @@ export const onHold = (c: Contact) => {
   const n = attemptsOf(c);
   return n >= CFG.maxAtt && !(n === CFG.maxAtt && !!c.out && !!OUT[c.out]?.needsFollowUp);
 };
-/** Reactivate an on-hold contact: back in the pool. The attempts are kept (a new round starts) unless
- * the rules say to set them back to 0 (rules: reactivateReset). */
+/** Reactivate an on-hold contact: back in the pool. The attempts are kept and a new round starts
+ * (agreed with Andrew; fixed, not a setting). */
 export function reactivate(c: Contact) {
-  if (CFG.reactivateReset) { c.att = 0; c.react = null; } else c.react = c.att;
+  c.react = c.att;
 }
 export const isFinal = (c: Contact) => !!c.out && !!OUT[c.out]?.final;
 export function priOf(c: Contact): Pri {
@@ -226,7 +226,8 @@ export function reassignOpen(from: RepKey, to: RepKey, n: number) {
 export function endDay(rep: RepKey) {
   const d = DAY[rep];
   const left = openOf(rep);
-  if (CFG.endDay === 'pool') left.forEach(c => { c.res = null; d.list = d.list.filter(k => k !== c.k); });
+  // What was not called always goes back to the pool (fixed, not a setting)
+  left.forEach(c => { c.res = null; d.list = d.list.filter(k => k !== c.k); });
   d.st = 'ended'; d.endedAt = isoT(nowT());
   return left.length;
 }

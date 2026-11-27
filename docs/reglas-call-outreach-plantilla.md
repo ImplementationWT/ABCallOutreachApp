@@ -96,7 +96,7 @@ Ya no se pregunta. Las campañas se crean una vez y siguen activas hasta que alg
 ## 5. Catálogo de resultados (tabla para llenar)
 
 - **Pregunta:** ¿estos días y efectos por resultado son los correctos?
-- **Hoy:** el catálogo ya se edita sin desplegar, en Outreach Manager → Global Assignment Rules (el Outreach Manager o un administrador). Cada llamada cuenta como intento, excepto Wrong Number (acordado), y los días son al menos 1. Working on Plans e Interested crean un lead (acordado).
+- **Hoy:** el catálogo ya se cambia sin desplegar, por su API (el Outreach Manager o un administrador). Cada llamada cuenta como intento, excepto Wrong Number (acordado), y los días son al menos 1. Working on Plans e Interested crean un lead (acordado).
 - **Impacto si cambia:** ninguno de código. Los valores los cambia el administrador.
 
 | Resultado | Hoy: vuelve en | Hoy: afecta además a | Hoy: pide fecha y hora | Acordado: días (hábiles o naturales) | Acordado: afecta además a (nadie / la propiedad / la persona) | Acordado: pide fecha y hora |
@@ -126,7 +126,7 @@ Ya no se pregunta. Las campañas se crean una vez y siguen activas hasta que alg
 
 ### 6.1 ACORDADA. El contador al reactivar
 
-Ya no se pregunta. Al reactivar un contacto en on-hold, sus intentos no vuelven a 0; la opción "Back to 0" queda apagada.
+Ya no se pregunta. Al reactivar un contacto en on-hold, sus intentos no vuelven a 0; es fijo.
 
 ### 6.2b Números alternativos verificados
 

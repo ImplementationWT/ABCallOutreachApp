@@ -3,7 +3,7 @@ import 'server-only';
  * and the manager's Reassign. Each one is checked against the database (the contact must be in that
  * rep's list today) and runs in the same lock as the allocation (lib/db/server-state.ts). */
 import type { Db } from 'mongodb';
-import { C, CALLS, CFG, DAY, OUT, PEO, endDay, onHold, reactivate, reassignOpen, saveOutcome, syncLog, type RepKey } from '@/lib/domain';
+import { C, CALLS, DAY, OUT, PEO, endDay, onHold, reactivate, reassignOpen, saveOutcome, syncLog, type RepKey } from '@/lib/domain';
 import { HttpError, withState } from './server-state';
 
 /** ph: index of the number the rep dialed (a Wrong Number marks that one); by default the next valid one. */
@@ -41,7 +41,7 @@ export const saveResult = (db: Db, now: string, rep: RepKey, x: SaveInput) => wi
   return { ok: true, call: call.id };
 });
 
-/** End Workday: what was not called goes back to the pool (rules: endDay). */
+/** End Workday: what was not called goes back to the pool. */
 export const endWorkday = (db: Db, now: string, rep: RepKey) => withState(db, now, () => ({ ok: true, n: endDay(rep) }));
 
 /** "Back to my list" after ending the day. */
@@ -61,13 +61,13 @@ export const reassign = (db: Db, now: string, from: RepKey, to: RepKey, n: numbe
 });
 
 /** Reactivate a contact on hold (max attempts): the rep assigned to it, or an administrator. It goes
- * back to the pool; its attempts are kept unless the rules say otherwise (reactivateReset). */
+ * back to the pool; its attempts are kept and a new round starts. */
 export const reactivateContact = (db: Db, now: string, who: { admin: boolean; person: string | null; name: string }, ct: string) => withState(db, now, () => {
   const c = C(ct);
   if (!c) throw new HttpError(404, 'Contact not found');
   if (!who.admin && (!who.person || c.rep !== who.person)) throw new HttpError(403, 'Only the rep assigned to this contact or the Outreach Manager can reactivate it');
   if (!onHold(c)) throw new HttpError(409, 'This contact is not on hold');
   reactivate(c);
-  syncLog('Fire Rebuild Contacts', c.n, `Reactivated by ${who.name}` + (CFG.reactivateReset ? ', attempts back to 0' : `, ${c.att} attempts kept`));
+  syncLog('Fire Rebuild Contacts', c.n, `Reactivated by ${who.name}` + `, ${c.att} attempts kept`);
   return { ok: true, att: c.att };
 });

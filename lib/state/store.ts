@@ -8,7 +8,7 @@ import { create } from 'zustand';
 import type { RepKey } from '@/lib/domain';
 
 export type AppKey = 'rep' | 'mgr' | 'prp' | 'p2';
-export type ViewKey = 'in' | AppKey | 'db';
+export type ViewKey = 'in' | AppKey;
 /** A result being written: fu is the follow-up day, fuT its time; key makes the save idempotent. */
 export type Draft = { out: string | null; note: string; fu: string | null; fuT?: string; key?: string };
 export type Pop =
@@ -42,8 +42,8 @@ export type State = {
 export const PAGE_SIZES = [20, 30, 50];
 
 export const S: State = {
-  view: 'in', page: { rep: 'today', mgr: 'live', prp: 'props', p2: 'call' }, det: {}, tab: {},
-  f: { pool: 'pool', prst: 'all', praud: 'all', dbm: 'az', script: false, campv: 'today' },
+  view: 'in', page: { rep: 'today', mgr: 'reports', prp: 'props', p2: 'call' }, det: {}, tab: {},
+  f: { pool: 'pool', prst: 'all', praud: 'all', script: false, campv: 'today', campaud: 'all' },
   user: 'may', sel: {}, draft: {}, srch: {}, modal: null, pop: null, hl: null, top: false,
   tour: { on: false, i: 0, col: false, list: false, x: null, y: null },
   pg: {},

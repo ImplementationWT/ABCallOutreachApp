@@ -1,7 +1,7 @@
 /* Sidebar pages of each app (server-safe, used by generateStaticParams). */
 export const APP_PAGES = {
-  rep: ['today', 'fu', 'calls', 'help'],
-  mgr: ['live', 'pool', 'leads', 'camp', 'rules', 'users', 'outc', 'reports', 'help'],
-  prp: ['props', 'cts', 'imp', 'help'],
-  p2: ['call', 'enrich', 'aud', 'prov', 'help'],
+  rep: ['today', 'fu', 'calls'],
+  mgr: ['reports', 'live', 'pool', 'leads', 'camp', 'rules', 'users', 'outc'],
+  prp: ['props', 'cts', 'imp'],
+  p2: ['call', 'enrich', 'aud', 'prov'],
 } as const;

@@ -1,22 +1,32 @@
-/* Reports (components/mgr/reports.tsx). Not from the artifact. */
+/* Reports dashboard (components/mgr/reports.tsx). Not from the artifact.
+ * Chart colors validated with the dataviz validator against the app's surfaces (#FFFFFF, #161D1A):
+ * --vz-o1..4 an ordered blue ramp (calls by result: deeper in the funnel, darker),
+ * --vz-c1..3 categorical slots 1-3 (blue, orange, aqua) for Calls, Connects and Leads. */
 @layer components {
-.rsec{font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin:4px 0 8px}
-.rstats{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:8px; margin-bottom:16px}
+:root{
+  --vz-o1:#86b6ef; --vz-o2:#3987e5; --vz-o3:#1c5cab; --vz-o4:#0d366b;
+  --vz-c1:#2a78d6; --vz-c2:#eb6834; --vz-c3:#1baf7a;
+  --vz-grid:#e1e0d9; --vz-axis:#c3c2b7;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --vz-o1:#184f95; --vz-o2:#2a78d6; --vz-o3:#5598e7; --vz-o4:#9ec5f4;
+  --vz-c1:#3987e5; --vz-c2:#d95926; --vz-c3:#199e70;
+  --vz-grid:#2c2c2a; --vz-axis:#383835;
+}}
+:root[data-theme="dark"]{
+  --vz-o1:#184f95; --vz-o2:#2a78d6; --vz-o3:#5598e7; --vz-o4:#9ec5f4;
+  --vz-c1:#3987e5; --vz-c2:#d95926; --vz-c3:#199e70;
+  --vz-grid:#2c2c2a; --vz-axis:#383835;
+}
+
+.rsec{font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin:4px 0 10px}
+.rstats{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:8px; margin-bottom:14px}
 .rstats .stat{min-width:0}
 .rtrend{font-size:12px; color:var(--muted); margin-top:2px; font-variant-numeric:tabular-nums}
 .rtrend.up{color:var(--g600)} .rtrend.down{color:var(--r500)}
-.rboard{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; margin-bottom:16px}
-.rboard .card{margin:0}
-.rboard ol{list-style:none; margin:6px 0 0; padding:0; display:grid; gap:6px}
-.rboard li{display:flex; align-items:center; gap:8px; font-size:13.5px}
-.rboard li .pl{width:18px; color:var(--muted); font-weight:700; font-variant-numeric:tabular-nums}
-.rboard li .nm{flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
-.rboard li b{font-variant-numeric:tabular-nums}
-}
 
-/* Day picker of Reports: the arrows and Today have the date field's size; the date is centered */
-@layer components {
-.rbar{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:16px}
+/* Day picker: the arrows and Today have the date field's size; the date is centered */
+.rbar{display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:14px}
 .rbar .rday{width:240px}
 .rbar .rday .pk-b{justify-content:center; font-weight:600}
 .rbar .rday .pk-b span{flex:none}
@@ -24,4 +34,41 @@
 .rnav{display:inline-grid; place-items:center; min-width:38px; height:38px; padding:0 10px; border-radius:11px; border:1.5px solid var(--line-2); background:var(--surface); font-size:14px; font-weight:600; color:var(--ink)}
 .rnav:hover:not(:disabled){border-color:var(--g400)}
 .rnav:disabled{opacity:.4; cursor:default}
+
+/* Charts */
+.vgrid2{display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px}
+@media (max-width:1000px){ .vgrid2{grid-template-columns:1fr} }
+.vcard{margin:0 0 12px; overflow:visible}
+.vcard:has(.vtip){z-index:4; position:relative}
+.vcard h3{margin-bottom:6px}
+.vlegend{display:flex; flex-wrap:wrap; gap:14px; font-size:12.5px; color:var(--muted); margin-bottom:10px}
+.vlegend span{display:inline-flex; align-items:center; gap:6px}
+.vsw{width:10px; height:10px; border-radius:3px; display:inline-block}
+.vkey{width:14px; height:2px; border-radius:2px; display:inline-block; flex:none}
+.vkey.none{background:transparent}
+.vbox{position:relative}
+.vrow{display:grid; grid-template-columns:150px minmax(0,1fr); align-items:center; gap:10px; padding:7px 4px; border-radius:10px; outline:none}
+.vrow:hover,.vrow:focus-visible{background:var(--n25)}
+.vrow:focus-visible{box-shadow:inset 0 0 0 2px var(--g600)}
+.vlbl{display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:600; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.vtrack{display:flex; align-items:center; gap:8px; min-width:0}
+.vstack{display:flex; gap:2px; height:18px; min-width:0}
+.vstack i{display:block; height:100%; min-width:2px}
+.vstack i:last-child{border-radius:0 4px 4px 0}
+.vzbars{display:grid; gap:5px}
+.vbar{display:block; height:12px; border-radius:0 4px 4px 0; min-width:0}
+.vval{font-size:12.5px; font-weight:700; color:var(--ink); font-variant-numeric:tabular-nums; white-space:nowrap}
+.vgrid{stroke:var(--vz-grid); stroke-width:1}
+.vcross{stroke:var(--vz-axis); stroke-width:1}
+.vtick{font-size:11px; fill:var(--muted); font-variant-numeric:tabular-nums}
+.vend{font-size:11.5px; fill:var(--ink); font-weight:600}
+.vdot{stroke:var(--surface); stroke-width:2}
+.vtip{position:absolute; z-index:5; min-width:170px; padding:9px 11px; border-radius:12px; background:var(--surface); border:1px solid var(--line-2); box-shadow:var(--sh-2); font-size:12.5px; pointer-events:none}
+.vtip-t{display:block; font-size:12px; color:var(--muted); font-weight:600; margin-bottom:5px}
+.vtip-r{display:flex; align-items:center; gap:7px; line-height:1.55}
+.vtip-r b{font-variant-numeric:tabular-nums; min-width:34px}
+.vtip-r span{color:var(--muted)}
+.vtable{margin-top:8px; font-size:12.5px}
+.vtable summary{cursor:pointer; color:var(--muted); font-weight:600}
+.vtable .ptbl{margin-top:6px}
 }

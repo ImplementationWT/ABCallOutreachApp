@@ -1,7 +1,7 @@
 /* feat/campaign-filtering, point 4: metrics. The calculations only read CallRecords from a source,
  * so the source (today the app's call log, later RingCentral) changes without touching them. */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { CALLS, DEFAULT_OUTCOMES, OUT, OUTK, appCallSource, dailyReport, fmtRate, metricsOf, pacificDay, saveOutcome, setToday, trend, type CallRecord, type CallSource } from '../../lib/domain';
+import { CALLS, DEFAULT_OUTCOMES, OUT, OUTK, appCallSource, dailyReport, dailySeries, fmtRate, metricsOf, pacificDay, saveOutcome, setToday, trend, type CallRecord, type CallSource } from '../../lib/domain';
 import { DAY0, ct, load, prop, started } from '../sprint18/fixture';
 
 const rec = (rep: string, day: string, connect = false, lead = false): CallRecord => ({ rep, at: `${day}T10:00`, connect, lead });
@@ -24,8 +24,9 @@ describe('catalog: connect and lead', () => {
 describe('the calculations', () => {
   it('Calls Made, Connects, New Leads, Dial to Connect and Connect to Lead', () => {
     const m = metricsOf([rec('may', 'x', true, true), rec('may', 'x', true), rec('may', 'x'), rec('may', 'x')]);
-    expect(m).toEqual({ calls: 4, connects: 2, leads: 1, d2c: 0.5, c2l: 0.5 });
-    expect(metricsOf([])).toEqual({ calls: 0, connects: 0, leads: 0, d2c: null, c2l: null });
+    expect(m).toEqual({ calls: 4, connects: 2, convos: 0, leads: 1, d2c: 0.5, c2l: 0.5 });
+    expect(metricsOf([{ ...rec('may', 'x', true), convo: true }]).convos).toBe(1);
+    expect(metricsOf([])).toEqual({ calls: 0, connects: 0, convos: 0, leads: 0, d2c: null, c2l: null });
     expect(fmtRate(0.125)).toBe('13%'); expect(fmtRate(null)).toBe('–');
   });
   it('by rep and day, the team total, and the same day of the week before', () => {
@@ -56,7 +57,7 @@ describe('the calculations', () => {
     const other = dailyReport(fake(appCallSource.calls('2026-11-02', '2026-11-02')), '2026-11-02');
     expect(app.source).toBe('Call results recorded in the app');
     expect(app.reps).toEqual(other.reps);
-    expect(app.reps[0].m).toEqual({ calls: 2, connects: 1, leads: 1, d2c: 0.5, c2l: 1 });
+    expect(app.reps[0].m).toEqual({ calls: 2, connects: 1, convos: 1, leads: 1, d2c: 0.5, c2l: 1 }); // Interested is a conversation
     expect(CALLS.length).toBe(2);
   });
   it('connect comes from the catalog, so an administrator can change it', () => {
@@ -70,6 +71,12 @@ describe('the calculations', () => {
   it('the default day is today in California', () => {
     expect(pacificDay(new Date('2026-11-03T06:30:00Z'))).toBe('2026-11-02'); // 10:30 PM in Los Angeles
     expect(pacificDay(new Date('2026-11-03T09:00:00Z'))).toBe('2026-11-03');
+  });
+});
+describe('the trend', () => {
+  it('the team by day for the days that end on the chosen one, oldest first, empty days included', () => {
+    const s = dailySeries(fake([rec('may', '2026-11-02', true), rec('dan', '2026-11-01'), rec('and', '2026-11-02'), rec('may', '2026-10-01')]), '2026-11-02', 3);
+    expect(s.map(x => [x.day, x.m.calls, x.m.connects])).toEqual([['2026-10-31', 0, 0], ['2026-11-01', 1, 0], ['2026-11-02', 1, 1]]);
   });
 });
 beforeEach(() => setToday(DAY0));

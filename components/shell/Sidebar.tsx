@@ -19,8 +19,6 @@ export function Sidebar({ k, items, foot }: { k: AppKey; items: SbItem[]; foot?:
         <span className="ni"><Icon n={icon} s={16} /></span><span className="min-w-0 truncate" title={label}>{label}</span>{cnt ? <span className={`cnt ${soft ? 'soft' : ''}`}>{cnt}</span> : null}
       </button>;
     })}
-    <div className="sb-sec">Help</div>
-    <button className="nav" {...on(pageAct(k), 'help')} aria-current={S.page[k] === 'help'}><span className="ni"><Icon n="book" s={16} /></span>How it works</button>
     {foot ? <div className="sb-foot">{foot}</div> : null}
   </>;
 }

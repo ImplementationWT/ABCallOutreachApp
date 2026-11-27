@@ -61,12 +61,15 @@ async function walk(page: Page) {
   await btn(page, 'Reopen for outreach').click(); await idle(page);
   await note('reopen', toastText(page));
 
-  // Data modes
-  await switchApp(page, 'Data');
-  for (const m of ['Tables', 'Access by app', 'Where it runs']) { await btn(page, m, '.toolbar').click(); await idle(page); await note(m, text('.dbw')); }
-  await btn(page, 'Process A to Z', '.toolbar').click(); await idle(page);
-  await page.locator('.azr').first().click(); await idle(page);
-  await note('az go', text('.op h1'));
+  // Data modes (the Data app was removed from the app: its steps are not compared)
+  const art = page.url().startsWith('file:');
+  if (art) {
+    await switchApp(page, 'Data');
+    for (const m of ['Tables', 'Access by app', 'Where it runs']) { await btn(page, m, '.toolbar').click(); await idle(page); await note(m, text('.dbw')); }
+    await btn(page, 'Process A to Z', '.toolbar').click(); await idle(page);
+    await page.locator('.azr').first().click(); await idle(page);
+    await note('az go', text('.op h1'));
+  } else for (const m of ['Tables', 'Access by app', 'Where it runs', 'az go']) await note(m, 'removed');
 
   // Manager: list modal, open as, pool search
   await openAsAndrew(page);
@@ -78,7 +81,7 @@ async function walk(page: Page) {
   await page.locator('.stat', { hasText: 'All contacts' }).click(); await idle(page);
   await page.locator('#srpool').fill('Marsh'); await idle(page);
   await note('pool search', text('.rows'));
-  await btn(page, 'The day by rep', '.sb').click(); await idle(page);
+  await btn(page, art ? 'The day by rep' : 'Reports', '.sb').click(); await idle(page);
   await btn(page, 'Open as Daniel').click(); await idle(page);
   await note('as daniel', text('.qhead'));
   await note('as daniel detail', text('.wdet .dh'));
@@ -108,8 +111,8 @@ test('artifact and app agree on the remaining actions', async ({ browser }) => {
   // Sprint 18: the follow-up shows its time in the app ("on <day> at 10:00 AM")
   const same = (s: string) => s.startsWith('effects:') ? s.replace(/atT/g, '') : s;
   // Permanent campaigns (Andrew's round 1): the data model's Campaigns table has no date now
-  const camp = (s: string) => s.replace('Campaigns1row=campaignofaday.5rowsinthedemo.DateDateAudiencesDropdown', 'Campaigns1row=campaign(activeuntilpausedorended).5rowsinthedemo.NameTextStatusActive,Paused,EndedAudiencesDropdown').replace('+Newcampaignfortomorrow', '+Newcampaign').replace('+Dailyemails:therep’smorningcampaign', '').replace('+mondaysync:whatwaspushedtoday', '');
-  for (let i = 0; i < a.length; i++) expect(same(b[i]), `step ${i}`).toBe(camp(sprint18(a[i])));
+  const camp = (s: string) => s.replace('Campaigns1row=campaignofaday.5rowsinthedemo.DateDateAudiencesDropdown', 'Campaigns1row=campaign(activeuntilpausedorended).5rowsinthedemo.NameTextStatusActive,Paused,EndedAudiencesDropdown').replace('+Newcampaignfortomorrow', '+Newcampaign').replace('+Dailyemails:therep’smorningcampaign', '').replace('+mondaysync:whatwaspushedtoday', '').replace('+Data:theprocessfromAtoZandwhereitruns', '');
+  for (let i = 0; i < a.length; i++) { if (b[i].endsWith(': removed')) continue; expect(same(b[i]), `step ${i}`).toBe(camp(sprint18(a[i]))); }
 });
 
 test('app: old #vista links, back button and the rename', async ({ page }) => {
@@ -162,9 +165,9 @@ test('app: no "To validate" labels on the rules', async ({ page }) => {
 
 test('app: Calling and AI is locked for everyone', async ({ page }) => {
   await openApp(page, '/p2/call');
-  await expect(page).toHaveURL(/\/mgr\/live$/);
+  await expect(page).toHaveURL(/\/mgr\/reports$/);
   await page.locator('#appsel').click();
   await expect(page.locator('[data-app="p2"]')).toHaveAttribute('aria-disabled', 'true');
   await page.locator('[data-app="p2"]').click({ force: true });
-  await expect(page).toHaveURL(/\/mgr\/live$/);
+  await expect(page).toHaveURL(/\/mgr\/reports$/);
 });

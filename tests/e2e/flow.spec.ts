@@ -108,13 +108,12 @@ test('artifact and app walk the same', async ({ browser }) => {
       expect(app).toContain(bare('Your follow-ups and undecided contacts come back to you, and only to you'));
       for (const name of ['SandraLiu']) { expect(art).toContain(name); expect(app).toContain(name); }
     },
-    'live:': (app, art) => {
-      expect(app).toContain(bare('Active campaigns'));
-      expect(app.split(bare('Active campaigns'))[1]).toContain(bare('Pacific Palisades and Sunset Mesa'));
-      // everything above the campaigns card is the same as the artifact's
-      // the header's Rules and Campaigns buttons were removed
-      expect(app.split(bare('Active campaigns'))[0]).toBe(sprint18(art.split(bare('Today’s campaigns'))[0]).replace('RulesCampaigns', ''));
+    // The day by rep is inside Reports now: today's lists, then the results
+    'live:': app => {
+      for (const t of ['Reports', 'Today’s lists', 'Reserved today', 'Maya Torres', 'Daniel Brooks', 'Priya Shah', 'Open as Maya', 'Results', 'Calls by rep, by result']) expect(app, t).toContain(bare(t));
+      expect(app).not.toContain(bare('Hand-offs to sales today'));
     },
+    'tour 1 screen:': (app, art) => { expect(art).toBe(bare('tour 1 screen: The day by rep')); expect(app).toBe(bare('tour 1 screen: Reports')); },
     'new campaign modal:': app => expect(app).toContain(bare('It is active from now until someone pauses or ends it')),
     'campaign:': app => expect(app).toBe(bare('campaign: Campaign created: Pacific Palisades is active. The next allocation uses it')),
     // the walkthrough's rules step opens the old Assignment rules route: Global Assignment Rules

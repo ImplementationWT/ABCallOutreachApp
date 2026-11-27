@@ -4,7 +4,7 @@ import { APP_PAGES } from '../../lib/state/pages';
 import { STORAGE } from './db';
 import { fixClock } from './targets';
 
-const ROUTES = ['/', '/data', '/prp/props', '/prp/props/P-1003', ...Object.entries(APP_PAGES).flatMap(([a, ps]) => ps.map(p => `/${a}/${p}`))];
+const ROUTES = ['/', '/prp/props', '/prp/props/P-1003', ...Object.entries(APP_PAGES).flatMap(([a, ps]) => ps.map(p => `/${a}/${p}`))];
 for (const colorScheme of ['light', 'dark'] as const) {
   test(`console is clean (${colorScheme})`, async ({ browser }) => {
     const ctx = await browser.newContext({ colorScheme, storageState: STORAGE });

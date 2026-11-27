@@ -4,7 +4,6 @@
  *   /                 the user's home (HomeRedirect); the artifact's user picker is gone with the real login
  *   /rep|mgr|prp|p2/[page]           (S.view + S.page[app])
  *   /prp/props/[id]   property record (S.det.prp)
- *   /data             Data           (S.view 'db')
  * Actions keep changing S, as in the artifact; <RouteSync> pushes the matching URL afterwards, and
  * each route applies its params to S when it is first rendered (direct load, back and forward).
  */
@@ -28,8 +27,7 @@ export const openProp = (k: string, tab?: string) => go('prp', 'props', k, tab |
 export function urlOf(): string {
   const v = S.view;
   if (v === 'in') return '/';
-  if (v === 'db') return '/data';
-  if (v === 'prp' && S.det.prp && S.page.prp !== 'help') return `/prp/props/${S.det.prp}`;
+  if (v === 'prp' && S.det.prp) return `/prp/props/${S.det.prp}`;
   return `/${v}/${S.page[v]}`;
 }
 
@@ -60,7 +58,6 @@ export function hashRoute(hash: string): string | null {
   const h = new URLSearchParams(hash.replace(/^#/, ''));
   const v = h.get('vista');
   if (!v) return null;
-  if (v === 'db') return '/data';
   if (!isApp(v)) return null;
   const pg = h.get('pagina');
   return `/${v}/${pg || S.page[v]}`;
@@ -70,7 +67,6 @@ export function hashRoute(hash: string): string | null {
 export function routeOf(pathname: string): Route | null {
   const seg = pathname.split('/').filter(Boolean);
   if (!seg.length) return null;
-  if (seg[0] === 'data' && seg.length === 1) return { view: 'db' };
   if (!isApp(seg[0])) return null;
   if (seg[0] === 'prp' && seg[1] === 'props' && seg[2]) return { view: 'prp', page: 'props', det: decodeURIComponent(seg[2]) };
   if (seg.length === 2) return { view: seg[0], page: seg[1] };

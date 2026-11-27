@@ -6,13 +6,13 @@
  * connect and lead from the outcome catalog). Later a RingCentral source gives the same records.
  * Pure: no DOM, no driver. Content modeled on the daily report Andrew gets from Orum
  * (docs/andrew): leaderboard by metric, team activity, rates, and the table by rep, against last week. */
-import { isConnectOut, isLeadOut } from './catalogs';
+import { OUT, isConnectOut, isLeadOut } from './catalogs';
 import { CALLS } from './data';
 import { addDays, iso } from './dates';
 import { REPS, type RepKey } from './people';
 
-/** One call as the calculations see it. */
-export type CallRecord = { rep: string; at: string; connect: boolean; lead: boolean };
+/** One call as the calculations see it. convo: a real conversation (optional: a source may not know). */
+export type CallRecord = { rep: string; at: string; connect: boolean; lead: boolean; convo?: boolean };
 export interface CallSource {
   /** Shown under the report: where the numbers come from. */
   readonly name: string;
@@ -24,23 +24,25 @@ export interface CallSource {
 export const appCallSource: CallSource = {
   name: 'Call results recorded in the app',
   calls: (from, to) => CALLS.filter(x => { const d = x.at.slice(0, 10); return d >= from && d <= to; })
-    .map(x => ({ rep: x.rep, at: x.at, connect: isConnectOut(x.out), lead: isLeadOut(x.out) })),
+    .map(x => ({ rep: x.rep, at: x.at, connect: isConnectOut(x.out), lead: isLeadOut(x.out), convo: OUT[x.out]?.group === 'conv' })),
 };
 
 export type ReportMetrics = {
   calls: number; connects: number; leads: number;
+  /** Conversations: connects with a real answer (every connect except Hung Up, by default). */
+  convos: number;
   /** Connects / Calls Made, and New Leads / Connects: a fraction, or null with nothing to divide by. */
   d2c: number | null; c2l: number | null;
 };
 export type ReportKey = keyof ReportMetrics;
 export const REPORT_METRICS: { k: ReportKey; n: string; rate?: boolean }[] = [
-  { k: 'calls', n: 'Calls Made' }, { k: 'connects', n: 'Connects' }, { k: 'leads', n: 'New Leads' },
+  { k: 'calls', n: 'Calls Made' }, { k: 'connects', n: 'Connects' }, { k: 'convos', n: 'Conversations' }, { k: 'leads', n: 'New Leads' },
   { k: 'd2c', n: 'Dial to Connect', rate: true }, { k: 'c2l', n: 'Connect to Lead', rate: true },
 ];
 
 export function metricsOf(rs: CallRecord[]): ReportMetrics {
-  const calls = rs.length, connects = rs.filter(r => r.connect).length, leads = rs.filter(r => r.lead).length;
-  return { calls, connects, leads, d2c: calls ? connects / calls : null, c2l: connects ? leads / connects : null };
+  const calls = rs.length, connects = rs.filter(r => r.connect).length, leads = rs.filter(r => r.lead).length, convos = rs.filter(r => r.convo).length;
+  return { calls, connects, convos, leads, d2c: calls ? connects / calls : null, c2l: connects ? leads / connects : null };
 }
 
 export type RepRow = { rep: RepKey; m: ReportMetrics; prev: ReportMetrics };
@@ -69,6 +71,13 @@ export function dailyReport(src: CallSource, day: string, reps: RepKey[] = REPS)
     rank[k] = sorted.map(x => ({ ...x, place: 1 + sorted.findIndex(y => y.v === x.v) }));
   }
   return { day, prevDay, source: src.name, reps: rows, team: { m: metricsOf(inTeam(now)), prev: metricsOf(inTeam(before)) }, rank };
+}
+
+/** The team's numbers for each of the `n` days that end on `day` (oldest first): the trend chart. */
+export function dailySeries(src: CallSource, day: string, n = 14, reps: RepKey[] = REPS): { day: string; m: ReportMetrics }[] {
+  const days = Array.from({ length: n }, (_, i) => iso(addDays(day, i - n + 1)));
+  const rs = src.calls(days[0], day).filter(x => (reps as string[]).includes(x.rep));
+  return days.map(d => ({ day: d, m: metricsOf(rs.filter(x => x.at.slice(0, 10) === d)) }));
 }
 
 /** "12%", or "–" when there is nothing to divide by. */

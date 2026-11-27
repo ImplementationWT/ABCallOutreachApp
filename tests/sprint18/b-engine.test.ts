@@ -213,12 +213,12 @@ describe('B6 end of day', () => {
     expect(freeGroups('dan').some(g => g.p.k === freed.prop)).toBe(true);
     expect(DAY.may.st).toBe('ended');
   });
-  it('rules/default.endDay = "pool" is what returns them; other values keep them reserved', () => {
+  it('what was not called always goes back to the pool, whatever rules/default.endDay says (fixed)', () => {
     households(2); CFG.endDay = 'keep';
     startNewDay();
-    const n = listOf('may').length;
+    expect(listOf('may').length).toBeGreaterThan(0);
     endDay('may');
-    expect(listOf('may').length).toBe(n);
+    expect(listOf('may')).toEqual([]);
   });
 });
 

@@ -57,6 +57,7 @@ export const IC: Record<string, string> = {
   chu: "m18 15-6-6-6 6",
   play: "M6 4l14 8-14 8z",
   pause: "M8 5v14M16 5v14",
+  stop: "M6 6h12v12H6z",
   target: "M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12zM12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z",
   zap: "M13 2 3 14h9l-1 8 10-12h-9z",
   shuffle: "M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5",

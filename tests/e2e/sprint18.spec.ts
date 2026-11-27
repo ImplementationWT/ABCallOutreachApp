@@ -97,17 +97,11 @@ test.describe('C1. Outcome catalog (the Outreach Manager or an administrator)', 
     // nobody writes the catalog through POST /api/state
     expect((await admin.post('/api/state', { data: { changes: { outcomes: { upsert: [{ _id: 'Y' }] } } } })).status()).toBe(403);
   });
-  test('an administrator creates and deactivates outcomes on the screen; the rep\'s form follows the catalog', async ({ browser }) => {
-    const a = await page(browser, 'admin', '/mgr/outc');
-    await expect(a.locator('[data-outcome]')).toHaveCount(11);
-    await a.getByRole('button', { name: 'New outcome' }).click();
-    await a.locator('#o-name').fill('Moved away');
-    await a.locator('#o-days').fill('3');
-    await a.locator('[data-prop=property]').click();
-    await a.getByRole('button', { name: 'Create outcome' }).click();
-    await expect(a.locator('[data-outcome="Moved away"]')).toBeVisible();
-    await a.locator('[data-toggle="Hung Up"]').click();
-    await expect(a.locator('[data-outcome="Hung Up"]')).toContainText('Inactive');
+  // The catalog screen was removed on request: the catalog is still edited through POST /api/outcomes
+  test('an administrator creates and deactivates outcomes (API); the rep\'s form follows the catalog', async ({ browser, playwright }) => {
+    const admin = await api(playwright, 'admin');
+    expect((await admin.post('/api/outcomes', { data: { action: 'create', name: 'Moved away', status: 'Not Interested', recallDays: 3, propagates: 'property' } })).status()).toBe(201);
+    expect((await admin.post('/api/outcomes', { data: { action: 'update', name: 'Hung Up', active: false } })).status()).toBe(200);
     const doc = await withDb(db => db.collection('outcomes').findOne({ _id: 'Moved away' as never }));
     expect(doc).toMatchObject({ active: true, countsAsAttempt: true, recallDays: 3, propagates: 'property', needsFollowUp: false });
     const m = await page(browser, 'maya');

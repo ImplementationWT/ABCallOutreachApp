@@ -175,11 +175,10 @@ describe('C4 maximum attempts and on-hold', () => {
     expect(C('C-1').att).toBe(7);
     expect(onHold(C('C-1'))).toBe(false); // a new round of attempts started at the reactivation
   });
-  it('the reset to 0 is one setting away (rules/default.reactivateReset), off by default', () => {
-    expect(CFG.reactivateReset).toBe(false);
+  it('reactivating always keeps the attempts (fixed: an old reactivateReset in the rules is ignored)', () => {
     load({ props: [prop('P-1', 'pp')], contacts: [ct('C-1', 'P-1', { att: 6 })], workdays: started(), rules: { reactivateReset: true } });
     reactivate(C('C-1'));
-    expect(C('C-1').att).toBe(0);
+    expect(C('C-1')).toMatchObject({ att: 6, react: 6 });
   });
   it('the call log keeps every attempt', () => {
     saveOutcome('C-4', 'may', 'Left VM', 'first'); saveOutcome('C-4', 'dan', 'Hung Up', 'second');

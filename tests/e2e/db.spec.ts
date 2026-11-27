@@ -7,7 +7,7 @@ test.beforeEach(async () => { await reseed(); });
 
 test('a saved call, a new campaign and a rule survive a reload', async ({ page }) => {
   await openApp(page, '/');
-  await expect(page).toHaveURL(/\/mgr\/live$/);
+  await expect(page).toHaveURL(/\/mgr\/reports$/);
   await btn(page, 'Open as Maya').click(); await idle(page);
   await btn(page, 'Start Workday').click(); await idle(page);
   await page.locator('.ob', { hasText: 'Left VM' }).first().click(); await idle(page);
@@ -36,7 +36,7 @@ test('a saved call, a new campaign and a rule survive a reload', async ({ page }
   await page.reload(); await page.waitForLoadState('networkidle');
   await expect(page.locator('#cfg-maxAtt')).toHaveValue('4');
   await page.goto('/mgr/camp'); await page.waitForLoadState('networkidle');
-  await expect(page.locator('[data-camps=active] .rows')).toContainText('C-0001');
+  await expect(page.locator('[data-camp=C-0001]')).toContainText('Active');
   await withDb(async db => {
     expect(await db.collection('rules').findOne({})).toMatchObject({ maxAtt: 4 });
     expect(await db.collection('campaigns').countDocuments()).toBe(6);
@@ -59,12 +59,13 @@ test('a new day: the first load runs the morning allocation for the active campa
   await btn(page, 'Create campaign').click(); await idle(page);
   // Priya's only campaign is paused: no list for her tomorrow
   await page.locator('[data-camp=C-ADMB] [data-act=camppause]').click(); await idle(page);
-  await expect(page.locator('[data-camps=paused]')).toContainText('Altadena and Malibu');
+  await expect(page.locator('[data-camp=C-ADMB]')).toContainText('Paused');
+  await expect(page.locator('[data-camp=C-ADMB] [data-act=campresume]')).toBeVisible();
   await page.waitForTimeout(800);
   expect(await withDb(db => db.collection('campaigns').findOne({ _id: 'C-ADMB' as never }))).toMatchObject({ status: 'paused', since: '2026-11-02' });
   await page.clock.setFixedTime(new Date(2026, 10, 3, 9, 0));
   await page.goto('/'); await page.waitForLoadState('networkidle');
-  await expect(page).toHaveURL(/\/mgr\/live$/);
+  await expect(page).toHaveURL(/\/mgr\/reports$/);
   await expect(page.locator('.op-h p')).toContainText('Tue, Nov 3');
   await expect(page.locator('.repc', { hasText: 'Maya Torres' })).toContainText('Pacific Palisades');
   await expect(page.locator('.repc', { hasText: 'Priya Shah' })).toContainText('No active campaign');
