@@ -194,7 +194,13 @@ test.describe('4. Metrics', () => {
     }));
     const per = (rep?: string) => { const cs = calls.filter(c => !rep || c.rep === rep); return { calls: cs.length, con: cs.filter(c => out[c.out].connect).length, leads: cs.filter(c => out[c.out].lead).length }; };
     const p = await page(browser, 'admin', '/mgr/reports');
-    await expect(p.locator('[data-report-day]')).toHaveText('Mon, Nov 2, today (Pacific time)');
+    // the day picker: the date centered in the field, the arrows as tall as the field, no repeated date
+    await expect(p.locator('[data-report-day]')).toHaveText('Mon, Nov 2');
+    await expect(p.locator('[data-act=repnow]')).toHaveCount(0); // already today
+    const field = (await p.locator('[data-report-day] .pk-b').boundingBox())!;
+    for (const b of await p.locator('[data-report-bar] .rnav').all()) expect(Math.abs((await b.boundingBox())!.height - field.height)).toBeLessThanOrEqual(1);
+    expect(await p.locator('[data-report-day] .pk-b').evaluate(e => getComputedStyle(e).justifyContent)).toBe('center');
+    await expect(p.locator('#main')).not.toContainText('How each number is counted');
     const team = per();
     expect(team.calls).toBeGreaterThan(0);
     await expect(p.locator('[data-activity] [data-metric=calls] b')).toHaveText(String(team.calls));
@@ -216,7 +222,7 @@ test.describe('4. Metrics', () => {
     await p.click('[data-act=repnav][data-v="-1"]');
     await expect(p.locator('[data-report-day]')).toHaveText('Sun, Nov 1');
     await p.click('[data-act=repnow]');
-    await expect(p.locator('[data-report-day]')).toContainText('today');
+    await expect(p.locator('[data-report-day]')).toHaveText('Mon, Nov 2');
     await withDb(db => db.collection('call_log').deleteMany({ _id: { $in: [800001, 800002] } as never }));
   });
   test('the Outreach Manager (manager) and an administrator see Reports; a rep does not', async ({ browser }) => {
@@ -323,6 +329,24 @@ test.describe('6. Roles: the Outreach Manager (manager) does everything in Outre
     for (const path of ['/mgr/live', '/mgr/camp', '/mgr/rules', '/mgr/reports']) {
       const r = await page(browser, 'maya', path);
       await expect(r, path).toHaveURL(/\/rep\/today$/);
+    }
+  });
+});
+
+test.describe('7. Layout', () => {
+  test('The day by rep: no Rules or Campaigns buttons in the header, and room between the count and the progress bar', async ({ browser }) => {
+    const a = await page(browser, 'admin', '/mgr/live');
+    await expect(a.locator('.op-h button')).toHaveCount(0);
+    const card = a.locator('.repc').first();
+    const gap = (await card.locator('.bar').boundingBox())!.y - ((await card.locator('.repc-prog').boundingBox())!.y + (await card.locator('.repc-prog').boundingBox())!.height);
+    expect(gap).toBeGreaterThanOrEqual(7);
+  });
+  test('the top bar shows whose account it is: name and role', async ({ browser }) => {
+    for (const [u, name, role] of [['admin', 'Administrator', 'Administrator'], ['andrew', 'Andrew Vaitkevicius', 'Manager'], ['maya', 'Maya Torres', 'Sales rep']]) {
+      const p = await page(browser, u, u === 'maya' ? '/rep/fu' : '/mgr/live');
+      await expect(p.locator('#usermenu [data-me] b'), u).toHaveText(name);
+      await expect(p.locator('#usermenu [data-me] small'), u).toHaveText(role);
+      await expect(p.locator('#usermenu [data-me]'), u).toBeVisible();
     }
   });
 });

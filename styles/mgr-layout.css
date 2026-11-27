@@ -1,0 +1,9 @@
+/* Outreach Manager and top bar adjustments. Not from the artifact. */
+@layer components {
+/* The day by rep: room between "x of y documented" and the progress bar */
+.repc .repc-prog{margin-bottom:8px}
+/* The account in the top bar: name and role always visible (the artifact hid them below 1600px) */
+.me .me-id{display:block; min-width:0}
+.me .me-id b{max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
+@media (max-width:760px){ .me .me-id{display:none} }
+}

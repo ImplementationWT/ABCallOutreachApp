@@ -9,6 +9,7 @@ import { getMe, useMe } from '@/lib/state/auth';
 import { EMP0, S, brand, bump, store, useApp } from '@/lib/state/store';
 import { Avatar } from '@/components/ui';
 import { UserMenu } from './UserMenu';
+import { ROLES } from '@/lib/auth/roles';
 
 const noop = () => () => {};
 /** The person shown in the avatar: the rep whose list is open, else the signed-in user's person (the
@@ -30,7 +31,8 @@ export function TopBar() {
   const pathname = usePathname() ?? '/';
   // Before hydration ends the view comes from the URL (S is shared while prerendering routes).
   const view = mounted ? S.view : routeOf(pathname)?.view ?? S.view;
-  const me = useMe(s => s.me);
+  // The account only after hydration: the server never knows who is signed in
+  const me0 = useMe(s => s.me), me = mounted ? me0 : null;
   const w = whoNow(view), p = PEO[w];
   const de = mounted ? document.documentElement : null;
   const dark = !!de && (de.dataset.theme === 'dark' || (!de.dataset.theme && matchMedia('(prefers-color-scheme: dark)').matches));
@@ -62,8 +64,10 @@ export function TopBar() {
       <div className="tools" id="tools">
         <UserMenu dark={dark}>
           {me && !me.person && view !== 'rep'
-            ? <><span className="av" title={me.name}>{me.name.split(' ').map(x => x[0]).join('').slice(0, 2).toUpperCase()}</span><div><b>{me.name}</b><small>{me.username}</small></div></>
-            : <><Avatar k={w} /><div><b>{p.n}</b><small>{p.r}</small></div></>}
+            ? <span className="av" title={me.name}>{me.name.split(' ').map(x => x[0]).join('').slice(0, 2).toUpperCase()}</span>
+            : <Avatar k={w} />}
+          {/* Whose account this is: the signed-in user's name, and their role below */}
+          {me ? <div className="me-id" data-me><b>{me.name}</b><small>{ROLES[me.role].n}</small></div> : <div className="me-id"><b>{p.n}</b><small>{p.r}</small></div>}
         </UserMenu>
       </div>
     </header>

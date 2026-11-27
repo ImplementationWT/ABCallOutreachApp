@@ -112,7 +112,8 @@ test('artifact and app walk the same', async ({ browser }) => {
       expect(app).toContain(bare('Active campaigns'));
       expect(app.split(bare('Active campaigns'))[1]).toContain(bare('Pacific Palisades and Sunset Mesa'));
       // everything above the campaigns card is the same as the artifact's
-      expect(app.split(bare('Active campaigns'))[0]).toBe(sprint18(art.split(bare('Today’s campaigns'))[0]));
+      // the header's Rules and Campaigns buttons were removed
+      expect(app.split(bare('Active campaigns'))[0]).toBe(sprint18(art.split(bare('Today’s campaigns'))[0]).replace('RulesCampaigns', ''));
     },
     'new campaign modal:': app => expect(app).toContain(bare('It is active from now until someone pauses or ends it')),
     'campaign:': app => expect(app).toBe(bare('campaign: Campaign created: Pacific Palisades is active. The next allocation uses it')),

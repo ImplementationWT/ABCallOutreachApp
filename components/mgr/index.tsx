@@ -28,7 +28,7 @@ function RepCard({ r }: { r: RepKey }) {
   const own = listOf(r).filter(c => ownerOf(c) === r).length;
   return <div className={`repc ${d.st === 'off' ? 'off' : ''}`}>
     <div className="h"><Avatar k={r} /><div><b>{PEO[r].n}</b><small>{cn || 'No active campaign'}</small></div><span className="r">{st}</span></div>
-    <div className="sm flex justify-between"><span>{dn} of {all} documented</span><span className="muted">{own} own follow-ups</span></div><Bar n={dn} d={all} />
+    <div className="sm flex justify-between repc-prog"><span>{dn} of {all} documented</span><span className="muted">{own} own follow-ups</span></div><Bar n={dn} d={all} />
     <div className="nums"><div><small>Calls</small><b>{m.calls}</b></div><div><small>Connects</small><b>{m.con}</b></div><div><small>Convos</small><b>{m.conv}</b></div><div><small>Leads</small><b>{m.leads}</b></div></div>
     <div className="foot"><button className="btn sec sm" {...on('replist', r)}><Icon n="list" s={14} />See list</button><button className="btn sec sm" {...on('reassign', r)} disabled={!openOf(r).length}><Icon n="shuffle" s={14} />Reassign</button><button className="btn ghost sm" {...on('viewas', r)}>Open as {first(r)}</button></div>
   </div>;
@@ -41,8 +41,7 @@ function MgrLive() {
   const dup = dupCheck();
   const today = LEADS.filter(l => l.at.slice(0, 10) === TODAY);
   return <>
-    <PageHeader t="The day by rep" sub={`${fmtWD(TODAY)}. Each rep got an even share from the morning allocation, follow-ups went back to the rep who set them, and every contact is reserved for one rep only.`}
-      acts={<><button className="btn sec" {...on('pg_mgr', 'rules')}><Icon n="gear" s={15} />Rules</button><button className="btn pri" {...on('pg_mgr', 'camp')}><Icon n="cal" s={15} />Campaigns</button></>} />
+    <PageHeader t="The day by rep" sub={`${fmtWD(TODAY)}. Each rep got an even share from the morning allocation, follow-ups went back to the rep who set them, and every contact is reserved for one rep only.`} />
     <div className={`stats ${KPI_GRID}`}><div className="stat"><small>Reserved today</small><b>{res}</b></div><div className="stat green"><small>Documented</small><b>{docd}</b></div><div className="stat"><small>Calls so far</small><b>{mt.calls}</b></div><div className="stat green"><small>New leads today</small><b>{mt.leads}</b></div><div className="stat blue"><small>Eligible, not reserved</small><b>{pool}</b></div><div className={`stat ${dup ? 'red' : 'green'}`}><small>Same house, two reps</small><b>{dup}</b></div></div>
     <div className="reps">{REPS.map(r => <RepCard key={r} r={r} />)}</div>
     <div className="grid2">
