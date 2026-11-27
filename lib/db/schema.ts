@@ -55,7 +55,7 @@ export const SCHEMAS: Record<CollectionName, Schema> = {
     _id: { bsonType: 'string', minLength: 1, maxLength: 60 }, active: bool, countsAsAttempt: bool, recallDays: { bsonType: 'number', minimum: 1 }, calendarDays: bool,
     propagates: enumOf(['none', 'property', 'person']), needsFollowUp: bool, lead: bool, final: bool, sameRep: bool, pri: enumOf(['P1', 'P3', 'P4'], true),
     group: enumOf(['none', 'con', 'conv']), status: enumOf(['Not Contacted', 'Contacted', 'Not Interested', 'Potential Lead']), phone: enumOf(['bad', 'ok', 'keep']),
-    started: bool, proposed: bool, tone: str, hint: str, pos: num,
+    started: bool, proposed: bool, connect: bool, tone: str, hint: str, pos: num,
   }),
 };
 

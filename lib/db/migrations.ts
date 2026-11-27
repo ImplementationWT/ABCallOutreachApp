@@ -23,6 +23,14 @@ export const STEPS: Step[] = [
       return `${r.modifiedCount} daily campaign${r.modifiedCount === 1 ? '' : 's'} ended`;
     },
   },
+  {
+    name: '2026-11-outcome-connect',
+    what: 'Call outcomes get "counts as a connect" (proposal pending Andrew: every outcome where someone answered)',
+    run: async db => {
+      const r = await db.collection('outcomes').updateMany({ connect: { $exists: false } }, [{ $set: { connect: { $ne: ['$group', 'none'] } } }]);
+      return `connect set on ${r.modifiedCount} outcome${r.modifiedCount === 1 ? '' : 's'}`;
+    },
+  },
 ];
 
 /** Runs every step not run yet, in order. Returns what each one did. */

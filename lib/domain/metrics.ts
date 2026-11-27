@@ -1,12 +1,13 @@
 /* ===== METRICS (one calculation for the dashboard, the rep view and the emails) ===== (artifact/app.html) */
-import { OUT, isLeadOut } from './catalogs';
+import { OUT, isConnectOut, isLeadOut } from './catalogs';
 import { CALLS, type Call } from './data';
 import { D, TODAY, addDays, isBiz, iso, pct } from './dates';
 import { REPS, type RepKey } from './people';
 import { rint, rnd } from './seed';
 
 export type Metrics = { calls: number; con: number; conv: number; leads: number; d2c: string; c2v: string; v2l: string };
-export const isConnect = (o: string) => !!OUT[o] && OUT[o].group !== 'none';
+/** From the catalog: "Counts as a connect" (Call outcomes). */
+export const isConnect = (o: string) => isConnectOut(o);
 export const isConvo = (o: string) => !!OUT[o] && OUT[o].group === 'conv';
 export const isLead = (o: string) => isLeadOut(o);
 export function mOf(calls: Call[]): Metrics {

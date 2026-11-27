@@ -156,3 +156,70 @@ test.describe('3. Manual dialing', () => {
     expect(await p.locator(`.qi[data-v="${ct}"] a.qcall`).getAttribute('href')).toBe('tel:+16265550177');
   });
 });
+
+test.describe('4. Metrics', () => {
+  test('catalog: "counts as connect" and "creates a lead"; the migration fills connect on a catalog that does not have it', async () => {
+    await withDb(async db => {
+      const col = db.collection('outcomes');
+      const lead = (await col.find({ lead: true }).toArray()).map(d => d._id);
+      expect(lead.sort()).toEqual(['Interested', 'Working on Plans']);
+      await col.updateMany({}, { $unset: { connect: '' } });
+      await db.collection('migrations').deleteOne({ _id: '2026-11-outcome-connect' as never });
+      const r = await runMigrations(db);
+      expect(r.find(x => x.name === '2026-11-outcome-connect')).toMatchObject({ skipped: false, result: 'connect set on 11 outcomes' });
+      const no = (await col.find({ connect: false }).toArray()).map(d => d._id).sort();
+      expect(no).toEqual(['Left VM', 'Not Contacted', 'Wrong Number']);
+    });
+  });
+  test('an administrator changes "counts as connect" on the Call outcomes page', async ({ browser }) => {
+    const a = await page(browser, 'admin', '/mgr/outc');
+    await expect(a.locator('[data-outcome="Hung Up"] [data-connect]')).toHaveText('Yes');
+    await a.locator('[data-outcome="Hung Up"] button', { hasText: 'Edit' }).click();
+    await a.locator('[data-no=connect]').click();
+    await a.getByRole('button', { name: 'Save' }).click();
+    await expect(a.locator('[data-outcome="Hung Up"] [data-connect]')).toHaveText('No');
+    expect(await withDb(db => db.collection('outcomes').findOne({ _id: 'Hung Up' as never }))).toMatchObject({ connect: false });
+    await withDb(db => db.collection('outcomes').updateOne({ _id: 'Hung Up' as never }, { $set: { connect: true } }));
+  });
+  test('Reports: the day by rep and for the team, from the recorded results, with the leaderboard and last week', async ({ browser }) => {
+    // last week's Monday: two calls by Daniel, one a connect
+    await withDb(db => db.collection('call_log').insertMany([
+      { _id: 800001 as never, ct: 'C-5001', rep: 'dan', at: '2026-10-26T10:00', out: 'Left VM', note: '', ph: '' },
+      { _id: 800002 as never, ct: 'C-5001', rep: 'dan', at: '2026-10-26T10:05', out: 'Undecided', note: '', ph: '' },
+    ]));
+    const { calls, out } = await withDb(async db => ({
+      calls: await db.collection('call_log').find({ at: { $regex: `^${DAY}` }, rep: { $in: ['may', 'dan', 'pri'] } }).toArray(),
+      out: Object.fromEntries((await db.collection('outcomes').find({}).toArray()).map(o => [o._id, o])),
+    }));
+    const per = (rep?: string) => { const cs = calls.filter(c => !rep || c.rep === rep); return { calls: cs.length, con: cs.filter(c => out[c.out].connect).length, leads: cs.filter(c => out[c.out].lead).length }; };
+    const p = await page(browser, 'admin', '/mgr/reports');
+    await expect(p.locator('[data-report-day]')).toHaveText('Mon, Nov 2, today (Pacific time)');
+    const team = per();
+    expect(team.calls).toBeGreaterThan(0);
+    await expect(p.locator('[data-activity] [data-metric=calls] b')).toHaveText(String(team.calls));
+    await expect(p.locator('[data-activity] [data-metric=connects] b')).toHaveText(String(team.con));
+    await expect(p.locator('[data-activity] [data-metric=leads] b')).toHaveText(String(team.leads));
+    await expect(p.locator('[data-rates] [data-metric=d2c] b')).toHaveText(Math.round(team.con * 100 / team.calls) + '%');
+    for (const r of ['may', 'dan', 'pri']) await expect(p.locator(`[data-report-table] [data-rep=${r}] td`).nth(1).locator('b')).toHaveText(String(per(r).calls));
+    // against the same day last week (2 calls then)
+    await expect(p.locator('[data-activity] [data-metric=calls] .rtrend')).toContainText('vs Oct 26 (2)');
+    // leaderboard: one per metric, the most calls first
+    await expect(p.locator('[data-leaderboard] [data-rank]')).toHaveCount(5);
+    const best = ['may', 'dan', 'pri'].sort((x, y) => per(y).calls - per(x).calls)[0];
+    const names: Record<string, string> = { may: 'Maya Torres', dan: 'Daniel Brooks', pri: 'Priya Shah' };
+    await expect(p.locator('[data-rank=calls] li').first()).toContainText(names[best]);
+    // the previous day
+    await p.click('[data-act=repnav][data-v="-1"]');
+    await expect(p.locator('[data-report-day]')).toHaveText('Sun, Nov 1');
+    await p.click('[data-act=repnow]');
+    await expect(p.locator('[data-report-day]')).toContainText('today');
+    await withDb(db => db.collection('call_log').deleteMany({ _id: { $in: [800001, 800002] } as never }));
+  });
+  test('only an administrator sees Reports (a manager does not)', async ({ browser }) => {
+    const m = await page(browser, 'andrew', '/mgr/reports');
+    await expect(m.locator('#main')).toContainText('Only an administrator can see Reports');
+    await expect(m.locator('.sb [data-act=pg_mgr][data-v=reports]')).toHaveCount(0);
+    const a = await page(browser, 'admin', '/mgr/live');
+    await expect(a.locator('.sb [data-act=pg_mgr][data-v=reports]')).toHaveCount(1);
+  });
+});

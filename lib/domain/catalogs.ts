@@ -14,7 +14,7 @@ export type Status = 'Not Contacted' | 'Contacted' | 'Not Interested' | 'Potenti
 export type Tone = 'n' | 'b' | 'a' | 'g' | 'r';
 /* Call outcomes: the catalog is data (collection `outcomes`, see outcomes.ts). OUT and OUTK are
  * filled by fromDocs() from the database, or by buildWorld() from the seed. */
-import type { OutcomeDef } from './outcomes';
+import { withConnect, type OutcomeDef } from './outcomes';
 export type { OutcomeDef, OutcomeDoc } from './outcomes';
 export type Outcome = string;
 export const OUT: Record<string, OutcomeDef> = {};
@@ -23,12 +23,14 @@ export const OUTK: string[] = [];
 export function setOutcomes(list: [string, OutcomeDef][]) {
   for (const k of Object.keys(OUT)) delete OUT[k];
   OUTK.length = 0;
-  for (const [k, d] of list) { OUT[k] = { ...d }; OUTK.push(k); }
+  for (const [k, d] of list) { OUT[k] = withConnect(d); OUTK.push(k); }
 }
 /** The outcomes a rep can pick (inactive ones stay in OUT for the history). */
 export const activeOutcomes = () => OUTK.filter(k => OUT[k].active);
 /** The property goes to sales. */
 export const isLeadOut = (o?: string | null) => !!o && !!OUT[o]?.lead;
+/** A person answered (metrics: Connects). */
+export const isConnectOut = (o?: string | null) => !!o && !!OUT[o]?.connect;
 /** A "no": the rest of the property (or every property of the person) leaves the lists. */
 export const isNoOut = (o?: string | null) => !!o && !!OUT[o] && !OUT[o].lead && OUT[o].propagates !== 'none';
 export const ST_RANK: Record<Status, number> = { 'Not Contacted': 0, 'Contacted': 1, 'Not Interested': 2, 'Potential Lead': 3 };

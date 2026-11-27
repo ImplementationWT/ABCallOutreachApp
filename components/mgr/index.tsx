@@ -13,6 +13,7 @@ import { S, bump, toast } from '@/lib/state/store';
 import { can } from '@/lib/state/auth';
 import { UsersPage } from './users';
 import { OutcomesPage } from './outcomes';
+import { ReportsPage } from './reports';
 import { getMe } from '@/lib/state/auth';
 import { TeamChart } from './TeamChart';
 import type { SbItem } from '@/components/shell/Sidebar';
@@ -20,7 +21,7 @@ import { Sidebar } from '@/components/shell/Sidebar';
 import { Avatar, Bar, Icon, KPI_GRID, Kv, OutPill, PageHeader, Pill, PrTag, StatFilter, paged } from '@/components/ui';
 
 export function MgrSide() {
-  return <Sidebar k="mgr" items={[['Today'], ['live', 'The day by rep', 'target'], ['pool', 'Contact pool', 'users'], ['leads', 'Hand-offs to sales', 'hand', LEADS.filter(l => l.fresh).length], ['Plan'], ['camp', 'Campaigns', 'cal'], ['rules', 'Assignment rules', 'gear'], ['Results'], ['perf', 'Performance', 'chart'], ['mail', 'Daily emails', 'mail'], ['monday'], ['sync', 'monday sync', 'sync'], ...(can('users.manage') || getMe()?.role === 'admin' ? [['Admin'], ...(can('users.manage') ? [['users', 'Users', 'key']] : []), ...(getMe()?.role === 'admin' ? [['outc', 'Call outcomes', 'list']] : [])] as SbItem[] : [])]} />;
+  return <Sidebar k="mgr" items={[['Today'], ['live', 'The day by rep', 'target'], ['pool', 'Contact pool', 'users'], ['leads', 'Hand-offs to sales', 'hand', LEADS.filter(l => l.fresh).length], ['Plan'], ['camp', 'Campaigns', 'cal'], ['rules', 'Assignment rules', 'gear'], ['Results'], ['perf', 'Performance', 'chart'], ...(getMe()?.role === 'admin' ? [['reports', 'Reports', 'chart']] as SbItem[] : []), ['mail', 'Daily emails', 'mail'], ['monday'], ['sync', 'monday sync', 'sync'], ...(can('users.manage') || getMe()?.role === 'admin' ? [['Admin'], ...(can('users.manage') ? [['users', 'Users', 'key']] : []), ...(getMe()?.role === 'admin' ? [['outc', 'Call outcomes', 'list']] : [])] as SbItem[] : [])]} />;
 }
 
 /* ----- The day by rep ----- */
@@ -299,6 +300,6 @@ function waitText(o: string): string {
   if (d.phone === 'bad') return `Next number in ${t}, or on hold`;
   return d.sameRep ? `${t}, same rep` : t;
 }
-export const MgrPages: Record<'live' | 'pool' | 'leads' | 'camp' | 'rules' | 'perf' | 'mail' | 'sync' | 'users' | 'outc', () => React.ReactNode> = {
-  live: MgrLive, pool: MgrPool, leads: MgrLeads, camp: MgrCamps, rules: MgrRules, perf: MgrPerf, mail: MgrMail, sync: MgrSync, users: UsersPage, outc: OutcomesPage,
+export const MgrPages: Record<'live' | 'pool' | 'leads' | 'camp' | 'rules' | 'perf' | 'mail' | 'sync' | 'users' | 'outc' | 'reports', () => React.ReactNode> = {
+  live: MgrLive, pool: MgrPool, leads: MgrLeads, camp: MgrCamps, rules: MgrRules, perf: MgrPerf, mail: MgrMail, sync: MgrSync, users: UsersPage, outc: OutcomesPage, reports: ReportsPage,
 };

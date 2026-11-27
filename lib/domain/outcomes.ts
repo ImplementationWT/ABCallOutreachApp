@@ -17,15 +17,19 @@ export type OutcomeDef = {
   propagates: 'none' | 'property' | 'person';
   /** The rep must set the date and time of the follow-up. */
   needsFollowUp: boolean;
-  /** The property goes to AB sales as a Potential Lead. */
+  /** Creates a lead: the property goes to AB sales as a Potential Lead, and the call counts in New
+   * Leads (metrics). Agreed with Andrew: Working on Plans and Interested. */
   lead: boolean;
+  /** Counts as a connect (metrics): a person answered. Proposal pending Andrew: every outcome where
+   * someone picked up (Hung Up and every conversation), not Not Contacted, Left VM or Wrong Number. */
+  connect: boolean;
   /** The contact is never called again. */
   final: boolean;
   /** Comes back to the same rep (their follow-ups). */
   sameRep: boolean;
   /** Priority when it comes back (P2, permit issued, is set by the property). Null: P5. */
   pri: Pri | null;
-  /** Nobody answered, connected, or a conversation (metrics). */
+  /** Nobody answered, connected, or a conversation (the rep's form groups; Performance's Convos). */
   group: 'none' | 'con' | 'conv';
   /** Outreach status it gives the property. */
   status: Status;
@@ -42,8 +46,10 @@ export type OutcomeDoc = OutcomeDef & { _id: string; pos: number };
 
 const o = (x: Partial<OutcomeDef> & Pick<OutcomeDef, 'group' | 'status' | 'tone' | 'hint'>): OutcomeDef => ({
   active: true, countsAsAttempt: true, recallDays: 1, calendarDays: false, propagates: 'none', needsFollowUp: false, lead: false, final: false,
-  sameRep: false, pri: null, phone: 'ok', started: false, proposed: false, ...x,
+  sameRep: false, pri: null, phone: 'ok', started: false, proposed: false, connect: x.group !== 'none', ...x,
 });
+/** A catalog document written before `connect` existed: someone answered unless nobody did. */
+export const withConnect = (d: Omit<OutcomeDef, 'connect'> & { connect?: boolean }): OutcomeDef => ({ ...d, connect: d.connect ?? d.group !== 'none' });
 
 /** Seed of the catalog: the 11 outcomes, with the rules agreed with Andrew. */
 export const DEFAULT_OUTCOMES: [string, OutcomeDef][] = [

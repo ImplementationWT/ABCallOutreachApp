@@ -9,7 +9,7 @@ import type React from 'react';
 import {
   C, CAMPS, CFG, DAY, OUT, P, isLeadOut, isNoOut, PROPS, PEO, REPS, T0, TODAY,
   campName, campsOf, newCampKey, ctByName, ctsOf, fmtWD, isFinal, isoT, nowT, openOf,
-  startDay, syncLog, D, isCurrentPeriod, shiftPeriod, type PeriodKind, type RepKey,
+  startDay, syncLog, D, addDays, iso, pacificDay, isCurrentPeriod, shiftPeriod, type PeriodKind, type RepKey,
 } from '@/lib/domain';
 import { TOUR } from '@/lib/domain/tour';
 import { go, openProp } from './navigation';
@@ -212,6 +212,7 @@ A.reactivate = v => { void serverAct({ action: 'reactivate', ct: v }, () => toas
 /* Performance by period (not in the artifact): Day, Week, Month or Year, moved with ‹ ›, back to
  * the current one, and a bar of the chart opens its day or month. */
 const perfAnchor = () => (S.f.perfd as string) || TODAY;
+const reportDayOf = () => (S.f.repd as string) || pacificDay();
 A.perfp = v => { S.f.perfp = v; };
 A.perfnav = v => {
   const kind = S.f.perfp as PeriodKind, dir = Number(v);
@@ -220,6 +221,9 @@ A.perfnav = v => {
   S.f.perfd = next > TODAY ? TODAY : next;
 };
 A.perfnow = () => { S.f.perfd = TODAY; };
+/* Reports (administrator): the day shown, moved one day with ‹ ›, back to today in Pacific time. */
+A.repnav = v => { const d = addDays(reportDayOf(), Number(v)); const n = iso(d); if (n > pacificDay()) return false; S.f.repd = n; };
+A.repnow = () => { S.f.repd = ''; };
 A.perfdrill = v => { const [k, d] = v.split('|'); S.f.perfp = k; S.f.perfd = d; };
 
 /* ===== PROPERTIES ===== */
