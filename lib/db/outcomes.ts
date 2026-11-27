@@ -15,7 +15,7 @@ export async function ensureOutcomes(db: Db) {
   return true;
 }
 
-const BOOLS = ['active', 'countsAsAttempt', 'calendarDays', 'needsFollowUp', 'lead', 'final', 'sameRep', 'started', 'proposed'] as const;
+const BOOLS = ['active', 'countsAsAttempt', 'calendarDays', 'needsFollowUp', 'lead', 'connect', 'final', 'sameRep', 'started', 'proposed'] as const;
 const ENUMS = { propagates: ['none', 'property', 'person'], group: ['none', 'con', 'conv'], status: ['Not Contacted', 'Contacted', 'Not Interested', 'Potential Lead'], phone: ['bad', 'ok', 'keep'], tone: ['n', 'b', 'a', 'g', 'r'] } as const;
 
 /** Checks and normalizes the editable fields. `partial`: only the fields given (edit). */
@@ -40,7 +40,7 @@ export async function createOutcome(db: Db, name: string, x: Record<string, unkn
   const col = db.collection<OutcomeDoc>('outcomes');
   if (await col.findOne({ _id: { $regex: `^${n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' } })) throw new HttpError(409, 'An outcome with that name already exists');
   const pos = (await col.countDocuments()) as number;
-  const base: OutcomeDef = { active: true, countsAsAttempt: true, recallDays: 1, calendarDays: false, propagates: 'none', needsFollowUp: false, lead: false, final: false, sameRep: false, pri: null, group: 'conv', status: 'Contacted', phone: 'ok', started: false, proposed: false, tone: 'n', hint: '' };
+  const base: OutcomeDef = { active: true, countsAsAttempt: true, recallDays: 1, calendarDays: false, propagates: 'none', needsFollowUp: false, lead: false, connect: true, final: false, sameRep: false, pri: null, group: 'conv', status: 'Contacted', phone: 'ok', started: false, proposed: false, tone: 'n', hint: '' };
   const doc: OutcomeDoc = { ...base, ...cleanOutcome(x, false), _id: n, pos };
   await col.insertOne(doc);
   return doc;

@@ -26,3 +26,6 @@ npm-debug.log*
 
 # Personal data of the property import (never commit)
 /property-data/
+
+# Correos reenviados por el cliente: tienen direcciones y enlaces personales
+docs/andrew/*.eml

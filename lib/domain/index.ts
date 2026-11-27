@@ -13,3 +13,5 @@ export * from './data';
 export * from './engine';
 export * from './metrics';
 export * from './periods';
+export * from './phone';
+export * from './report';

@@ -6,13 +6,14 @@ import type { Db } from 'mongodb';
 import { C, CALLS, CFG, DAY, OUT, PEO, endDay, onHold, reactivate, reassignOpen, saveOutcome, syncLog, type RepKey } from '@/lib/domain';
 import { HttpError, withState } from './server-state';
 
-export type SaveInput = { ct: string; out: string; note?: string; fu?: string | null; key?: string };
+/** ph: index of the number the rep dialed (a Wrong Number marks that one); by default the next valid one. */
+export type SaveInput = { ct: string; out: string; note?: string; fu?: string | null; key?: string; ph?: number | null };
 const DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/;
 
 /** Saves the result of a call on a contact of the rep's list today. Checks, in this order: the
  * contact is in the rep's list; the result is an active outcome of the catalog; the follow-up date
- * and time when the outcome needs one, and never in the past; and the same save (same key) is not
- * written twice (a double click or a retry answers with the first one). */
+ * and time when the outcome needs one, and never in the past; the dialed number is not one marked
+ * wrong; and the same save (same key) is not written twice (a double click or a retry answers with the first one). */
 export const saveResult = (db: Db, now: string, rep: RepKey, x: SaveInput) => withState(db, now, () => {
   const c = C(x.ct);
   if (!c) throw new HttpError(404, 'Contact not found');
@@ -27,6 +28,12 @@ export const saveResult = (db: Db, now: string, rep: RepKey, x: SaveInput) => wi
     if (x.fu <= now.slice(0, 16)) throw new HttpError(400, 'The follow-up must be later than now');
     fu = x.fu;
   }
+  if (x.ph != null) {
+    const ph = c.phones[x.ph];
+    if (!Number.isInteger(x.ph) || !ph) throw new HttpError(400, 'Unknown phone number');
+    if (ph.st === 'bad') throw new HttpError(400, 'That number is marked wrong: call another one');
+    c.callPh = x.ph;
+  } else c.callPh = null;
   const fx = saveOutcome(c.k, rep, x.out, String(x.note ?? ''), fu);
   const call = CALLS[CALLS.length - 1];
   call.fx = fx;
@@ -58,7 +65,7 @@ export const reassign = (db: Db, now: string, from: RepKey, to: RepKey, n: numbe
 export const reactivateContact = (db: Db, now: string, who: { admin: boolean; person: string | null; name: string }, ct: string) => withState(db, now, () => {
   const c = C(ct);
   if (!c) throw new HttpError(404, 'Contact not found');
-  if (!who.admin && (!who.person || c.rep !== who.person)) throw new HttpError(403, 'Only the rep assigned to this contact or an administrator can reactivate it');
+  if (!who.admin && (!who.person || c.rep !== who.person)) throw new HttpError(403, 'Only the rep assigned to this contact or the Outreach Manager can reactivate it');
   if (!onHold(c)) throw new HttpError(409, 'This contact is not on hold');
   reactivate(c);
   syncLog('Fire Rebuild Contacts', c.n, `Reactivated by ${who.name}` + (CFG.reactivateReset ? ', attempts back to 0' : `, ${c.att} attempts kept`));

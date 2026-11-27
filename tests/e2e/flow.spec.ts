@@ -41,14 +41,18 @@ async function walk(page: Page, who: string) {
   await note('reassign modal', page.locator('.modal').textContent());
   await page.locator('.modal .mf .btn.pri').click(); await idle(page);
   await note('reassign', toastText(page));
-  await btn(page, 'Campaigns', '.sb').click(); await idle(page);
+  await btn(page, page.url().startsWith('file:') ? 'Campaigns' : 'Campaign Management', '.sb').click(); await idle(page);
   await btn(page, 'New campaign').click(); await idle(page);
   await note('new campaign modal', page.locator('.modal').textContent());
   await btn(page, 'Create campaign').click(); await idle(page);
   await note('campaign', toastText(page));
-  await btn(page, 'Assignment rules', '.sb').click(); await idle(page);
+  // The app splits the old Assignment rules in the five areas of Andrew's brief: the refresh is in
+  // Rep Assignment Profiles and the max attempts in Call Outcome & Eligibility (same rules, same toasts)
+  const art = page.url().startsWith('file:');
+  await btn(page, art ? 'Assignment rules' : 'Rep Assignment Profiles', '.sb').click(); await idle(page);
   await btn(page, 'Weekly').click(); await idle(page);
   await note('rule', toastText(page));
+  if (!art) { await btn(page, 'Call Outcome & Eligibility', '.sb').click(); await idle(page); }
   await page.locator('#cfg-maxAtt').fill('5');
   await page.locator('#cfg-maxAtt').blur();
   await note('max attempts', toastText(page));
@@ -98,13 +102,27 @@ test('artifact and app walk the same', async ({ browser }) => {
   expect(b.length).toBe(a.length);
   // Sprint 18 (agreed): My follow-ups has a new subtitle and splits Overdue, Today and Upcoming, so
   // that step is checked on its own: the same contacts, in the new groups.
-  const CHANGED = ['follow-ups:'];
+  // Andrew's round 1 (feat/campaign-filtering): campaigns are permanent, so The day by rep lists the
+  // active campaigns (not today's), and a new campaign has no date: checked on their own.
+  const OWN: Record<string, (app: string, art: string) => void> = {
+    'follow-ups:': (app, art) => {
+      expect(app).toContain(bare('Your follow-ups and undecided contacts come back to you, and only to you'));
+      for (const name of ['SandraLiu']) { expect(art).toContain(name); expect(app).toContain(name); }
+    },
+    'live:': (app, art) => {
+      expect(app).toContain(bare('Active campaigns'));
+      expect(app.split(bare('Active campaigns'))[1]).toContain(bare('Pacific Palisades and Sunset Mesa'));
+      // everything above the campaigns card is the same as the artifact's
+      expect(app.split(bare('Active campaigns'))[0]).toBe(sprint18(art.split(bare('Today’s campaigns'))[0]));
+    },
+    'new campaign modal:': app => expect(app).toContain(bare('It is active from now until someone pauses or ends it')),
+    'campaign:': app => expect(app).toBe(bare('campaign: Campaign created: Pacific Palisades is active. The next allocation uses it')),
+    // the walkthrough's rules step opens the old Assignment rules route: Rep Assignment Profiles
+    'tour 7 screen:': (app, art) => { expect(art).toBe(bare('tour 7 screen: Assignment rules')); expect(app).toBe(bare('tour 7 screen: Rep Assignment Profiles')); },
+  };
   for (let i = 0; i < a.length; i++) {
-    if (CHANGED.some(k => a[i].startsWith(k))) {
-      expect(bare(b[i])).toContain(bare('Your follow-ups and undecided contacts come back to you, and only to you'));
-      for (const name of ['SandraLiu']) { expect(bare(a[i])).toContain(name); expect(bare(b[i])).toContain(name); }
-      continue;
-    }
+    const own = Object.keys(OWN).find(k => a[i].startsWith(k));
+    if (own) { OWN[own](bare(b[i]), bare(a[i])); continue; }
     expect(bare(b[i]), `step ${i}: ${a[i].slice(0, 40)}`).toBe(sprint18(bare(a[i])));
   }
 });

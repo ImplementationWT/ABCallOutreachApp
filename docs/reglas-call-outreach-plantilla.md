@@ -2,15 +2,17 @@
 
 Duración máxima: 60 minutos. Primero van las preguntas marcadas como **PRIORITARIA**, luego las de ajuste. Las marcadas **EN ESPERA** solo se registran: no se construyen todavía.
 
-Ya están acordadas y no se preguntan, ver `docs/reglas-call-outreach.md`:
-- orden estricto de prioridades P1 a P5, también cuando el volumen diario no alcanza, sin porcentajes por categoría;
-- el follow-up pertenece al rep asignado y espera si ese rep no está;
-- follow-up con fecha y hora;
-- ventanas de recall de al menos 1 día, sin recalcular las fechas ya puestas;
-- cada llamada cuenta 1 intento y el máximo es 6, con la excepción del sexto intento;
-- un contacto en on-hold lo reactivan su rep o un administrador;
-- los contactos de una misma propiedad salen juntos en la lista;
-- el día se cierra con End workday.
+Ya están acordadas y no se preguntan. El detalle está en `docs/reglas-call-outreach.md`, con el número de cada regla:
+- **2.0, 2.0b y 2.0c:** orden estricto de prioridades P1 a P5, también cuando el volumen diario no alcanza, sin porcentajes por categoría; los contactos de una misma propiedad salen juntos en la lista.
+- **4.0 a 4.0d:** el follow-up pertenece al rep asignado y espera si ese rep no está; con Reassign pasa al rep nuevo; se agenda con fecha y hora, nunca en el pasado.
+- **5.0 a 5.3:** catálogo de resultados editable sin desplegar; ventanas de recall de al menos 1 día, sin recalcular las fechas ya puestas; Working on Plans e Interested crean un lead.
+- **6.0 a 6.0d:** cada llamada cuenta 1 intento, excepto Wrong Number; el máximo es 6, con la excepción del sexto intento; un contacto en on-hold lo reactivan su rep, el Outreach Manager o un administrador.
+- **6.1:** al reactivar, los intentos no vuelven a 0.
+- **6.2:** Wrong Number marca el número como inválido y no se vuelve a ofrecer; sin otro número válido, el contacto sale del pool.
+- **1.3 a 1.3d:** las campañas son permanentes (activa, pausada o terminada) y puede haber varias activas a la vez; crearlas y el reparto diario son funciones separadas; pausar o terminar detiene las asignaciones nuevas y conserva el historial; sin campañas activas, nadie recibe lista ("No active campaigns").
+- **7.0:** el día se cierra con End workday.
+- **10.1 a 10.3:** las métricas son Calls Made, Connects y New Leads, en la vista Reports, por rep y día, contra la semana anterior; hoy salen de los resultados registrados en la app.
+- **11.1 y 11.2:** RingCentral reemplazará a Orum; mientras tanto, marcado manual con un clic.
 
 Cada pregunta trae:
 - la pregunta;
@@ -26,9 +28,9 @@ El esfuerzo está en horas de desarrollo.
 | Minutos | Tema |
 | --- | --- |
 | 0 a 5 | Qué cambió desde la validación (reglas ya acordadas, catálogo editable) |
-| 5 a 25 | PRIORITARIAS: 1.1, 1.3, 6.1 |
+| 5 a 25 | PRIORITARIAS: 1.1 y 5.4 |
 | 25 a 40 | Catálogo de resultados (tabla de la sección 5) |
-| 40 a 55 | Ajuste: 3.1, 3.2, 4.1, 7.2, 8.1, 8.2, 9.1, 9.2; registrar las de EN ESPERA (1.2, 7.1) |
+| 40 a 55 | Ajuste: 3.1, 3.2, 4.1, 6.2b, 7.2, 8.1, 8.2, 9.1, 9.2; registrar las de EN ESPERA (1.2, 1.4, 7.1) |
 | 55 a 60 | Repaso de lo acordado |
 
 ---
@@ -51,13 +53,17 @@ El esfuerzo está en horas de desarrollo.
 - **Acordado:** ☐ ______________________
 - **Impacto si cambia:** un filtro más en el reparto. 4 h.
 
-### 1.3 PRIORITARIA. Campañas de un día o de varios
+### 1.3 ACORDADA. Campañas permanentes
 
-- **Pregunta:** ¿la campaña se crea cada día o puede durar varios días? Si no hay campaña del día, ¿qué hace el reparto?
-- **Hoy:** una campaña por día. Si un día no hay campaña, nadie recibe lista y la pantalla de inicio lo dice ("No campaign today").
-- **Ejemplos de respuesta:** "una por día está bien"; "una campaña con fecha de inicio y fin"; "si no hay campaña, que use la del día anterior"; "si no hay campaña, todas las zonas".
+Ya no se pregunta. Las campañas se crean una vez y siguen activas hasta que alguien las pausa o las termina; puede haber varias activas a la vez (reglas 1.3 a 1.3d).
+
+### 1.4 EN ESPERA. Campañas armadas con filtros
+
+- **Pregunta:** ¿qué columnas y operadores necesita primero (zona, estado del permiso, inicio de obra, fecha y precio de venta, tipo de contacto)?
+- **Hoy:** cada campaña se arma con zonas (audiencias). El documento Dynamic Campaign Filtering pide filtros sobre cualquier columna, con AND/OR.
+- **Ejemplos de respuesta:** los tres ejemplos del documento: Palisades con permiso emitido y obra sin empezar; vendidas después del 1/7/2025 por más de 3 millones; vendedores en Cheviot Hills.
 - **Acordado:** ☐ ______________________
-- **Impacto si cambia:** campaña con inicio y fin, 4 a 6 h. Regla para los días sin campaña, 2 h.
+- **Impacto si cambia:** constructor de filtros y datos de venta y de tipo de contacto que hoy no se cargan. Se estima en la siguiente ronda.
 
 ## 3. Volumen diario (EN ESPERA)
 
@@ -72,7 +78,7 @@ El esfuerzo está en horas de desarrollo.
 ### 3.2 Reps que no trabajan un día
 
 - **Pregunta:** ¿cómo nos avisa que un rep no trabaja hoy?
-- **Hoy:** solo dejándolo fuera de la campaña del día. Sus follow-ups lo esperan.
+- **Hoy:** solo quitándolo de sus campañas o pausándolas. Sus follow-ups lo esperan. El brief Assignment Engine propone que la gerencia reasigne su trabajo y sus follow-ups.
 - **Ejemplos de respuesta:** "con la campaña está bien"; "un interruptor 'no trabaja hoy'".
 - **Acordado:** ☐ ______________________
 - **Impacto si cambia:** 2 a 3 h.
@@ -90,14 +96,14 @@ El esfuerzo está en horas de desarrollo.
 ## 5. Catálogo de resultados (tabla para llenar)
 
 - **Pregunta:** ¿estos días y efectos por resultado son los correctos?
-- **Hoy:** el catálogo ya se edita sin desplegar, en Outreach Manager → Call outcomes (solo administrador). Cada llamada cuenta como intento y los días son al menos 1.
+- **Hoy:** el catálogo ya se edita sin desplegar, en Outreach Manager → Call Outcome & Eligibility Rules (el Outreach Manager o un administrador). Cada llamada cuenta como intento, excepto Wrong Number (acordado), y los días son al menos 1. Working on Plans e Interested crean un lead (acordado).
 - **Impacto si cambia:** ninguno de código. Los valores los cambia el administrador.
 
 | Resultado | Hoy: vuelve en | Hoy: afecta además a | Hoy: pide fecha y hora | Acordado: días (hábiles o naturales) | Acordado: afecta además a (nadie / la propiedad / la persona) | Acordado: pide fecha y hora |
 | --- | --- | --- | --- | --- | --- | --- |
 | Not Contacted | 1 día hábil | Nadie | No | | | |
 | Left VM | 3 días hábiles | Nadie | No | | | |
-| Wrong Number | 1 día hábil al otro número; si no hay, on-hold | Nadie | No | | | |
+| Wrong Number | 1 día hábil al otro número válido; si no hay, sale del pool | Nadie | No | | | |
 | Hung Up | 2 días hábiles | Nadie | No | | | |
 | Undecided | 10 días naturales, mismo rep | Nadie | No | | | |
 | Follow Up | La fecha y hora que elige el rep, mismo rep | Nadie | Sí | | | |
@@ -108,15 +114,27 @@ El esfuerzo está en horas de desarrollo.
 | Do Not Contact | Nunca | La persona (todas sus propiedades) | No | | | |
 | ¿Resultado nuevo? | | | | | | |
 
+### 5.4 PRIORITARIA. ¿Qué resultados cuentan como connect?
+
+- **Pregunta:** para las métricas, ¿cuáles resultados significan que una persona contestó?
+- **Hoy (propuesta, ya configurable en el catálogo):** Hung Up, Undecided, Follow Up, Working on Plans, Interested, Not Interested, Already Building / Done y Do Not Contact. No cuentan Not Contacted, Left VM ni Wrong Number.
+- **Ejemplos de respuesta:** "así está bien"; "Hung Up no cuenta"; "solo las conversaciones".
+- **Acordado:** ☐ ______________________
+- **Impacto si cambia:** ninguno de código: lo cambia el Outreach Manager en el catálogo.
+
 ## 6. Intentos y on-hold
 
-### 6.1 PRIORITARIA. El contador al reactivar
+### 6.1 ACORDADA. El contador al reactivar
 
-- **Pregunta:** cuando se reactiva un contacto en on-hold, ¿su contador de intentos vuelve a 0 o mantiene los que tenía?
-- **Hoy:** mantiene los intentos y empieza una nueva ronda de 6. Vuelve a 0 si se activa la opción "Back to 0" en Assignment rules, que está apagada.
-- **Ejemplos de respuesta:** "vuelve a 0"; "mantiene los intentos y tiene 2 más"; "mantiene los intentos y otra ronda completa".
+Ya no se pregunta. Al reactivar un contacto en on-hold, sus intentos no vuelven a 0; la opción "Back to 0" queda apagada.
+
+### 6.2b Números alternativos verificados
+
+- **Pregunta:** cuando un número resulta equivocado, ¿cómo se verifica un número alternativo antes de llamarlo?
+- **Hoy:** con Wrong Number, el número queda inválido y se llama al siguiente número del contacto que no esté marcado como inválido, sin verificación aparte.
+- **Ejemplos de respuesta:** "así está bien"; "solo números que vengan de una fuente verificada"; "que alguien lo confirme antes".
 - **Acordado:** ☐ ______________________
-- **Impacto si cambia:** activar la opción, ninguno. Una ronda más corta, 1 h.
+- **Impacto si cambia:** un estado "verificado" por número y quién lo marca. 2 a 4 h.
 
 ## 7. Horarios
 

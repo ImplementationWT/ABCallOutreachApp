@@ -14,7 +14,8 @@ async function walk(page: Page) {
   await openAsMaya(page);
   await btn(page, 'Start Workday').click(); await idle(page);
   await note('start', toastText(page));
-  await page.locator('.ph-r button', { hasText: 'Call' }).first().click(); await idle(page);
+  // the artifact's Call is a button; the app's is a call link through the dialer (tel: with the normalized number)
+  await page.locator('.ph-r button, .ph-r a[data-call]', { hasText: 'Call' }).first().click(); await idle(page);
   await note('on call', text('.oncall'));
   await page.locator('.ob', { hasText: 'Follow Up' }).first().click(); await idle(page);
   await note('save disabled', String(await btn(page, 'Save and next').isDisabled()));
@@ -106,18 +107,20 @@ test('artifact and app agree on the remaining actions', async ({ browser }) => {
   expect(b.length).toBe(a.length);
   // Sprint 18: the follow-up shows its time in the app ("on <day> at 10:00 AM")
   const same = (s: string) => s.startsWith('effects:') ? s.replace(/atT/g, '') : s;
-  for (let i = 0; i < a.length; i++) expect(same(b[i]), `step ${i}`).toBe(sprint18(a[i]));
+  // Permanent campaigns (Andrew's round 1): the data model's Campaigns table has no date now
+  const camp = (s: string) => s.replace('Campaigns1row=campaignofaday.5rowsinthedemo.DateDateAudiencesDropdown', 'Campaigns1row=campaign(activeuntilpausedorended).5rowsinthedemo.NameTextStatusActive,Paused,EndedAudiencesDropdown').replace('+Newcampaignfortomorrow', '+Newcampaign');
+  for (let i = 0; i < a.length; i++) expect(same(b[i]), `step ${i}`).toBe(camp(sprint18(a[i])));
 });
 
 test('app: old #vista links, back button and the rename', async ({ page }) => {
   await openApp(page, '/#vista=mgr&pagina=rules');
   await expect(page).toHaveURL(/\/mgr\/rules$/);
-  await expect(page.locator('.op-h h1')).toHaveText('Assignment rules');
+  await expect(page.locator('.op-h h1')).toHaveText('Rep Assignment Profiles');
   await page.locator('.sb button', { hasText: 'Performance' }).click();
   await expect(page).toHaveURL(/\/mgr\/perf$/);
   await page.goBack();
   await expect(page).toHaveURL(/\/mgr\/rules$/);
-  await expect(page.locator('.op-h h1')).toHaveText('Assignment rules');
+  await expect(page.locator('.op-h h1')).toHaveText('Rep Assignment Profiles');
   await expect(page.locator('.op-h h1')).toHaveCount(1);
   await page.locator('#emp').dblclick();
   await page.keyboard.type('Acme Rebuild');

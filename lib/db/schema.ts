@@ -38,7 +38,9 @@ export const SCHEMAS: Record<CollectionName, Schema> = {
     mailAddr: strN, mailCity: strN, mailState: strN, mailZip: strN,
   }),
   phone_numbers: obj(['ct', 'idx', 'n', 'st'], { _id: str, ct: str, idx: num, n: str, st: enumOf(['untested', 'ok', 'bad']) }),
-  campaigns: obj(['date', 'auds', 'reps', 'goal', 'pos'], { _id: str, date, auds: { bsonType: 'array', items: enumOf(AUDK) }, reps: { bsonType: 'array', items: enumOf(REPS) }, goal: num, past: bool, pos: num }),
+  // Permanent campaigns: active until paused or ended. `date` only on the daily campaigns from before
+  // (history). status is not required, so a campaign written by an older version is still accepted.
+  campaigns: obj(['auds', 'reps', 'goal', 'pos'], { _id: str, n: str, status: enumOf(['active', 'paused', 'ended']), date, created: date, since: { bsonType: ['string', 'null'], pattern: date.pattern }, auds: { bsonType: 'array', items: enumOf(AUDK) }, reps: { bsonType: 'array', items: enumOf(REPS) }, goal: num, past: bool, pos: num }),
   reservations: obj(['ct', 'rep', 'date', 'order'], { _id: str, ct: str, rep: enumOf(REPS), date, order: num, done: numN }),
   workdays: obj(['rep', 'date', 'st', 'batches'], { _id: str, rep: enumOf(REPS), date, st: enumOf(['reserved', 'started', 'ended', 'off']), startedAt: strN, endedAt: strN, batches: { bsonType: 'array' } }),
   call_log: obj(['ct', 'rep', 'at', 'out', 'ph'], { _id: num, ct: str, rep: enumOf(PEOPLE), at: dateTime, out: str, note: str, ph: str, live: bool, fx: { bsonType: 'array', items: str }, key: str }),
@@ -53,7 +55,7 @@ export const SCHEMAS: Record<CollectionName, Schema> = {
     _id: { bsonType: 'string', minLength: 1, maxLength: 60 }, active: bool, countsAsAttempt: bool, recallDays: { bsonType: 'number', minimum: 1 }, calendarDays: bool,
     propagates: enumOf(['none', 'property', 'person']), needsFollowUp: bool, lead: bool, final: bool, sameRep: bool, pri: enumOf(['P1', 'P3', 'P4'], true),
     group: enumOf(['none', 'con', 'conv']), status: enumOf(['Not Contacted', 'Contacted', 'Not Interested', 'Potential Lead']), phone: enumOf(['bad', 'ok', 'keep']),
-    started: bool, proposed: bool, tone: str, hint: str, pos: num,
+    started: bool, proposed: bool, connect: bool, tone: str, hint: str, pos: num,
   }),
 };
 
@@ -76,9 +78,12 @@ export const INDEXES: Partial<Record<CollectionName, IndexDescription[]>> = {
 };
 
 /** Server-only collections (not part of the app's state): the property locks of each day
- * (lib/db/server-state.ts). _id "date:property" is unique, so a property has one rep a day. */
+ * (lib/db/server-state.ts; _id "date:property" is unique, so a property has one rep a day) and the
+ * one-time migrations already run. */
 const SERVER_SCHEMAS: Record<string, Schema> = {
   property_locks: obj(['date', 'prop', 'rep'], { _id: str, date, prop: str, rep: enumOf(REPS) }),
+  // One-time data changes already applied (lib/db/migrations.ts)
+  migrations: obj(['at', 'what', 'result'], { _id: str, at: str, what: str, result: str }),
 };
 const SERVER_INDEXES: Record<string, IndexDescription[]> = { property_locks: [{ key: { date: 1, rep: 1 } }] };
 

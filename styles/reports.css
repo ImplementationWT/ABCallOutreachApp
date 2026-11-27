@@ -1,0 +1,15 @@
+/* Reports (components/mgr/reports.tsx). Not from the artifact. */
+@layer components {
+.rsec{font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin:4px 0 8px}
+.rstats{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:8px; margin-bottom:16px}
+.rstats .stat{min-width:0}
+.rtrend{font-size:12px; color:var(--muted); margin-top:2px; font-variant-numeric:tabular-nums}
+.rtrend.up{color:var(--g600)} .rtrend.down{color:var(--r500)}
+.rboard{display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:10px; margin-bottom:16px}
+.rboard .card{margin:0}
+.rboard ol{list-style:none; margin:6px 0 0; padding:0; display:grid; gap:6px}
+.rboard li{display:flex; align-items:center; gap:8px; font-size:13.5px}
+.rboard li .pl{width:18px; color:var(--muted); font-weight:700; font-variant-numeric:tabular-nums}
+.rboard li .nm{flex:1; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+.rboard li b{font-variant-numeric:tabular-nums}
+}

@@ -5,17 +5,19 @@ import { Fragment } from 'react';
 import type React from 'react';
 import {
   AUDS, C, CALLS, CFG, CTS, DAY, LEADS, OUT, P, PEO, PRI, TODAY, onHold, activeOutcomes, isLeadOut, isNoOut,
-  callsOn, campName, emptyReason, campOf, ctsOf, demoN, docOf, effectsOf, elig, first, fmtD, fmtDT, fmtS, fmtT, fmtUS, fmtWD,
-  fullAddr, getClock, historyOf, lastCallOf, isoT, listOf, mOf, openOf, ownerOf, phIdx, priOf, propStatus, relDay,
+  callsOn, campName, emptyReason, campsOf, ctsOf, demoN, docOf, effectsOf, elig, first, fmtD, fmtDT, fmtS, fmtT, fmtWD,
+  dialable, fullAddr, getClock, historyOf, lastCallOf, isoT, listOf, mOf, openOf, ownerOf, phIdx, priOf, propStatus, relDay,
   type Contact, type Property, type RepKey,
 } from '@/lib/domain';
-import { inp, on } from '@/lib/state/actions';
+import { dispatch, inp, on } from '@/lib/state/actions';
+import { dialer } from '@/lib/dialer';
+import { CallLink } from './CallLink';
 import { myFollowUps, queueSort } from '@/lib/state/rep';
 import { S, bump } from '@/lib/state/store';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { AudPill, Bar, DateField, Icon, Kv, OutPill, P2Tag, PageHeader, Pill, PrTag, StPill, paged } from '@/components/ui';
 
-const repCamp = () => campOf(S.user);
+const repCamps = () => campsOf(S.user);
 /* Render-time writes to S, as in the artifact (default selection and the draft of a contact). */
 const setSel = (u: RepKey, k: string | undefined) => { S.sel[u] = k; };
 const setFu = (k: string, v: string) => { S.draft[k].fu = v; };
@@ -27,10 +29,10 @@ export const fuOf = (dr: { fu: string | null; fuT?: string }) => dr.fu && dr.fuT
 const roleOf = (c: Contact) => c.role === 'Other' ? c.other || 'Other' : c.role;
 
 export function RepSide() {
-  const u = S.user, d = DAY[u], cp = repCamp();
+  const u = S.user, d = DAY[u], cps = repCamps();
   const fu = myFollowUps(u).filter(c => c.nextAt! > TODAY).length;
   return <Sidebar k="rep" items={[['My day'], ['today', 'My Outbound Dashboard', 'headset', d.st === 'started' ? openOf(u).length : 0], ['fu', 'My follow-ups', 'cal', fu, true], ['calls', 'My calls today', 'list', callsOn(u, TODAY).length, true]]}
-    foot={<><b>{PEO[u].n}</b>{cp ? <>Campaign {fmtUS(cp.date)}{cp.auds.map(a => <Fragment key={a}><br />{AUDS[a].n}</Fragment>)}</> : 'Not scheduled today'}</>} />;
+    foot={<><b>{PEO[u].n}</b>{cps.length ? cps.map(c => <Fragment key={c.k}><br />{campName(c)}</Fragment>) : <><br />No active campaign</>}</>} />;
 }
 
 function RepToday() {
@@ -40,15 +42,15 @@ function RepToday() {
   return <RepWork />;
 }
 function RepStart() {
-  const u = S.user, cs = listOf(u), cp = repCamp();
+  const u = S.user, cs = listOf(u), cps = repCamps();
   const own = cs.filter(c => ownerOf(c) === u).length;
   const why = emptyReason(u);
   return <>
     <PageHeader t="My Outbound Dashboard" sub={fmtWD(TODAY)} acts={<Pill t="Not Started" cls="dot" />} />
     <div className="startw"><div className="sico"><Icon n="headset" s={30} /></div><h2>Ready to start calling?</h2><p>Start your workday to receive your first daily allocation of eligible contacts. They are reserved for you, so nobody else calls them today.</p><button className="btn pri" {...on('startday')} disabled={S.loadingMore} aria-busy={S.loadingMore}>{S.loadingMore ? <span className="ld-spin" aria-hidden="true" /> : <Icon n="play" s={16} />}{S.loadingMore ? 'Getting your contacts…' : 'Start Workday'}</button>
       {why ? <div className="nextstep grey mt-[14px] text-left" data-empty={why.k}><span className="ic"><Icon n="info" s={17} /></span><div><b>{why.t}</b><small>{why.d}</small></div></div> : null}
-      <div className="pre"><Pill t={cs.length + ' contacts waiting'} cls="green" />{own ? <Pill t={own + ' are your follow-ups'} cls="red" /> : null}{cp ? <Pill t={campName(cp)} cls="blue" /> : null}</div></div>
-    <p className="sm muted text-center">Your list comes from today’s campaign with Andrew’s rules. Daily allocation per rep: {CFG.first} contacts ({demoN(CFG.first)} in this demo, scaled to its data).</p>
+      <div className="pre"><Pill t={cs.length + ' contacts waiting'} cls="green" />{own ? <Pill t={own + ' are your follow-ups'} cls="red" /> : null}{cps.map(c => <Pill key={c.k} t={campName(c)} cls="blue" />)}</div></div>
+    <p className="sm muted text-center">Your list comes from your active campaigns with Andrew’s rules. Daily allocation per rep: {CFG.first} contacts ({demoN(CFG.first)} in this demo, scaled to its data).</p>
   </>;
 }
 function RepEnded() {
@@ -65,7 +67,11 @@ function QItem({ c, u, cur }: { c: Contact; u: RepKey; cur: boolean }) {
   const left = removed ? <span className="pr ok bg-r50 text-r500"><Icon n="ban" s={14} /></span> : done ? <span className="pr ok"><Icon n="check" s={15} /></span> : <PrTag pr={pr} />;
   const sub = done ? `${call!.out} at ${fmtT(call!.at)}` : removed ? (c.stop ? c.stop.why : 'Property handed to sales') : `${c.out ? c.out + ' ' + fmtS(c.lastAt) : 'Never called'}, attempt ${c.att + 1}`;
   const tags = done || removed ? null : <div className="tags">{ownerOf(c) === u ? <Pill t={pr === 'P1' ? 'Your follow-up' : 'Your undecided'} cls={pr === 'P1' ? 'red' : 'violet'} /> : null}{p.permit === 'Permit Issued' ? <Pill t="Permit issued" cls="green" /> : p.permit === 'Plans Submitted' ? <Pill t="Plans submitted" cls="amber" /> : null}<Pill t={AUDS[p.aud].s} /></div>;
-  return <button className={`qi ${done || removed ? 'done' : ''}`} {...on('qsel', c.k)} aria-current={cur} data-hl={c.k}>{left}<span className="min-w-0"><b>{c.n}</b><small>{p.addr || "No address"}</small><small>{sub}</small>{tags}</span><span /></button>;
+  // A row, not a <button>: it holds the call link of the contact's next number (manual dialing)
+  const next = done || removed ? undefined : dialable(c)[0];
+  const key = (e: React.KeyboardEvent) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); dispatch('qsel', c.k); } };
+  return <div role="button" tabIndex={0} onKeyDown={key} className={`qi ${done || removed ? 'done' : ''}`} {...on('qsel', c.k)} aria-current={cur} data-hl={c.k}>{left}<span className="min-w-0"><b>{c.n}</b><small>{p.addr || "No address"}</small><small>{sub}</small>{tags}</span>
+    {next ? <CallLink c={c} i={next.i} select className="qcall" label={`Call ${c.n} at ${next.n}`}><Icon n="call" s={15} /></CallLink> : <span />}</div>;
 }
 /** Placeholders while "Request more" waits for the server. */
 const QSkel = () => <div className="qi ld-qi" aria-hidden="true"><span className="ld-sk ld-av" /><span className="ld-lines"><span className="ld-sk w-[70%]" /><span className="ld-sk w-[55%]" /><span className="ld-sk w-[40%]" /></span></div>;
@@ -125,9 +131,9 @@ function RepDetail({ c }: { c: Contact }) {
         </>
         : <>
           <div className="dcard"><h3><Icon n="call" s={16} />Phone{c.phones.length > 1 ? 's' : ''}<span className="r"><P2Tag t="Phase 2: Enrich finds more numbers" /></span></h3><div className="phones">
-            {c.phones.map((x, i) => <div key={i} className={`ph-r ${x.st === 'bad' ? 'bad' : ''}`}><div><b>{x.n}</b><small>{x.st === 'bad' ? 'Wrong number' : x.st === 'ok' ? 'Worked before' : 'Not tried yet'}{i === ix ? ', next to call' : ''}</small></div><div className="r">{x.st === 'bad' ? <Pill t="Wrong" cls="red" /> : <button className={`btn ${i === ix ? 'pri' : 'sec'} sm`} {...on('dial', `${c.k}|${i}`)}><Icon n="call" s={14} />Call</button>}</div></div>)}
+            {c.phones.map((x, i) => <div key={i} className={`ph-r ${x.st === 'bad' ? 'bad' : ''}`}><div><b>{x.n}</b><small>{x.st === 'bad' ? 'Wrong number' : x.st === 'ok' ? 'Worked before' : 'Not tried yet'}{i === ix ? ', next to call' : ''}</small></div><div className="r">{x.st === 'bad' ? <Pill t="Wrong" cls="red" /> : <CallLink c={c} i={i} className={`btn ${i === ix ? 'pri' : 'sec'} sm`} label={`Call ${x.n}`}><Icon n="call" s={14} />Call</CallLink>}</div></div>)}
           </div>
-            {c.calling ? <div className="oncall"><span className="dotc" /><div><b>Calling {c.phones[c.callPh!].n}</b> from your phone, dialed at {fmtT(c.calling)}. Record the result below when you hang up.</div></div> : null}</div>
+            {c.calling && c.callPh != null && c.phones[c.callPh] ? <div className="oncall"><span className="dotc" /><div><b>Calling {c.phones[c.callPh].n}</b> from {dialer.via}, dialed at {fmtT(c.calling)}. Record the result below when you hang up.</div></div> : null}</div>
           <div className="dcard"><h3><Icon n="edit" s={16} />Result of the call</h3>
             {groupsOf().filter(([, ks]) => ks.length).map(([t, ks]) => <Fragment key={t}><div className="lbl mt-[6px]">{t}</div><div className="outs">{ks.map(o => <button key={o} className={`ob ${OUT[o].tone}`} {...on('setout', `${c.k}|${o}`)} aria-pressed={dr.out === o}>{o}<small>{OUT[o].hint}{OUT[o].proposed ? ', proposed' : ''}</small></button>)}</div></Fragment>)}
             {needsFu ? <><label className="lbl">Call back on <em>*</em></label><div className="flex gap-[8px] items-center flex-wrap"><div className="max-w-[320px] flex-1 min-w-[200px]"><DateField k={'fu:' + c.k} value={dr.fu} onSet={v => setFu(c.k, v)} /></div><input className="fld w-[130px]" type="time" step={300} aria-label="Call back time" id={`fut-${c.k}`} value={dr.fuT || ''} onChange={e => setFuT(c.k, e.target.value)} /></div></> : null}

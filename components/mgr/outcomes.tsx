@@ -1,11 +1,11 @@
 'use client';
-/* Outreach Manager > Call outcomes (administrator only; not in the artifact).
+/* Outreach Manager > Call outcomes (Outreach Manager: change, so the manager and administrators; not in the artifact).
  * The catalog the rep's form and the engine read: create, edit and deactivate outcomes without a
  * deploy. Outcomes are not deleted: an inactive one disappears from the form and stays in the
  * history. Saved by POST /api/outcomes, then the app reloads the state. */
 import { useState } from 'react';
 import { OUT, OUTK, type OutcomeDef } from '@/lib/domain';
-import { getMe } from '@/lib/state/auth';
+import { can } from '@/lib/state/auth';
 import { loadState } from '@/lib/state/persist';
 import { bump, toast } from '@/lib/state/store';
 import { Icon, PageHeader, Pill, paged } from '@/components/ui';
@@ -13,7 +13,7 @@ import { Icon, PageHeader, Pill, paged } from '@/components/ui';
 type Form = OutcomeDef & { name: string; edit: boolean };
 const PROP_TXT: Record<OutcomeDef['propagates'], string> = { none: 'Only the contact', property: 'The whole property', person: 'Every property of the person' };
 const STATUSES: OutcomeDef['status'][] = ['Not Contacted', 'Contacted', 'Not Interested', 'Potential Lead'];
-const isAdmin = () => getMe()?.role === 'admin';
+const allowed = () => can('mgr.manage');
 
 async function post(body: unknown) {
   const res = await fetch('/api/outcomes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -21,25 +21,30 @@ async function post(body: unknown) {
   if (!res.ok) throw new Error(d.error || `HTTP ${res.status}`);
   return d;
 }
-const blank = (): Form => ({ name: '', edit: false, active: true, countsAsAttempt: true, recallDays: 1, calendarDays: false, propagates: 'none', needsFollowUp: false, lead: false, final: false, sameRep: false, pri: null, group: 'conv', status: 'Contacted', phone: 'ok', started: false, proposed: false, tone: 'n', hint: '' });
+const blank = (): Form => ({ name: '', edit: false, active: true, countsAsAttempt: true, recallDays: 1, calendarDays: false, propagates: 'none', needsFollowUp: false, lead: false, connect: true, final: false, sameRep: false, pri: null, group: 'conv', status: 'Contacted', phone: 'ok', started: false, proposed: false, tone: 'n', hint: '' });
 const waitOf = (d: OutcomeDef) => d.needsFollowUp ? 'Date and time the rep sets' : d.lead ? 'Goes to AB sales' : d.final ? 'Never' : `${d.recallDays} ${d.calendarDays ? 'day' : 'business day'}${d.recallDays > 1 ? 's' : ''}`;
 
-export function OutcomesPage() {
+/** embedded: inside Call Outcome & Eligibility Rules (a card instead of the page header). */
+export function OutcomesPage({ embedded = false }: { embedded?: boolean }) {
   const [form, setForm] = useState<Form | null>(null);
-  if (!isAdmin()) return <div className="empty">Only an administrator can change the call outcomes.</div>;
+  if (!allowed()) return <div className="empty">Only the Outreach Manager or an administrator can change the call outcomes.</div>;
   const toggle = async (k: string) => {
     try { await post({ action: 'update', name: k, active: !OUT[k].active }); await loadState(true); toast(`${k} ${OUT[k].active ? 'activated' : 'deactivated'}`); bump(); }
     catch (e) { toast((e as Error).message); }
   };
   const pg = paged('outc', OUTK);
   return <>
-    <PageHeader t="Call outcomes" sub="The results a rep can save, and what each one does. Changes apply to the next results; dates already set are not recalculated."
-      acts={<button className="btn pri" onClick={() => setForm(blank())}><Icon n="plus" s={15} />New outcome</button>} />
+    {embedded
+      ? <div className="flex items-center gap-[10px] mt-[4px] mb-[10px]" data-outcomes-head><div><h2 className="text-[17px] font-bold">Call outcomes</h2><p className="sm muted">The results a rep can save, and what each one does. Changes apply to the next results; dates already set are not recalculated.</p></div><button className="btn pri ml-auto" onClick={() => setForm(blank())}><Icon n="plus" s={15} />New outcome</button></div>
+      : <PageHeader t="Call outcomes" sub="The results a rep can save, and what each one does. Changes apply to the next results; dates already set are not recalculated."
+        acts={<button className="btn pri" onClick={() => setForm(blank())}><Icon n="plus" s={15} />New outcome</button>} />}
     <table className="ptbl" data-outcomes>
-      <thead><tr><th>Outcome</th><th>Counts as attempt</th><th>Called again</th><th>Also stops</th><th>Needs follow-up</th><th>Status</th><th></th></tr></thead>
+      <thead><tr><th>Outcome</th><th>Counts as attempt</th><th>Counts as connect</th><th>Creates a lead</th><th>Called again</th><th>Also stops</th><th>Needs follow-up</th><th>Status</th><th></th></tr></thead>
       <tbody>{pg.rows.map(k => { const d = OUT[k]; return <tr key={k} data-outcome={k}>
         <td><b>{k}</b>{d.lead ? <> <Pill t="Lead" cls="green" /></> : null}<br /><span className="sm muted">{d.hint}</span></td>
         <td>{d.countsAsAttempt ? 'Yes' : 'No'}</td>
+        <td data-connect={d.connect ? 'yes' : 'no'}>{d.connect ? 'Yes' : 'No'}</td>
+        <td data-lead={d.lead ? 'yes' : 'no'}>{d.lead ? 'Yes' : 'No'}</td>
         <td className="sm">{waitOf(d)}</td>
         <td className="sm">{PROP_TXT[d.propagates]}</td>
         <td>{d.needsFollowUp ? 'Yes' : 'No'}</td>
@@ -51,6 +56,7 @@ export function OutcomesPage() {
       </tr>; })}</tbody>
     </table>
     {pg.pager}
+    <p className="sm muted mt-[8px]" data-connect-note>Counts as connect and Creates a lead feed Reports (Connects, New Leads). Leads: Working on Plans and Interested, agreed with Andrew. Connects: every outcome where someone answered, a proposal pending with Andrew.</p>
     {form ? <OutcomeModal form={form} onClose={() => setForm(null)} /> : null}
   </>;
 }
@@ -84,7 +90,8 @@ function OutcomeModal({ form: f0, onClose }: { form: Form; onClose: () => void }
       {yn('needsFollowUp', 'The rep must set a follow-up date and time')}
       <label className="lbl">Also stops</label>
       <div className="segs">{(Object.keys(PROP_TXT) as OutcomeDef['propagates'][]).map(p => <button key={p} type="button" className="seg" aria-pressed={f.propagates === p} onClick={() => set({ propagates: p })} data-prop={p}>{PROP_TXT[p]}</button>)}</div>
-      {yn('lead', 'Hands the property to AB sales (Potential Lead)')}
+      {yn('connect', 'Counts as a connect: someone answered (Reports)')}
+      {yn('lead', 'Creates a lead: hands the property to AB sales as a Potential Lead (Reports: New Leads)')}
       {yn('final', 'Never called again')}
       {yn('sameRep', 'Comes back to the same rep')}
       <label className="lbl">Property status it gives</label>

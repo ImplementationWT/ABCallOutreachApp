@@ -8,8 +8,8 @@
 import type React from 'react';
 import {
   C, CAMPS, CFG, DAY, OUT, P, isLeadOut, isNoOut, PROPS, PEO, REPS, T0, TODAY,
-  campOf, ctByName, ctsOf, fmtWD, isFinal, isoT, nowT, openOf,
-  startDay, syncLog, D, iso, nextBiz, isCurrentPeriod, shiftPeriod, type PeriodKind, type RepKey,
+  campName, campsOf, newCampKey, ctByName, ctsOf, fmtWD, isFinal, isoT, nowT, openOf,
+  startDay, syncLog, D, addDays, iso, pacificDay, isCurrentPeriod, shiftPeriod, type PeriodKind, type RepKey,
 } from '@/lib/domain';
 import { TOUR } from '@/lib/domain/tour';
 import { go, openProp } from './navigation';
@@ -33,7 +33,7 @@ export const registerDate = (k: string, fn: (v: string) => void) => { DK[k] = fn
 const KEEP_POP = ['pick', 'cal', 'calnav', 'pickset', 'calpick'];
 /** Actions that need a permission (the server checks the same when saving). */
 const NEED: Record<string, Perm> = {
-  newcamp: 'mgr.manage', ncsave: 'mgr.manage', reassign: 'mgr.manage', radone: 'mgr.manage', cfgset: 'mgr.manage',
+  newcamp: 'mgr.manage', ncsave: 'mgr.manage', camppause: 'mgr.manage', campresume: 'mgr.manage', campend: 'mgr.manage', campenddone: 'mgr.manage', reassign: 'mgr.manage', radone: 'mgr.manage', cfgset: 'mgr.manage',
   reopen: 'prp.edit', started: 'prp.edit', viewas: 'mgr.view', replist: 'mgr.view',
 };
 export const denied = () => toast('You do not have permission for this');
@@ -60,7 +60,7 @@ export const on = (act: string, v?: string | number) => ({
   },
 });
 /** Props for an input: <input {...inp('srch.pool')}>. Bumps only where the artifact re-rendered. */
-const RERENDER_IN = ['srch', 'popq', 'ran', 'ncgoal'];
+const RERENDER_IN = ['srch', 'popq', 'ran', 'ncgoal', 'ncname'];
 export const inp = (spec: string) => ({
   'data-in': spec,
   onInput: (e: React.FormEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -151,7 +151,7 @@ A.togscript = () => { S.f.script = !S.f.script; };
 A.saveout = v => {
   const u = S.user, dr = S.draft[v];
   if (!dr || !dr.out || S.loadingMore) return false;
-  void serverAct({ action: 'save', rep: u, ct: v, out: dr.out, note: dr.note, fu: dr.fu && dr.fuT ? `${dr.fu}T${dr.fuT}` : null, key: dr.key }, () => savedToast(u, v));
+  void serverAct({ action: 'save', rep: u, ct: v, out: dr.out, note: dr.note, fu: dr.fu && dr.fuT ? `${dr.fu}T${dr.fuT}` : null, key: dr.key, ph: C(v).callPh ?? null }, () => savedToast(u, v));
   return false;
 };
 function savedToast(u: RepKey, v: string) {
@@ -166,8 +166,9 @@ function savedToast(u: RepKey, v: string) {
 A.replist = v => { S.modal = { k: 'replist', r: v }; };
 A.viewas = v => { S.user = v as RepKey; go('rep', 'today'); };
 A.reassign = v => {
-  const r = v as RepKey, cv = campOf(r);
-  const others = REPS.filter(x => x !== r && DAY[x].st !== 'off').sort((a, b) => Number(campOf(b) === cv) - Number(campOf(a) === cv));
+  const r = v as RepKey, mine = campsOf(r);
+  const shared = (x: RepKey) => Number(campsOf(x).some(c => mine.includes(c)));
+  const others = REPS.filter(x => x !== r && DAY[x].st !== 'off').sort((a, b) => shared(b) - shared(a));
   S.modal = { k: 'reassign', r, to: others[0], n: Math.ceil(openOf(r).length / 2) };
 };
 A.rato = v => { S.modal!.to = v; };
@@ -183,15 +184,25 @@ IN.srch = (v, k) => { S.srch[k] = v; firstPages(); };
 const firstPages = () => { for (const k of Object.keys(S.pg)) S.pg[k].i = 0; };
 A.pgo = v => { const [k, i] = v.split('|'); (S.pg[k] ||= { i: 0, n: PAGE_SIZES[0] }).i = Math.max(0, Number(i) || 0); };
 A.pgn = v => { const [k, n] = v.split('|'); S.pg[k] = { i: 0, n: PAGE_SIZES.includes(Number(n)) ? Number(n) : PAGE_SIZES[0] }; };
-A.newcamp = () => { S.modal = { k: 'newcamp', date: iso(nextBiz(T0)), auds: ['pp'], reps: ['may', 'dan'], goal: 1 }; };
+A.newcamp = () => { S.modal = { k: 'newcamp', n: '', auds: ['pp'], reps: ['may', 'dan'], goal: 1 }; };
 A.ncaud = v => { const a: string[] = S.modal!.auds; S.modal!.auds = a.includes(v) ? a.filter(x => x !== v) : a.concat(v); };
 A.ncrep = v => { const a: string[] = S.modal!.reps; S.modal!.reps = a.includes(v) ? a.filter(x => x !== v) : a.concat(v); };
 IN.ncgoal = v => { S.modal!.goal = Number(v) || 0; };
+IN.ncname = v => { S.modal!.n = v.slice(0, 80); };
+/* A campaign is permanent: active from now until it is paused or ended (the next allocation uses it). */
 A.ncsave = () => {
   const m = S.modal!;
-  CAMPS.push({ k: 'C-' + m.date.slice(5).replace('-', '') + '-' + String.fromCharCode(65 + CAMPS.filter(c => c.date === m.date).length), date: m.date, auds: m.auds, reps: m.reps, goal: m.goal });
-  S.modal = null; toast('Campaign created for ' + fmtWD(m.date));
+  const c = { k: newCampKey(), n: String(m.n || '').trim() || undefined, status: 'active' as const, auds: m.auds, reps: m.reps, goal: m.goal, created: TODAY, since: null };
+  CAMPS.push(c);
+  S.modal = null; toast(`Campaign created: ${campName(c)} is active. The next allocation uses it`);
 };
+/* Pause, resume or end a campaign. Pausing or ending stops new assignments of its contacts; the
+ * history (calls, follow-ups) is kept. Ending is final. */
+const campBy = (k: string) => CAMPS.find(c => c.k === k);
+A.camppause = v => { const c = campBy(v); if (!c || c.status !== 'active') return; c.status = 'paused'; c.since = TODAY; toast(`${campName(c)} paused: no new assignments until it is resumed`); };
+A.campresume = v => { const c = campBy(v); if (!c || c.status !== 'paused') return; c.status = 'active'; c.since = TODAY; toast(`${campName(c)} is active again`); };
+A.campend = v => { S.modal = { k: 'endcamp', c: v }; };
+A.campenddone = () => { const c = campBy(S.modal!.c); S.modal = null; if (!c || c.status === 'ended') return; c.status = 'ended'; c.since = TODAY; toast(`${campName(c)} ended. Its history is kept`); };
 IN.cfg = (v, k) => {
   if (!can('mgr.manage')) return; CFG[k] = Math.max(0, Number(v) || 0); };
 A.cfgset = v => { const [k, val] = v.split('|'); CFG[k] = val === 'true' ? true : val === 'false' ? false : val; toast('Rule saved. The next allocation uses it'); };
@@ -201,6 +212,7 @@ A.reactivate = v => { void serverAct({ action: 'reactivate', ct: v }, () => toas
 /* Performance by period (not in the artifact): Day, Week, Month or Year, moved with ‹ ›, back to
  * the current one, and a bar of the chart opens its day or month. */
 const perfAnchor = () => (S.f.perfd as string) || TODAY;
+const reportDayOf = () => (S.f.repd as string) || pacificDay();
 A.perfp = v => { S.f.perfp = v; };
 A.perfnav = v => {
   const kind = S.f.perfp as PeriodKind, dir = Number(v);
@@ -209,6 +221,9 @@ A.perfnav = v => {
   S.f.perfd = next > TODAY ? TODAY : next;
 };
 A.perfnow = () => { S.f.perfd = TODAY; };
+/* Reports (administrator): the day shown, moved one day with ‹ ›, back to today in Pacific time. */
+A.repnav = v => { const d = addDays(reportDayOf(), Number(v)); const n = iso(d); if (n > pacificDay()) return false; S.f.repd = n; };
+A.repnow = () => { S.f.repd = ''; };
 A.perfdrill = v => { const [k, d] = v.split('|'); S.f.perfp = k; S.f.perfd = d; };
 
 /* ===== PROPERTIES ===== */
@@ -246,7 +261,7 @@ export const TOUR_MAS: [string, () => void][] = [
   ['905 Arbolada Way: the property record with its three contacts', () => { openProp(PROPS.find(p => p.addr === '905 Arbolada Way')!.k, 'cts'); }],
   ['Daily emails: the rep’s morning campaign', () => { S.f.mail = 'rep'; go('mgr', 'mail'); }],
   ['monday sync: what was pushed today', () => { go('mgr', 'sync'); }],
-  ['New campaign for tomorrow', () => { go('mgr', 'camp'); A.newcamp(''); }],
+  ['New campaign', () => { go('mgr', 'camp'); A.newcamp(''); }],
   ['Data: the process from A to Z and where it runs', () => { S.f.dbm = 'az'; go('db'); S.view = 'db'; }],
 ];
 function tourShow(i: number) { S.tour.i = i; S.tour.list = false; S.tour.col = false; S.modal = null; S.pop = null; TOUR_GO[i](); }

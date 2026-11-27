@@ -4,6 +4,7 @@ import type { Db } from 'mongodb';
 import { COLLECTIONS, buildWorld, toDocs, type Doc } from '@/lib/domain';
 import { ensureAuth } from './auth-core';
 import { ensureCollections } from './schema';
+import { STEPS } from './migrations';
 
 export type SeedResult = { seeded: boolean; counts: Record<string, number> };
 
@@ -22,5 +23,9 @@ export async function seedDatabase(db: Db, { reset = false, t0, resetAdmin = fal
     if (docs[name].length) await col.insertMany(docs[name]);
     counts[name] = docs[name].length;
   }
+  // The seed is built with the current rules: every one-time migration is already applied
+  const mig = db.collection<{ _id: string; at: string; what: string; result: string }>('migrations');
+  if (reset) await mig.deleteMany({});
+  for (const s of STEPS) await mig.updateOne({ _id: s.name }, { $setOnInsert: { at: new Date().toISOString(), what: s.what, result: 'seeded with the current rules' } }, { upsert: true });
   return { seeded: true, counts };
 }

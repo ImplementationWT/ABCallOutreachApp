@@ -18,8 +18,8 @@ test.beforeAll(async () => {
     await db.collection('workdays').updateMany({ date: DAY, rep: { $in: ['may', 'dan'] } }, { $set: { st: 'started', startedAt: `${DAY}T08:00` } });
     await db.collection('workdays').updateOne({ date: DAY, rep: 'pri' }, { $set: { st: 'reserved', startedAt: null } });
     // ...from the same campaign (same audiences), as in production, so they compete for the same contacts
-    await db.collection('campaigns').deleteMany({ date: DAY });
-    await db.collection('campaigns').insertOne({ _id: 'C-1102-A' as never, date: DAY, auds: ['pp', 'sm', 'mb', 'ad'], reps: ['may', 'dan', 'pri'], goal: 1, pos: 0 });
+    await db.collection('campaigns').deleteMany({ status: 'active' });
+    await db.collection('campaigns').insertOne({ _id: 'C-ALL' as never, status: 'active', auds: ['pp', 'sm', 'mb', 'ad'], reps: ['may', 'dan', 'pri'], goal: 1, pos: 0 });
   });
 });
 test.afterAll(async () => { await resetUsers(); await reseed(); });
