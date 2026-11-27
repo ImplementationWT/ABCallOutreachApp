@@ -79,7 +79,7 @@ test('team users: Andrew manages, Maya works her own list only', async ({ browse
   await harut.locator('#appsel').click();
   await expect(harut.locator('[role=menu] [role=menuitem]')).toHaveText([/^Outreach Manager/, /^Properties/, /^Calling and AI/, /^Data/]);
   await harut.keyboard.press('Escape');
-  await harut.goto('/mgr/elig'); await harut.waitForLoadState('networkidle');
+  await harut.goto('/mgr/rules'); await harut.waitForLoadState('networkidle');
   await expect(harut.locator('#cfg-maxAtt')).toHaveAttribute('readonly', '');
   await harut.goto('/mgr/camp'); await harut.waitForLoadState('networkidle');
   await harut.locator('button', { hasText: 'New campaign' }).click();

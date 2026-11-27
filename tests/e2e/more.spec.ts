@@ -108,19 +108,19 @@ test('artifact and app agree on the remaining actions', async ({ browser }) => {
   // Sprint 18: the follow-up shows its time in the app ("on <day> at 10:00 AM")
   const same = (s: string) => s.startsWith('effects:') ? s.replace(/atT/g, '') : s;
   // Permanent campaigns (Andrew's round 1): the data model's Campaigns table has no date now
-  const camp = (s: string) => s.replace('Campaigns1row=campaignofaday.5rowsinthedemo.DateDateAudiencesDropdown', 'Campaigns1row=campaign(activeuntilpausedorended).5rowsinthedemo.NameTextStatusActive,Paused,EndedAudiencesDropdown').replace('+Newcampaignfortomorrow', '+Newcampaign');
+  const camp = (s: string) => s.replace('Campaigns1row=campaignofaday.5rowsinthedemo.DateDateAudiencesDropdown', 'Campaigns1row=campaign(activeuntilpausedorended).5rowsinthedemo.NameTextStatusActive,Paused,EndedAudiencesDropdown').replace('+Newcampaignfortomorrow', '+Newcampaign').replace('+Dailyemails:therep’smorningcampaign', '').replace('+mondaysync:whatwaspushedtoday', '');
   for (let i = 0; i < a.length; i++) expect(same(b[i]), `step ${i}`).toBe(camp(sprint18(a[i])));
 });
 
 test('app: old #vista links, back button and the rename', async ({ page }) => {
   await openApp(page, '/#vista=mgr&pagina=rules');
   await expect(page).toHaveURL(/\/mgr\/rules$/);
-  await expect(page.locator('.op-h h1')).toHaveText('Rep Assignment Profiles');
-  await page.locator('.sb button', { hasText: 'Performance' }).click();
-  await expect(page).toHaveURL(/\/mgr\/perf$/);
+  await expect(page.locator('.op-h h1')).toHaveText('Global Assignment Rules');
+  await page.locator('.sb button', { hasText: 'Reports' }).click();
+  await expect(page).toHaveURL(/\/mgr\/reports$/);
   await page.goBack();
   await expect(page).toHaveURL(/\/mgr\/rules$/);
-  await expect(page.locator('.op-h h1')).toHaveText('Rep Assignment Profiles');
+  await expect(page.locator('.op-h h1')).toHaveText('Global Assignment Rules');
   await expect(page.locator('.op-h h1')).toHaveCount(1);
   await page.locator('#emp').dblclick();
   await page.keyboard.type('Acme Rebuild');
@@ -154,38 +154,10 @@ test('the walkthrough panel drags the same', async ({ browser }) => {
   expect(b[1][0]).toBeLessThan(b[0][0]);
 });
 
-test('app: the Performance chart reacts to hover and there are no "To validate" labels', async ({ page }) => {
-  await openApp(page, '/mgr/perf');
-  const day = page.locator('[data-day]').nth(3);
-  await day.hover();
-  await expect(page.locator('[data-chart-tip]')).toContainText('Calls');
-  await expect(page.locator('[data-chart-tip]')).toContainText('Dial to connect');
-  await expect(page.locator('[data-day]').nth(0)).toHaveClass(/opacity-35/);
-  await page.mouse.move(0, 0);
-  await expect(page.locator('[data-chart-tip]')).toHaveCount(0);
-  await page.locator('[data-series="conv"]').hover();
-  await expect(page.locator('[data-series="none"]')).toHaveClass(/opacity-50/);
-  for (const p of ['/mgr/perf', '/mgr/rules']) { await page.goto(p); await page.waitForLoadState('networkidle'); await expect(page.locator('.op')).not.toContainText('To validate'); }
-});
-
-test('app: Performance by day, week, month and year', async ({ page }) => {
-  await openApp(page, '/mgr/perf');
-  const label = page.locator('[data-period-label]');
-  await expect(label).toHaveText('Today, Nov 2');
-  await page.locator('.segs .seg', { hasText: 'Week' }).click();
-  await expect(label).toHaveText('Nov 2 – Nov 8');
-  await expect(page.locator('[aria-label="Next period"]')).toBeDisabled();
-  await page.locator('[aria-label="Previous period"]').click();
-  await expect(label).toHaveText('Oct 26 – Nov 1');
-  await expect(page.locator('.ptbl tr.tot')).toContainText(/Team\s*\d+/);
-  await page.locator('.segs .seg', { hasText: 'Year' }).click();
-  await expect(label).toHaveText('2026');
-  await expect(page.locator('[data-day]')).toHaveCount(12);
-  await page.locator('[data-day="2026-10-01"]').click();
-  await expect(page.locator('.segs .seg[aria-pressed=true]')).toHaveText('Month');
-  await expect(label).toHaveText('October 2026');
-  await page.locator('[aria-label="Back to this month"]').click();
-  await expect(label).toHaveText('November 2026');
+test('app: no "To validate" labels on the rules', async ({ page }) => {
+  await openApp(page, '/mgr/rules');
+  await expect(page.locator('.op-h h1')).toHaveText('Global Assignment Rules');
+  await expect(page.locator('.op')).not.toContainText('To validate');
 });
 
 test('app: Calling and AI is locked for everyone', async ({ page }) => {

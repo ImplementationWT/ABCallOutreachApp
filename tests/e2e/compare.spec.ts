@@ -2,6 +2,7 @@
  * with a pixel diff. The top bar and the sidebar changed on purpose (apps moved to a selector in the
  * sidebar), so only the content is compared; Data now has a sidebar too, so it is not compared.
  * The app's sidebar is 20px wider, so its page is captured 20px wider (same content width).
+ * Performance, Daily emails and monday sync were removed from the app (Reports replaces Performance).
  * Views redesigned on purpose after the port are left out: KPI grids (The day by rep, Contact pool,
  * Properties), rules without "To validate" labels, the interactive Performance chart and the tables whose
  * pager (20, 30 or 50 rows per page) changes the height: Contacts and Campaigns. Calling and AI
@@ -20,7 +21,7 @@ type Case = { n: string; art: string; app: string; artClick?: string };
 const CHANGED = ['mgr-live', 'mgr-pool', 'mgr-rules', 'mgr-perf', 'prp-props', 'prp-cts', 'mgr-camp', 'rep-fu', 'mgr-help'];
 const CASES: Case[] = ([
   ...['today', 'fu', 'calls', 'help'].map(p => ({ n: 'rep-' + p, art: `vista=rep&pagina=${p}`, app: `/rep/${p}` })),
-  ...['live', 'pool', 'leads', 'camp', 'rules', 'perf', 'mail', 'sync', 'help'].map(p => ({ n: 'mgr-' + p, art: `vista=mgr&pagina=${p}`, app: `/mgr/${p}` })),
+  ...['live', 'pool', 'leads', 'camp', 'rules', 'help'].map(p => ({ n: 'mgr-' + p, art: `vista=mgr&pagina=${p}`, app: `/mgr/${p}` })),
   ...['props', 'cts', 'imp', 'help'].map(p => ({ n: 'prp-' + p, art: `vista=prp&pagina=${p}`, app: `/prp/${p}` })),
   { n: 'prp-record', art: 'vista=prp&pagina=props', artClick: '905 Arbolada Way', app: '/prp/props/P-1003' },
 ] as Case[]).filter(c => !CHANGED.includes(c.n));

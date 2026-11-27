@@ -21,7 +21,7 @@ test('pages and the API need a session; admin / adminmaster123 signs in', async 
   await expect(page.locator('.login [role=alert]')).toHaveText('User or password is not correct');
   await signIn(page, 'admin', 'adminmaster123');
   await expect(page).toHaveURL(/\/mgr\/rules$/);
-  await expect(page.locator('.op-h h1')).toHaveText('Rep Assignment Profiles'); // the old Assignment rules route
+  await expect(page.locator('.op-h h1')).toHaveText('Global Assignment Rules'); // the old Assignment rules route
 });
 
 test('change the password, log out and sign in with the new one', async ({ page }) => {

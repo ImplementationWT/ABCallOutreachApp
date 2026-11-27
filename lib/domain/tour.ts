@@ -34,7 +34,7 @@ export const TOUR: TourStep[] = [
     say: 'Every contact has a next date or a reason, so the whole base gets worked.' },
   { t: 'The rules and the numbers are Andrew’s', min: 2,
     dolor: 'The Canva lists the eligibility rules, P1 to P5 and the two daily emails, with Dial to Connect, Connect to Convo and Convo to Lead.',
-    show: ['Rules: allocation size, waiting time by result, max attempts. Change one and the next allocation uses it.', 'Performance: the rates by rep from the call log.', 'Daily emails: the rep’s campaign in the morning and the report to management at night.'],
+    show: ['Global Assignment Rules: allocation size, max attempts and what each call outcome does. Change one and the next allocation uses it.', 'Reports: Calls Made, Connects and New Leads by rep, against the same day last week.'],
     say: 'When the rules change, Andrew changes them.' },
   { t: 'What phase 2 adds', min: 1,
     dolor: 'Andrew wants to see transcripts and pay bonuses on verified calls.',

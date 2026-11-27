@@ -9,7 +9,7 @@ import type React from 'react';
 import {
   C, CAMPS, CFG, DAY, OUT, P, isLeadOut, isNoOut, PROPS, PEO, REPS, T0, TODAY,
   campName, campsOf, newCampKey, ctByName, ctsOf, fmtWD, isFinal, isoT, nowT, openOf,
-  startDay, syncLog, D, addDays, iso, pacificDay, isCurrentPeriod, shiftPeriod, type PeriodKind, type RepKey,
+  startDay, syncLog, D, addDays, iso, pacificDay, type RepKey,
 } from '@/lib/domain';
 import { TOUR } from '@/lib/domain/tour';
 import { go, openProp } from './navigation';
@@ -209,22 +209,10 @@ A.cfgset = v => { const [k, val] = v.split('|'); CFG[k] = val === 'true' ? true 
 /* Reactivate a contact on hold (its rep or an administrator; the server checks it). */
 A.reactivate = v => { void serverAct({ action: 'reactivate', ct: v }, () => toast('Contact reactivated: back in the pool')); return false; };
 
-/* Performance by period (not in the artifact): Day, Week, Month or Year, moved with ‹ ›, back to
- * the current one, and a bar of the chart opens its day or month. */
-const perfAnchor = () => (S.f.perfd as string) || TODAY;
 const reportDayOf = () => (S.f.repd as string) || pacificDay();
-A.perfp = v => { S.f.perfp = v; };
-A.perfnav = v => {
-  const kind = S.f.perfp as PeriodKind, dir = Number(v);
-  if (dir > 0 && isCurrentPeriod(kind, perfAnchor())) return false;
-  const next = shiftPeriod(kind, perfAnchor(), dir);
-  S.f.perfd = next > TODAY ? TODAY : next;
-};
-A.perfnow = () => { S.f.perfd = TODAY; };
-/* Reports (administrator): the day shown, moved one day with ‹ ›, back to today in Pacific time. */
+/* Reports: the day shown, moved one day with ‹ ›, back to today in Pacific time. */
 A.repnav = v => { const d = addDays(reportDayOf(), Number(v)); const n = iso(d); if (n > pacificDay()) return false; S.f.repd = n; };
 A.repnow = () => { S.f.repd = ''; };
-A.perfdrill = v => { const [k, d] = v.split('|'); S.f.perfp = k; S.f.perfd = d; };
 
 /* ===== PROPERTIES ===== */
 A.prtab = v => { S.tab.prp = v; };
@@ -259,8 +247,6 @@ export const TOUR_MAS: [string, () => void][] = [
   ['Contact pool: why each contact is or is not in today’s lists', () => { S.f.pool = 'all'; go('mgr', 'pool'); }],
   ['Reassign what a rep has not called', () => { go('mgr', 'live'); A.reassign('dan'); }],
   ['905 Arbolada Way: the property record with its three contacts', () => { openProp(PROPS.find(p => p.addr === '905 Arbolada Way')!.k, 'cts'); }],
-  ['Daily emails: the rep’s morning campaign', () => { S.f.mail = 'rep'; go('mgr', 'mail'); }],
-  ['monday sync: what was pushed today', () => { go('mgr', 'sync'); }],
   ['New campaign', () => { go('mgr', 'camp'); A.newcamp(''); }],
   ['Data: the process from A to Z and where it runs', () => { S.f.dbm = 'az'; go('db'); S.view = 'db'; }],
 ];
