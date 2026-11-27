@@ -21,7 +21,7 @@ import { Sidebar } from '@/components/shell/Sidebar';
 import { Avatar, Bar, Icon, KPI_GRID, Kv, OutPill, PageHeader, Pill, PrTag, StatFilter, paged } from '@/components/ui';
 
 export function MgrSide() {
-  return <Sidebar k="mgr" items={[['Today'], ['live', 'The day by rep', 'target'], ['pool', 'Contact pool', 'users'], ['leads', 'Hand-offs to sales', 'hand', LEADS.filter(l => l.fresh).length], ['Plan'], ['camp', 'Campaigns', 'cal'], ['rules', 'Assignment rules', 'gear'], ['Results'], ['perf', 'Performance', 'chart'], ...(getMe()?.role === 'admin' ? [['reports', 'Reports', 'chart']] as SbItem[] : []), ['mail', 'Daily emails', 'mail'], ['monday'], ['sync', 'monday sync', 'sync'], ...(can('users.manage') || getMe()?.role === 'admin' ? [['Admin'], ...(can('users.manage') ? [['users', 'Users', 'key']] : []), ...(getMe()?.role === 'admin' ? [['outc', 'Call outcomes', 'list']] : [])] as SbItem[] : [])]} />;
+  return <Sidebar k="mgr" items={[['Today'], ['live', 'The day by rep', 'target'], ['pool', 'Contact pool', 'users'], ['leads', 'Hand-offs to sales', 'hand', LEADS.filter(l => l.fresh).length], ['Settings'], ['camp', 'Campaign Management', 'cal'], ['rules', 'Rep Assignment Profiles', 'users'], ['prio', 'Contact Priority Rules', 'list'], ['elig', 'Call Outcome & Eligibility', 'flag'], ['glob', 'Global Assignment Rules', 'gear'], ['Results'], ['perf', 'Performance', 'chart'], ...(getMe()?.role === 'admin' ? [['reports', 'Reports', 'chart']] as SbItem[] : []), ['mail', 'Daily emails', 'mail'], ['monday'], ['sync', 'monday sync', 'sync'], ...(can('users.manage') ? [['Admin'], ['users', 'Users', 'key']] as SbItem[] : [])]} />;
 }
 
 /* ----- The day by rep ----- */
@@ -138,7 +138,7 @@ function MgrCamps() {
   const by = (s: string) => CAMPS.filter(c => c.status === s);
   const groups: [string, string, string][] = [['active', 'Active', 'bg-g500'], ['paused', 'Paused', 'bg-a500'], ['ended', 'Ended', '']];
   return <>
-    <PageHeader t="Campaigns" sub="A campaign is a set of audiences and the reps who work it. It stays active until someone pauses or ends it, and several can be active at once. Each daily allocation takes the contacts of every active campaign of the rep together, with the same rules; a contact in two campaigns is assigned once." acts={can('mgr.manage') ? <button className="btn pri" {...on('newcamp')}><Icon n="plus" s={15} />New campaign</button> : null} />
+    <PageHeader t="Campaign Management" sub="A campaign is a set of audiences and the reps who work it. It stays active until someone pauses or ends it, and several can be active at once. Each daily allocation takes the contacts of every active campaign of the rep together, with the same rules; a contact in two campaigns is assigned once." acts={<button className="btn pri" {...on('newcamp')}><Icon n="plus" s={15} />New campaign</button>} />
     {groups.map(([k, l, dot]) => { const cs = by(k), pg = paged('camp-' + k, cs); return <div key={k} className="grp" data-camps={k}><div className="grp-h"><i className={dot} />{l}<span className="n">{cs.length}</span></div>{cs.length ? <><div className="rows">{pg.rows.map(c => <CampRow key={c.k} c={c} />)}</div>{pg.pager}</> : <p className="sm muted p-[6px_2px]">{k === 'active' ? 'No active campaigns: nobody gets a list until one is created or resumed.' : 'None.'}</p>}</div>; })}
     <div className="card"><h3><Icon n="users" s={16} />Audiences</h3>
       <div className="grid4">{AUDK.map(a => { const ps = PROPS.filter(p => p.aud === a); return <Kv key={a} l={AUDS[a].n} v={ps.length + ' properties'} sub={`${ps.filter(p => propStatus(p) === 'Potential Lead').length} potential leads, ${ps.filter(p => p.permit === 'Permit Issued').length} with permit`} />; })}</div>
@@ -147,7 +147,7 @@ function MgrCamps() {
   </>;
 }
 
-/* ----- Assignment rules ----- */
+/* ----- Settings helpers ----- */
 const cfgChange = () => { if (!can('mgr.manage')) return; toast('Rule saved. The next allocation uses it'); bump(); };
 function Num({ k, v, w = 70 }: { k: string; v: number; w?: number }) {
   return <input className={`numin ${w === 62 ? 'w-[62px]' : 'w-[70px]'}`} type="number" min={0} defaultValue={v} readOnly={!can('mgr.manage')} {...inp('cfg.' + k)} onChange={cfgChange} id={'cfg-' + k} />;
@@ -155,38 +155,75 @@ function Num({ k, v, w = 70 }: { k: string; v: number; w?: number }) {
 function Rule({ icon, t, d, r, tag }: { icon: string; t: string; d: React.ReactNode; r?: React.ReactNode; tag?: React.ReactNode }) {
   return <div className="rule"><span className="ic2"><Icon n={icon} s={15} /></span><div><b>{t}</b> {tag}<br /><span className="sm muted">{d}</span></div><div className="r flex-none whitespace-nowrap [&_.segs]:flex-nowrap">{r}</div></div>;
 }
-function MgrRules() {
-  const eligRows: [string, string, string, React.ReactNode][] = [['ban', 'Not on Do Not Call or suppression lists', 'National registry filter is confirmed by AB.', ''], ['hand', 'Not already an AB client or in an active sale', 'Cross check with the AB Leads board by phone and address, including inbound calls.', ''], ['ban', 'Not removed by another contact of the property', 'One no, or one lead, takes the rest of the house out.', <Pill key="m" t="Manuel’s rule" cls="blue" />], ['call', 'Valid and callable phone', 'A Wrong Number marks that number; with no other number the contact waits.', ''], ['flag', 'Under the max attempts', `After ${CFG.maxAtt} attempts the contact leaves the lists.`, ''], ['cal', 'Due according to the last result', 'See the waiting times.', ''], ['users', 'Not reserved for another rep or campaign', 'No duplicates.', '']];
+/* ===== Settings: the five areas of Andrew's Assignment Engine brief (docs/andrew, page 5) =====
+ * Each existing setting lives in the area it belongs to; an area is shown only with real settings.
+ * Changing needs Outreach Manager: change (mgr.manage); the outcome catalog, an administrator. */
+const SETTINGS_NOTE = 'Changes apply to the next allocation.';
+/** 02 Rep Assignment Profiles: workload, request more, refresh and the end of the day (the same for every rep today). */
+function MgrProfiles() {
   return <>
-    <PageHeader t="Assignment rules" sub="Everything the engine decides comes from here. Andrew changes a rule and the next allocation uses it, with no change request." />
+    <PageHeader t="Rep Assignment Profiles" sub={`How much each rep gets and what happens with what they do not call. The same values apply to every rep for now. ${SETTINGS_NOTE}`} />
     <div className="grid2">
-      <div>
-        <div className="card p-[6px_4px]"><h3 className="p-[10px_14px_0]"><Icon n="users" s={16} />How much and when</h3>
-          <Rule icon="target" t="Daily allocation per rep" d={`Up to this many eligible contacts each morning. Today reps make about 108 calls a day. In this demo: ${demoN(CFG.first)}, scaled to its data.`} r={<><Num k="first" v={CFG.first} /><span className="sm muted">contacts</span></>} />
-          <Rule icon="plus" t="Request more" d={`Next batch when the rep has documented the whole list. In this demo: ${demoN(CFG.more)}.`} r={<><Num k="more" v={CFG.more} /><span className="sm muted">contacts</span></>} />
-          <Rule icon="refresh" t="List refresh" d="Daily is the default; Andrew mentioned weekly could be enough." r={<span className="segs">{['daily', 'weekly'].map(k => <button key={k} className="seg" {...on('cfgset', `refresh|${k}`)} aria-pressed={CFG.refresh === k}>{k === 'daily' ? 'Daily' : 'Weekly'}</button>)}</span>} />
-          <Rule icon="logout" t="Not called at the end of the day" d="Back to the pool with its priority, or kept by the same rep tomorrow." r={<span className="segs">{[['pool', 'Back to pool'], ['keep', 'Same rep']].map(([k, l]) => <button key={k} className="seg" {...on('cfgset', `endDay|${k}`)} aria-pressed={CFG.endDay === k}>{l}</button>)}</span>} />
-          <Rule icon="shuffle" t="Even split" d="Each new property goes to the scheduled rep with the lowest load. A property and all its contacts stay with one rep for the day." r={<Pill t="Least loaded" cls="green" />} />
-          <Rule icon="clock" t="Calling hours" d={CFG.hours + '. AB confirms what applies.'} r="" />
-        </div>
-        <div className="card p-[6px_4px]"><h3 className="p-[10px_14px_0]"><Icon n="shield" s={16} />Eligibility, checked in this order</h3>
-          {eligRows.map(([i, t, d, tg], ix) => <Rule key={ix} icon={i} t={t} d={d} r="" tag={tg} />)}
-          <Rule icon="flag" t="Max attempts per contact" d="Counts every call, answered or not. At the max the contact goes on hold; a follow-up set on the last attempt is kept." r={<><Num k="maxAtt" v={CFG.maxAtt} /><span className="sm muted">calls</span></>} />
-          <Rule icon="refresh" t="Reactivating an on-hold contact" d="Its rep or an administrator puts it back in the pool. Pending with Andrew: keep its attempts or start again at 0." r={<span className="segs">{[['false', 'Keep the attempts'], ['true', 'Back to 0']].map(([k, l]) => <button key={k} className="seg" {...on('cfgset', `reactivateReset|${k}`)} aria-pressed={String(!!CFG.reactivateReset) === k}>{l}</button>)}</span>} />
-        </div>
+      <div className="card p-[6px_4px]" data-area="profiles"><h3 className="p-[10px_14px_0]"><Icon n="users" s={16} />Workload</h3>
+        <Rule icon="target" t="Daily allocation per rep" d={`Up to this many eligible contacts each morning. Today reps make about 108 calls a day. In this demo: ${demoN(CFG.first)}, scaled to its data.`} r={<><Num k="first" v={CFG.first} /><span className="sm muted">contacts</span></>} />
+        <Rule icon="plus" t="Request more" d={`Next batch when the rep has documented the whole list. In this demo: ${demoN(CFG.more)}.`} r={<><Num k="more" v={CFG.more} /><span className="sm muted">contacts</span></>} />
+        <Rule icon="refresh" t="List refresh" d="Daily is what the engine does. Weekly is pending with Andrew: the engine does not use it yet." r={<span className="segs">{['daily', 'weekly'].map(k => <button key={k} className="seg" {...on('cfgset', `refresh|${k}`)} aria-pressed={CFG.refresh === k}>{k === 'daily' ? 'Daily' : 'Weekly'}</button>)}</span>} />
+        <Rule icon="logout" t="Not called at the end of the day" d="Back to the pool with its priority, or kept by the same rep tomorrow." r={<span className="segs">{[['pool', 'Back to pool'], ['keep', 'Same rep']].map(([k, l]) => <button key={k} className="seg" {...on('cfgset', `endDay|${k}`)} aria-pressed={CFG.endDay === k}>{l}</button>)}</span>} />
       </div>
-      <div>
-        <div className="card"><h3><Icon n="list" s={16} />Priorities</h3>
-          <table className="ptbl"><tbody><tr><th>Priority</th><th>Criteria</th><th>Assignment</th></tr>{(Object.entries(PRI) as [Pri, (typeof PRI)[Pri]][]).map(([k, x]) => <tr key={k}><td><PrTag pr={k} sm /></td><td>{x.d}</td><td>{x.who === 'Original rep' ? <Pill t="Original rep" cls="violet" /> : <Pill t="Any rep" />}</td></tr>)}</tbody></table>
-          <p className="sm muted mt-[8px]">Inside a priority, the property that waited longest goes first, so the whole base gets worked and not only the top of the list.</p>
-        </div>
-        <div className="card"><h3><Icon n="cal" s={16} />When a contact can be called again</h3>
-          <table className="ptbl"><tbody><tr><th>Result</th><th>Property status</th><th>Eligible again</th></tr>
-            {OUTK.map(o => <tr key={o}><td>{o}{OUT[o].proposed ? <> <Pill t="Proposed" cls="amber" /></> : null}</td><td>{OUT[o].status}</td><td>{waitText(o)}</td></tr>)}
-          </tbody></table>
-          <p className="sm muted mt-[8px]">With several contacts, the property takes the most advanced status: Potential Lead, then Not Interested, then Contacted, then Not Contacted.</p>
-        </div>
+      <div className="card"><h3><Icon n="cal" s={16} />Each rep’s campaigns</h3>
+        {REPS.map(r => <div key={r} className="mrow" data-profile={r}><Avatar k={r} sm /><b>{PEO[r].n}</b><span className="muted ml-auto text-right">{campsName(r) || 'No active campaign'}</span></div>)}
+        <p className="sm muted mt-[8px]">A rep works every active campaign they are in. Change it in Campaign Management.</p>
       </div>
+    </div>
+  </>;
+}
+/** 03 Contact Priority Rules: which eligible contacts go first. */
+function MgrPriority() {
+  return <>
+    <PageHeader t="Contact Priority Rules" sub="Which eligible contacts each rep gets first. Strict order, P1 to P5, also when the daily allocation runs out; the same order applies across all active campaigns." />
+    <div className="grid2">
+      <div className="card" data-area="priority"><h3><Icon n="list" s={16} />Priorities</h3>
+        <table className="ptbl"><tbody><tr><th>Priority</th><th>Criteria</th><th>Assignment</th></tr>{(Object.entries(PRI) as [Pri, (typeof PRI)[Pri]][]).map(([k, x]) => <tr key={k}><td><PrTag pr={k} sm /></td><td>{x.d}</td><td>{x.who === 'Original rep' ? <Pill t="Original rep" cls="violet" /> : <Pill t="Any rep" />}</td></tr>)}</tbody></table>
+        <p className="sm muted mt-[8px]">Which outcome gives P1, P3 or P4 is set per outcome in Call Outcome &amp; Eligibility Rules.</p>
+      </div>
+      <div className="card p-[6px_4px]"><h3 className="p-[10px_14px_0]"><Icon n="clock" s={16} />Ties</h3>
+        <Rule icon="clock" t="Oldest waiting first" d="Inside a priority, the property that waited longest since its last call goes first (never called counts as oldest), so the whole base gets worked and not only the top of the list." r={<Pill t="Always on" cls="green" />} />
+        <Rule icon="home" t="A property’s contacts stay together" d="The list keeps every contact of a property in a row, ordered by the best priority among them." r={<Pill t="Always on" cls="green" />} />
+      </div>
+    </div>
+  </>;
+}
+/** 04 Call Outcome & Eligibility Rules: eligibility, attempts, reactivation, and the outcome catalog. */
+function MgrElig() {
+  const eligRows: [string, string, string, React.ReactNode][] = [['ban', 'Not on Do Not Call or suppression lists', 'National registry filter is confirmed by AB.', ''], ['hand', 'Not already an AB client or in an active sale', 'Cross check with the AB Leads board by phone and address, including inbound calls.', ''], ['ban', 'Not removed by another contact of the property', 'One no, or one lead, takes the rest of the house out.', <Pill key="m" t="Manuel’s rule" cls="blue" />], ['call', 'Valid and callable phone', 'A Wrong Number marks that number and is not an attempt; with no other number the contact waits.', ''], ['flag', 'Under the max attempts', `After ${CFG.maxAtt} attempts the contact leaves the lists.`, ''], ['cal', 'Due according to the last result', 'See the waiting times of each outcome below.', '']];
+  return <>
+    <PageHeader t="Call Outcome & Eligibility Rules" sub={`When a contact can be called, how many attempts it gets and what each call outcome does. ${SETTINGS_NOTE}`} />
+    <div className="grid2">
+      <div className="card p-[6px_4px]" data-area="elig"><h3 className="p-[10px_14px_0]"><Icon n="shield" s={16} />Eligibility, checked in this order</h3>
+        {eligRows.map(([i, t, d, tg], ix) => <Rule key={ix} icon={i} t={t} d={d} r="" tag={tg} />)}
+      </div>
+      <div className="card p-[6px_4px]"><h3 className="p-[10px_14px_0]"><Icon n="flag" s={16} />Attempts</h3>
+        <Rule icon="flag" t="Max attempts per contact" d="Every call counts except Wrong Number (each outcome says if it counts). At the max the contact goes on hold; a follow-up set on the last attempt is kept." r={<><Num k="maxAtt" v={CFG.maxAtt} /><span className="sm muted">calls</span></>} />
+        <Rule icon="refresh" t="Reactivating an on-hold contact" d="Its rep or an administrator puts it back in the pool. Agreed with Andrew: it keeps its attempts." r={<span className="segs">{[['false', 'Keep the attempts'], ['true', 'Back to 0']].map(([k, l]) => <button key={k} className="seg" {...on('cfgset', `reactivateReset|${k}`)} aria-pressed={String(!!CFG.reactivateReset) === k}>{l}</button>)}</span>} />
+      </div>
+    </div>
+    {getMe()?.role === 'admin' ? <OutcomesPage embedded /> : <div className="card"><h3><Icon n="cal" s={16} />When a contact can be called again</h3>
+      <table className="ptbl"><tbody><tr><th>Result</th><th>Property status</th><th>Eligible again</th></tr>
+        {OUTK.map(o => <tr key={o}><td>{o}{OUT[o].proposed ? <> <Pill t="Proposed" cls="amber" /></> : null}</td><td>{OUT[o].status}</td><td>{waitText(o)}</td></tr>)}
+      </tbody></table>
+      <p className="sm muted mt-[8px]">An administrator edits the outcomes. With several contacts, the property takes the most advanced status: Potential Lead, then Not Interested, then Contacted, then Not Contacted.</p>
+    </div>}
+  </>;
+}
+/** 05 Global Assignment Rules: what holds for every rep and campaign. */
+function MgrGlobal() {
+  const dup = dupCheck();
+  return <>
+    <PageHeader t="Global Assignment Rules" sub="What holds for every rep and every campaign." />
+    <div className="card p-[6px_4px]" data-area="global">
+      <Rule icon="users" t="No duplicates" d="A contact is in one list only, even when it is in two campaigns, and a property and all its contacts stay with one rep for the day (locked in the database)." r={<Pill t={`Same house, two reps today: ${dup}`} cls={dup ? 'red' : 'green'} />} />
+      <Rule icon="shuffle" t="Even split" d="Each new property goes to the rep with the lowest load who can take it. A rep’s own follow-ups and undecided contacts go back to them." r={<Pill t="Least loaded" cls="green" />} />
+      <Rule icon="clock" t="Calling hours" d={CFG.hours + '. Shown to the team; the app does not block calls outside these hours yet.'} r="" />
     </div>
   </>;
 }
@@ -300,6 +337,8 @@ function waitText(o: string): string {
   if (d.phone === 'bad') return `Next number in ${t}, or on hold`;
   return d.sameRep ? `${t}, same rep` : t;
 }
-export const MgrPages: Record<'live' | 'pool' | 'leads' | 'camp' | 'rules' | 'perf' | 'mail' | 'sync' | 'users' | 'outc' | 'reports', () => React.ReactNode> = {
-  live: MgrLive, pool: MgrPool, leads: MgrLeads, camp: MgrCamps, rules: MgrRules, perf: MgrPerf, mail: MgrMail, sync: MgrSync, users: UsersPage, outc: OutcomesPage, reports: ReportsPage,
+/* rules: Rep Assignment Profiles (the old "Assignment rules" route, so old links still land);
+ * outc: the outcome catalog, now inside Call Outcome & Eligibility Rules. */
+export const MgrPages: Record<'live' | 'pool' | 'leads' | 'camp' | 'rules' | 'prio' | 'elig' | 'glob' | 'perf' | 'mail' | 'sync' | 'users' | 'outc' | 'reports', () => React.ReactNode> = {
+  live: MgrLive, pool: MgrPool, leads: MgrLeads, camp: MgrCamps, rules: MgrProfiles, prio: MgrPriority, elig: MgrElig, glob: MgrGlobal, perf: MgrPerf, mail: MgrMail, sync: MgrSync, users: UsersPage, outc: MgrElig, reports: ReportsPage,
 };

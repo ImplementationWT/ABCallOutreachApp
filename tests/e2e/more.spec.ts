@@ -113,12 +113,12 @@ test('artifact and app agree on the remaining actions', async ({ browser }) => {
 test('app: old #vista links, back button and the rename', async ({ page }) => {
   await openApp(page, '/#vista=mgr&pagina=rules');
   await expect(page).toHaveURL(/\/mgr\/rules$/);
-  await expect(page.locator('.op-h h1')).toHaveText('Assignment rules');
+  await expect(page.locator('.op-h h1')).toHaveText('Rep Assignment Profiles');
   await page.locator('.sb button', { hasText: 'Performance' }).click();
   await expect(page).toHaveURL(/\/mgr\/perf$/);
   await page.goBack();
   await expect(page).toHaveURL(/\/mgr\/rules$/);
-  await expect(page.locator('.op-h h1')).toHaveText('Assignment rules');
+  await expect(page.locator('.op-h h1')).toHaveText('Rep Assignment Profiles');
   await expect(page.locator('.op-h h1')).toHaveCount(1);
   await page.locator('#emp').dblclick();
   await page.keyboard.type('Acme Rebuild');

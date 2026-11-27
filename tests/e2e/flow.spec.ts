@@ -46,9 +46,13 @@ async function walk(page: Page, who: string) {
   await note('new campaign modal', page.locator('.modal').textContent());
   await btn(page, 'Create campaign').click(); await idle(page);
   await note('campaign', toastText(page));
-  await btn(page, 'Assignment rules', '.sb').click(); await idle(page);
+  // The app splits the old Assignment rules in the five areas of Andrew's brief: the refresh is in
+  // Rep Assignment Profiles and the max attempts in Call Outcome & Eligibility (same rules, same toasts)
+  const art = page.url().startsWith('file:');
+  await btn(page, art ? 'Assignment rules' : 'Rep Assignment Profiles', '.sb').click(); await idle(page);
   await btn(page, 'Weekly').click(); await idle(page);
   await note('rule', toastText(page));
+  if (!art) { await btn(page, 'Call Outcome & Eligibility', '.sb').click(); await idle(page); }
   await page.locator('#cfg-maxAtt').fill('5');
   await page.locator('#cfg-maxAtt').blur();
   await note('max attempts', toastText(page));
@@ -113,6 +117,8 @@ test('artifact and app walk the same', async ({ browser }) => {
     },
     'new campaign modal:': app => expect(app).toContain(bare('It is active from now until someone pauses or ends it')),
     'campaign:': app => expect(app).toBe(bare('campaign: Campaign created: Pacific Palisades is active. The next allocation uses it')),
+    // the walkthrough's rules step opens the old Assignment rules route: Rep Assignment Profiles
+    'tour 7 screen:': (app, art) => { expect(art).toBe(bare('tour 7 screen: Assignment rules')); expect(app).toBe(bare('tour 7 screen: Rep Assignment Profiles')); },
   };
   for (let i = 0; i < a.length; i++) {
     const own = Object.keys(OWN).find(k => a[i].startsWith(k));

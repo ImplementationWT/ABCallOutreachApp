@@ -24,7 +24,8 @@ async function post(body: unknown) {
 const blank = (): Form => ({ name: '', edit: false, active: true, countsAsAttempt: true, recallDays: 1, calendarDays: false, propagates: 'none', needsFollowUp: false, lead: false, connect: true, final: false, sameRep: false, pri: null, group: 'conv', status: 'Contacted', phone: 'ok', started: false, proposed: false, tone: 'n', hint: '' });
 const waitOf = (d: OutcomeDef) => d.needsFollowUp ? 'Date and time the rep sets' : d.lead ? 'Goes to AB sales' : d.final ? 'Never' : `${d.recallDays} ${d.calendarDays ? 'day' : 'business day'}${d.recallDays > 1 ? 's' : ''}`;
 
-export function OutcomesPage() {
+/** embedded: inside Call Outcome & Eligibility Rules (a card instead of the page header). */
+export function OutcomesPage({ embedded = false }: { embedded?: boolean }) {
   const [form, setForm] = useState<Form | null>(null);
   if (!isAdmin()) return <div className="empty">Only an administrator can change the call outcomes.</div>;
   const toggle = async (k: string) => {
@@ -33,8 +34,10 @@ export function OutcomesPage() {
   };
   const pg = paged('outc', OUTK);
   return <>
-    <PageHeader t="Call outcomes" sub="The results a rep can save, and what each one does. Changes apply to the next results; dates already set are not recalculated."
-      acts={<button className="btn pri" onClick={() => setForm(blank())}><Icon n="plus" s={15} />New outcome</button>} />
+    {embedded
+      ? <div className="flex items-center gap-[10px] mt-[4px] mb-[10px]" data-outcomes-head><div><h2 className="text-[17px] font-bold">Call outcomes</h2><p className="sm muted">The results a rep can save, and what each one does. Changes apply to the next results; dates already set are not recalculated.</p></div><button className="btn pri ml-auto" onClick={() => setForm(blank())}><Icon n="plus" s={15} />New outcome</button></div>
+      : <PageHeader t="Call outcomes" sub="The results a rep can save, and what each one does. Changes apply to the next results; dates already set are not recalculated."
+        acts={<button className="btn pri" onClick={() => setForm(blank())}><Icon n="plus" s={15} />New outcome</button>} />}
     <table className="ptbl" data-outcomes>
       <thead><tr><th>Outcome</th><th>Counts as attempt</th><th>Counts as connect</th><th>Creates a lead</th><th>Called again</th><th>Also stops</th><th>Needs follow-up</th><th>Status</th><th></th></tr></thead>
       <tbody>{pg.rows.map(k => { const d = OUT[k]; return <tr key={k} data-outcome={k}>

@@ -30,7 +30,7 @@ test('a saved call, a new campaign and a rule survive a reload', async ({ page }
   await page.goto('/mgr/camp'); await page.waitForLoadState('networkidle');
   await btn(page, 'New campaign').click(); await idle(page);
   await btn(page, 'Create campaign').click(); await idle(page);
-  await page.goto('/mgr/rules'); await page.waitForLoadState('networkidle');
+  await page.goto('/mgr/elig'); await page.waitForLoadState('networkidle'); // Call Outcome & Eligibility Rules
   await page.locator('#cfg-maxAtt').fill('4'); await page.locator('#cfg-maxAtt').blur(); await idle(page);
   await page.waitForTimeout(800);
   await page.reload(); await page.waitForLoadState('networkidle');

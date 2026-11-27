@@ -223,3 +223,51 @@ test.describe('4. Metrics', () => {
     await expect(a.locator('.sb [data-act=pg_mgr][data-v=reports]')).toHaveCount(1);
   });
 });
+
+test.describe('5. Settings in the five areas of the Assignment Engine brief', () => {
+  const AREAS = ['Campaign Management', 'Rep Assignment Profiles', 'Contact Priority Rules', 'Call Outcome & Eligibility', 'Global Assignment Rules'];
+  test('the sidebar has the five areas, in order, and each existing setting is in its area', async ({ browser }) => {
+    const a = await page(browser, 'admin', '/mgr/live');
+    const nav = await a.locator('.sb button.nav').allTextContents();
+    const at = AREAS.map(n => nav.findIndex(t => t.trim() === n));
+    expect(at.every(i => i >= 0)).toBe(true);
+    expect(at).toEqual([...at].sort((x, y) => x - y));
+    expect(nav.map(t => t.trim())).not.toContain('Assignment rules');
+    expect(nav.map(t => t.trim())).not.toContain('Call outcomes'); // inside Call Outcome & Eligibility now
+    const where: [string, string, string[]][] = [
+      ['/mgr/camp', 'Campaign Management', ['[data-camps=active]']],
+      ['/mgr/rules', 'Rep Assignment Profiles', ['#cfg-first', '#cfg-more', '[data-act=cfgset][data-v="refresh|daily"]', '[data-act=cfgset][data-v="endDay|pool"]']],
+      ['/mgr/prio', 'Contact Priority Rules', ['[data-area=priority] .ptbl']],
+      ['/mgr/elig', 'Call Outcome & Eligibility Rules', ['#cfg-maxAtt', '[data-act=cfgset][data-v="reactivateReset|false"]', '[data-outcome="Wrong Number"]']],
+      ['/mgr/glob', 'Global Assignment Rules', ['[data-area=global]']],
+    ];
+    for (const [path, title, sels] of where) {
+      await a.goto(path); await a.waitForLoadState('networkidle');
+      await expect(a.locator('.op-h h1')).toHaveText(title);
+      for (const s of sels) await expect(a.locator(s).first(), `${title}: ${s}`).toBeVisible();
+    }
+    // each setting in one area only
+    for (const [path] of where.filter(w => w[0] !== '/mgr/rules')) { await a.goto(path); await a.waitForLoadState('networkidle'); await expect(a.locator('#cfg-first')).toHaveCount(0); }
+  });
+  test('a setting changed in its area is saved and used: daily allocation', async ({ browser }) => {
+    const a = await page(browser, 'admin', '/mgr/rules');
+    await a.locator('#cfg-first').fill('150'); await a.locator('#cfg-first').blur();
+    await expect(a.locator('#toast')).toContainText('Rule saved');
+    await a.waitForTimeout(800);
+    expect(await withDb(db => db.collection('rules').findOne({ _id: 'default' as never }))).toMatchObject({ first: 150 });
+    await withDb(db => db.collection('rules').updateOne({ _id: 'default' as never }, { $set: { first: 200 } }));
+  });
+  test('the old Call outcomes link lands in Call Outcome & Eligibility; a manager sees the outcomes but cannot edit them', async ({ browser }) => {
+    const a = await page(browser, 'admin', '/mgr/outc');
+    await expect(a.locator('.op-h h1')).toHaveText('Call Outcome & Eligibility Rules');
+    await expect(a.locator('[data-outcome]')).toHaveCount(11);
+    const m = await page(browser, 'andrew', '/mgr/elig');
+    await expect(m.locator('[data-outcome]')).toHaveCount(0);
+    await expect(m.locator('#main')).toContainText('When a contact can be called again');
+    await expect(m.locator('#cfg-maxAtt')).not.toHaveAttribute('readonly', ''); // a manager changes the rules, as before
+  });
+  test('a rep has no settings: Outreach Manager stays closed', async ({ browser }) => {
+    const r = await page(browser, 'maya', '/mgr/rules');
+    await expect(r).toHaveURL(/\/rep\/today$/);
+  });
+});
