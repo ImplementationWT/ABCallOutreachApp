@@ -7,7 +7,8 @@ export const PERMS = [
   ['prp.view', 'Properties: see', 'Properties, contacts and their history'],
   ['prp.edit', 'Properties: change', 'Reopen a property, mark construction started, data loads'],
   ['p2.view', 'Calling and AI', 'The phase 2 screens (locked for everyone for now)'],
-  ['data.view', 'Data', 'Tables, access and the process A to Z'],
+  // Retired with the Data app: kept so stored users stay valid, never shown or checked
+  ['data.view', 'Data (retired)', 'Retired: the Data app was removed'],
   ['users.manage', 'Users', 'Create users, change roles and permissions, reset passwords'],
 ] as const;
 export type Perm = (typeof PERMS)[number][0];
@@ -39,7 +40,9 @@ export const canOpen = (me: Pick<Me, 'perms'>, view: string) => !isLocked(view) 
  * outreach: campaigns, rules, the call outcome catalog, Reassign, reactivating on-hold contacts and Reports. */
 export const isOutreachManager = (me: Pick<Me, 'perms'>) => me.perms.includes('mgr.manage');
 /** Section of the app → permission needed to open it. */
-export const VIEW_PERM: Record<string, Perm> = { rep: 'rep.workspace', mgr: 'mgr.view', prp: 'prp.view', p2: 'p2.view', db: 'data.view' };
+export const VIEW_PERM: Record<string, Perm> = { rep: 'rep.workspace', mgr: 'mgr.view', prp: 'prp.view', p2: 'p2.view' };
+/** The permissions shown and edited in Users (data.view is retired). */
+export const VISIBLE_PERMS = PERMS.filter(p => p[0] !== 'data.view');
 /** A rep without Outreach Manager works only in their own list. */
 export const isLockedRep = (me: Pick<Me, 'perms' | 'person'>) => !!me.person && (REP_PEOPLE as readonly string[]).includes(me.person) && !me.perms.includes('mgr.view');
 /** Whether a user may act on a rep's list: their own, or any rep's with Outreach Manager (not a locked rep). */
@@ -48,9 +51,8 @@ export const mayActFor = (me: Pick<Me, 'perms' | 'person'>, rep: string) =>
 /** Where a user lands after signing in. */
 export function homeOf(me: Pick<Me, 'perms' | 'person'>) {
   if (isLockedRep(me)) return '/rep/today';
-  if (me.perms.includes('mgr.view')) return '/mgr/live';
+  if (me.perms.includes('mgr.view')) return '/mgr/reports';
   if (me.perms.includes('rep.workspace')) return '/rep/today';
   if (me.perms.includes('prp.view')) return '/prp/props';
-  if (me.perms.includes('data.view')) return '/data';
   return '/login';
 }

@@ -10,7 +10,7 @@ import { APPS, APP_FASE, S, type AppKey, type ViewKey } from '@/lib/state/store'
 import { Icon } from '@/components/ui';
 
 type Item = { k: ViewKey; n: string; icon: string; tone: string; phase2?: boolean };
-const ITEMS: Item[] = [...APPS.map(([k, n, icon, tone]) => ({ k, n, icon, tone, phase2: APP_FASE[k] === 'luego' })), { k: 'db', n: 'Data', icon: 'db', tone: 'tb' }];
+const ITEMS: Item[] = [...APPS.map(([k, n, icon, tone]) => ({ k, n, icon, tone, phase2: APP_FASE[k] === 'luego' }))];
 
 /** The counts the artifact showed on each app tab. */
 function count(k: ViewKey) {
@@ -23,7 +23,7 @@ function count(k: ViewKey) {
 const Tile = ({ it, on }: { it: Item; on?: boolean }) =>
   <span className={`${it.tone} w-[32px] h-[32px] rounded-[10px] grid place-items-center flex-none ${on ? 'bg-[var(--t600)] text-n0' : 'bg-[var(--t50)] text-[var(--t600)]'}`}><Icon n={it.icon} s={16} /></span>;
 
-export function AppSwitcher({ current }: { current: AppKey | 'db' }) {
+export function AppSwitcher({ current }: { current: AppKey }) {
   const me = useMe(s => s.me);
   const [pos, setPos] = useState<{ left: number; top: number; width: number } | null>(null);
   const open = !!pos;

@@ -50,14 +50,14 @@ const isArtifact = (page: Page) => page.url().startsWith('file:');
 export async function openAsMaya(page: Page) {
   if (isArtifact(page)) { await btn(page, 'Maya Torres').click(); await idle(page); return; }
   await switchApp(page, 'Outreach Manager');
-  await btn(page, 'The day by rep', '.sb').click(); await idle(page);
+  await btn(page, 'Reports', '.sb').click(); await idle(page); // The day by rep is inside Reports now
   await btn(page, 'Open as Maya').click(); await idle(page);
 }
 /** Andrew's view: the artifact goes back to its picker and picks him; the app opens Outreach Manager. */
 export async function openAsAndrew(page: Page) {
   if (isArtifact(page)) { await page.locator('.me.click').click(); await idle(page); await btn(page, 'Andrew Vaitkevicius').click(); await idle(page); return; }
   await switchApp(page, 'Outreach Manager');
-  await btn(page, 'The day by rep', '.sb').click(); await idle(page);
+  await btn(page, 'Reports', '.sb').click(); await idle(page);
 }
 
 /** Opens an app: the artifact's tabs in the top bar, the app's selector at the top of the sidebar. */

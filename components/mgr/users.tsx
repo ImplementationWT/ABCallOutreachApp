@@ -3,7 +3,7 @@
  * Create users with a role and permissions, change them, deactivate, and reset passwords. Temporary
  * passwords are shown once; the user picks their own at the next sign-in. */
 import { useCallback, useEffect, useState } from 'react';
-import { PERMS, PEOPLE, ROLES, ROLE_KEYS, type Perm, type Role } from '@/lib/auth/roles';
+import { VISIBLE_PERMS as PERMS, PEOPLE, ROLES, ROLE_KEYS, type Perm, type Role } from '@/lib/auth/roles';
 import { PEO, fmtDT, isoT, type PersonKey } from '@/lib/domain';
 import { getMe } from '@/lib/state/auth';
 import { toast } from '@/lib/state/store';
@@ -48,7 +48,7 @@ export function UsersPage() {
           <td><b>{u.name}</b><br /><span className="sm muted">{u.username}{u._id === me?.id ? ' (you)' : ''}</span></td>
           <td><Pill t={ROLES[u.role].n} cls={ROLE_TONE[u.role]} /></td>
           <td className="sm">{personName(u.person)}</td>
-          <td className="sm">{u.perms.length === PERMS.length ? 'All' : u.perms.map(p => PERMS.find(x => x[0] === p)![1]).join(', ') || 'None'}</td>
+          <td className="sm">{PERMS.every(x => u.perms.includes(x[0])) ? 'All' : u.perms.filter(p => PERMS.some(x => x[0] === p)).map(p => PERMS.find(x => x[0] === p)![1]).join(', ') || 'None'}</td>
           <td>{status(u)}</td>
           <td className="sm muted">{u.lastLoginAt ? fmtDT(isoT(new Date(u.lastLoginAt))) : 'Never'}</td>
           <td className="text-right whitespace-nowrap">
@@ -59,7 +59,7 @@ export function UsersPage() {
       </table>}
     {users ? paged('users', users).pager : null}
     <div className="grid2 mt-[14px]">
-      <div className="card"><h3><Icon n="shield" s={16} />Roles</h3>{ROLE_KEYS.map(r => <div key={r} className="mrow"><Pill t={ROLES[r].n} cls={ROLE_TONE[r]} /><span className="sm muted">{ROLES[r].perms.length === PERMS.length ? 'Everything' : ROLES[r].perms.map(p => PERMS.find(x => x[0] === p)![1]).join(', ')}</span></div>)}
+      <div className="card"><h3><Icon n="shield" s={16} />Roles</h3>{ROLE_KEYS.map(r => <div key={r} className="mrow"><Pill t={ROLES[r].n} cls={ROLE_TONE[r]} /><span className="sm muted">{PERMS.every(x => (ROLES[r].perms as readonly string[]).includes(x[0])) ? 'Everything' : ROLES[r].perms.filter(p => PERMS.some(x => x[0] === p)).map(p => PERMS.find(x => x[0] === p)![1]).join(', ')}</span></div>)}
         <p className="sm muted mt-[8px]">The role presets the permissions; each user’s permissions can be adjusted one by one.</p></div>
       <div className="card"><h3><Icon n="info" s={16} />Good to know</h3><ul className="sm m-0 pl-[18px]">
         <li>A user linked to Maya, Daniel or Priya without Outreach Manager works only in that rep’s own list.</li>
@@ -107,6 +107,6 @@ function UserModal({ form: f0, onClose, onSaved }: { form: Form; onClose: () => 
       {edit ? <><label className="lbl">Access</label><div className="segs"><button type="button" className="seg" aria-pressed={f.active} onClick={() => set({ active: true })}>Active</button><button type="button" className="seg" aria-pressed={!f.active} onClick={() => set({ active: false })}>Deactivated</button></div></> : null}
       {error ? <div className="note mt-[12px] text-r500" role="alert">{error}</div> : null}
     </div>
-    <div className="mf"><span className="l">{f.perms.length} of {PERMS.length} permissions</span><button className="btn sec" onClick={onClose}>Cancel</button><button className="btn pri" onClick={save} disabled={busy || !f.name.trim() || !f.username.trim()}>{edit ? 'Save' : 'Create user'}</button></div>
+    <div className="mf"><span className="l">{f.perms.filter(p => PERMS.some(x => x[0] === p)).length} of {PERMS.length} permissions</span><button className="btn sec" onClick={onClose}>Cancel</button><button className="btn pri" onClick={save} disabled={busy || !f.name.trim() || !f.username.trim()}>{edit ? 'Save' : 'Create user'}</button></div>
   </div></div>;
 }

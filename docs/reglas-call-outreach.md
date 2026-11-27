@@ -50,7 +50,7 @@ Usa la misma estructura que `docs/reglas-call-outreach-plantilla.md`. "Propiedad
 
 ## 5. Catálogo de resultados
 
-El catálogo está en la colección `outcomes` y lo edita el Outreach Manager (o un administrador) en Outreach Manager → Global Assignment Rules, sin desplegar. Desactivar un resultado lo quita del formulario y conserva el historial.
+El catálogo está en la colección `outcomes` y lo cambia el Outreach Manager (o un administrador) sin desplegar, por la API del catálogo (`POST /api/outcomes`); la pantalla del catálogo se quitó del panel a pedido. Desactivar un resultado lo quita del formulario y conserva el historial.
 
 "Cuenta como intento" de Wrong Number y "Crea lead" están acordados con Andrew. "Cuenta como connect" es una propuesta pendiente de Andrew (regla 5.4). Los días de espera y los efectos siguen pendientes de confirmar.
 
@@ -84,7 +84,7 @@ El catálogo está en la colección `outcomes` y lo edita el Outreach Manager (o
 | 6.0b | Máximo | 6 (es el valor que usa hoy la app: `rules/default.maxAtt`). Al llegar, el contacto pasa a on-hold y sale del pool | Acordada |
 | 6.0c | Excepción del sexto intento | Si en el sexto intento se agenda un follow-up, se respeta. El contacto pasa a on-hold solo si esa llamada tampoco se concreta | Acordada |
 | 6.0d | Quién reactiva | El rep asignado, el Outreach Manager (Andrew, rol manager) o un administrador; el contacto vuelve al pool | Acordada |
-| 6.1 | El contador al reactivar | Los intentos no vuelven a 0 (empieza una nueva ronda). La opción "Back to 0" de Global Assignment Rules queda apagada | Acordada |
+| 6.1 | El contador al reactivar | Los intentos no vuelven a 0 (empieza una nueva ronda). Es fijo: ya no hay opción para cambiarlo | Acordada |
 | 6.2 | Wrong Number | No cuenta como intento. El número marcado queda inválido y no se vuelve a ofrecer para llamar. Si el contacto no tiene otro número válido, sale del pool hasta que se agregue uno | Acordada |
 | 6.2b | Números alternativos verificados | Usar solo números alternativos verificados (brief Assignment Engine) | Pendiente de confirmar con Andrew |
 
@@ -92,7 +92,7 @@ El catálogo está en la colección `outcomes` y lo edita el Outreach Manager (o
 
 | # | Regla | Valor | Estado |
 | --- | --- | --- | --- |
-| 7.0 | Cierre del día | Se cierra cuando el rep pulsa End workday; lo no llamado vuelve al pool | Acordada |
+| 7.0 | Cierre del día | Se cierra cuando el rep pulsa End workday; lo no llamado vuelve al pool. Es fijo: ya no hay opción para que lo conserve el mismo rep | Acordada |
 | 7.1 | Hora del reparto de la mañana | Sin hora fija: corre la primera vez que alguien abre la app en el día | En espera |
 | 7.2 | Días de trabajo | Los días de espera cuentan de lunes a viernes; el horario dice lunes a sábado | Pendiente de confirmar con Andrew |
 
@@ -115,7 +115,7 @@ El catálogo está en la colección `outcomes` y lo edita el Outreach Manager (o
 | # | Regla | Valor | Estado |
 | --- | --- | --- | --- |
 | 10.1 | Métricas de Andrew | Calls Made, Connects y New Leads | Acordada |
-| 10.2 | Cálculo | Por rep y por día, con el total del equipo, un ranking por métrica, Dial to Connect (Connects sobre Calls Made), Connect to Lead (New Leads sobre Connects) y la comparación con el mismo día de la semana anterior. Vista Reports, para el Outreach Manager (rol manager) y los administradores; por defecto, hoy en hora del Pacífico | Acordada |
+| 10.2 | Cálculo | Por rep y por día, con el total del equipo, Conversations, Dial to Connect (Connects sobre Calls Made), Connect to Lead (New Leads sobre Connects) y la comparación con el mismo día de la semana anterior. Vista Reports, para el Outreach Manager (rol manager) y los administradores; por defecto, hoy en hora del Pacífico | Acordada |
 | 10.3 | Fuente de los datos | Hoy, los resultados registrados en la app (una llamada por resultado). Cuando exista la cuenta de RingCentral, sus llamadas; los cálculos no cambian | Acordada |
 | 10.4 | Qué es un connect | Ver la regla 5.4 | Propuesta pendiente de Andrew |
 | 10.5 | Envío del resumen por correo y métricas en monday | No se construye todavía | En espera |

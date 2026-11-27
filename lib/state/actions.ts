@@ -33,7 +33,7 @@ export const registerDate = (k: string, fn: (v: string) => void) => { DK[k] = fn
 const KEEP_POP = ['pick', 'cal', 'calnav', 'pickset', 'calpick'];
 /** Actions that need a permission (the server checks the same when saving). */
 const NEED: Record<string, Perm> = {
-  newcamp: 'mgr.manage', ncsave: 'mgr.manage', camppause: 'mgr.manage', campresume: 'mgr.manage', campend: 'mgr.manage', campenddone: 'mgr.manage', reassign: 'mgr.manage', radone: 'mgr.manage', cfgset: 'mgr.manage',
+  newcamp: 'mgr.manage', ncsave: 'mgr.manage', camppause: 'mgr.manage', campedit: 'mgr.manage', campresume: 'mgr.manage', campend: 'mgr.manage', campenddone: 'mgr.manage', reassign: 'mgr.manage', radone: 'mgr.manage', cfgset: 'mgr.manage',
   reopen: 'prp.edit', started: 'prp.edit', viewas: 'mgr.view', replist: 'mgr.view',
 };
 export const denied = () => toast('You do not have permission for this');
@@ -43,7 +43,7 @@ export function dispatch(act: string, v?: string, el?: HTMLElement, e?: React.Sy
   if (S.pop && !KEEP_POP.includes(act)) S.pop = null;
   if (NEED[act] && !can(NEED[act])) { denied(); bump(); return; }
   // Locked apps (Calling and AI): no way in, from any button or link
-  if ((act === 'view' || act === 'azgo') && v && isLocked(v.split('|')[0])) { toast('Calling and AI is locked for now'); bump(); return; }
+  if (act === 'view' && v && isLocked(v.split('|')[0])) { toast('Calling and AI is locked for now'); bump(); return; }
   const r = fn(v as string, el, e);
   if (r !== false || act === 'pick' || act === 'cal' || act === 'calnav') bump();
 }
@@ -185,6 +185,8 @@ const firstPages = () => { for (const k of Object.keys(S.pg)) S.pg[k].i = 0; };
 A.pgo = v => { const [k, i] = v.split('|'); (S.pg[k] ||= { i: 0, n: PAGE_SIZES[0] }).i = Math.max(0, Number(i) || 0); };
 A.pgn = v => { const [k, n] = v.split('|'); S.pg[k] = { i: 0, n: PAGE_SIZES.includes(Number(n)) ? Number(n) : PAGE_SIZES[0] }; };
 A.newcamp = () => { S.modal = { k: 'newcamp', n: '', auds: ['pp'], reps: ['may', 'dan'], goal: 1 }; };
+/* Edit a campaign that is not ended: name, audiences, reps and goal (the same form as New campaign). */
+A.campedit = v => { const c = CAMPS.find(x => x.k === v); if (!c || c.status === 'ended') return; S.modal = { k: 'newcamp', edit: c.k, n: c.n || '', auds: [...c.auds], reps: [...c.reps], goal: c.goal }; };
 A.ncaud = v => { const a: string[] = S.modal!.auds; S.modal!.auds = a.includes(v) ? a.filter(x => x !== v) : a.concat(v); };
 A.ncrep = v => { const a: string[] = S.modal!.reps; S.modal!.reps = a.includes(v) ? a.filter(x => x !== v) : a.concat(v); };
 IN.ncgoal = v => { S.modal!.goal = Number(v) || 0; };
@@ -192,6 +194,14 @@ IN.ncname = v => { S.modal!.n = v.slice(0, 80); };
 /* A campaign is permanent: active from now until it is paused or ended (the next allocation uses it). */
 A.ncsave = () => {
   const m = S.modal!;
+  if (m.edit) {
+    const c = CAMPS.find(x => x.k === m.edit);
+    S.modal = null;
+    if (!c) return;
+    c.n = String(m.n || '').trim() || undefined; c.auds = m.auds; c.reps = m.reps; c.goal = m.goal;
+    toast(`${campName(c)} saved. The next allocation uses it`);
+    return;
+  }
   const c = { k: newCampKey(), n: String(m.n || '').trim() || undefined, status: 'active' as const, auds: m.auds, reps: m.reps, goal: m.goal, created: TODAY, since: null };
   CAMPS.push(c);
   S.modal = null; toast(`Campaign created: ${campName(c)} is active. The next allocation uses it`);
@@ -222,8 +232,6 @@ A.started = v => { const p = P(v); p.started = 'Yes'; ctsOf(v).forEach(c => { if
 A.openct = v => { const c = C(v); openProp(c.prop, 'cts'); S.hl = v; };
 
 /* ===== DATA ===== */
-A.dbm = v => { S.f.dbm = v; };
-A.azgo = v => { const [a, pg] = v.split('|'); go(a as ViewKey, pg); };
 
 /* ===== SIDEBAR PAGES ===== */
 export const pageAct = (k: AppKey) => 'pg_' + k;
@@ -234,7 +242,7 @@ const ensureMay = () => { S.user = 'may'; if (DAY.may.st !== 'started') { startD
 const selMay = (n: string) => { ensureMay(); const c = ctByName(n); S.sel.may = c.k; go('rep', 'today'); S.hl = c.k; };
 /** The go() of each TOUR step, by index (texts are in lib/domain/tour.ts). */
 export const TOUR_GO: (() => void)[] = [
-  () => { go('mgr', 'live'); },
+  () => { go('mgr', 'reports'); },
   () => { S.user = 'may'; go('rep', 'today'); },
   () => { selMay('Laura Whitfield'); },
   () => { selMay('Elena Marsh'); },
@@ -245,10 +253,9 @@ export const TOUR_GO: (() => void)[] = [
 ];
 export const TOUR_MAS: [string, () => void][] = [
   ['Contact pool: why each contact is or is not in today’s lists', () => { S.f.pool = 'all'; go('mgr', 'pool'); }],
-  ['Reassign what a rep has not called', () => { go('mgr', 'live'); A.reassign('dan'); }],
+  ['Reassign what a rep has not called', () => { go('mgr', 'reports'); A.reassign('dan'); }],
   ['905 Arbolada Way: the property record with its three contacts', () => { openProp(PROPS.find(p => p.addr === '905 Arbolada Way')!.k, 'cts'); }],
   ['New campaign', () => { go('mgr', 'camp'); A.newcamp(''); }],
-  ['Data: the process from A to Z and where it runs', () => { S.f.dbm = 'az'; go('db'); S.view = 'db'; }],
 ];
 function tourShow(i: number) { S.tour.i = i; S.tour.list = false; S.tour.col = false; S.modal = null; S.pop = null; TOUR_GO[i](); }
 A.tour = () => { S.tour.on = !S.tour.on; if (S.tour.on) tourShow(S.tour.i || 0); };

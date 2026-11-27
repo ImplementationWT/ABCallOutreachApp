@@ -45,14 +45,14 @@ export const MODALS: Record<string, (m: Modal) => ModalDef> = {
     };
   },
   newcamp: m => ({
-    t: 'New campaign', s: 'Audiences and reps. It is active from now until someone pauses or ends it; the next allocation uses it.',
+    t: m.edit ? 'Edit campaign' : 'New campaign', s: m.edit ? 'Audiences, reps and goal. The next allocation uses the change; contacts already in today’s lists stay there.' : 'Audiences and reps. It is active from now until someone pauses or ends it; the next allocation uses it.',
     body: <>
       <label className="lbl">Name</label><input className="fld max-w-[420px]" id="ncname" placeholder={m.auds.length ? m.auds.map((a: AudKey) => AUDS[a].s).join(' and ') : 'Campaign name'} defaultValue={m.n} {...inp('ncname')} />
       <label className="lbl">Audiences <em>*</em></label><div className="tchips">{AUDK.map(a => <button key={a} className="tchip" {...on('ncaud', a)} aria-pressed={m.auds.includes(a)}>{AUDS[a].n}</button>)}</div>
       <label className="lbl">Reps <em>*</em></label><div className="tchips">{REPS.map(r => <button key={r} className="tchip" {...on('ncrep', r)} aria-pressed={m.reps.includes(r)}>{PEO[r].n}</button>)}</div>
       <label className="lbl">Goal per rep</label><div className="flex gap-[8px] items-center"><input className="numin" type="number" min={0} defaultValue={m.goal} {...inp('ncgoal')} id="ncgoal" /><span className="sm muted">potential leads, shown in the rep’s daily email</span></div>
     </>,
-    foot: <><button className="btn sec" {...on('mclose')}>Cancel</button><button className="btn pri" {...on('ncsave')} disabled={!(m.auds.length && m.reps.length)}>Create campaign</button></>,
+    foot: <><button className="btn sec" {...on('mclose')}>Cancel</button><button className="btn pri" {...on('ncsave')} disabled={!(m.auds.length && m.reps.length)}>{m.edit ? 'Save campaign' : 'Create campaign'}</button></>,
   }),
   endcamp: m => {
     const c = CAMPS.find(x => x.k === m.c);

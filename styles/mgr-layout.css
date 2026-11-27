@@ -7,3 +7,13 @@
 .me .me-id b{max-width:180px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 @media (max-width:760px){ .me .me-id{display:none} }
 }
+
+/* Icon buttons (Campaign Management): edit, pause or resume, end (red) */
+@layer components {
+.ibtn{display:inline-grid; place-items:center; width:32px; height:32px; border-radius:10px; border:1.5px solid var(--line-2); background:var(--surface); color:var(--ink); flex:none}
+.ibtn:hover{border-color:var(--n300); background:var(--n25)}
+.ibtn:focus-visible{outline:2px solid var(--g600); outline-offset:2px}
+.ibtn.go{color:var(--g600)}
+.ibtn.red{color:var(--r500); border-color:var(--r100, var(--line-2))}
+.ibtn.red:hover{background:var(--r50); border-color:var(--r500)}
+}

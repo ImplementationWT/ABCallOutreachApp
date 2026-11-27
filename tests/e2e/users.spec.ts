@@ -48,9 +48,9 @@ test('team users: Andrew manages, Maya works her own list only', async ({ browse
   await maya.locator('[role=menu] [data-menu="password"]').click();
   await expect(maya.locator('.modal')).toContainText('Signed in as maya');
 
-  // Andrew: lands on The day by rep, has Users in Outreach Manager
+  // Andrew: lands on Reports, has Users in Outreach Manager
   const andrew = await signIn(browser, 'andrew', pw.andrew, 'andrew-own-pass1');
-  await expect(andrew).toHaveURL(/\/mgr\/live$/);
+  await expect(andrew).toHaveURL(/\/mgr\/reports$/);
   await expect(andrew.locator('.me b')).toHaveText('Andrew Vaitkevicius');
   await andrew.goto('/mgr/users'); await andrew.waitForLoadState('networkidle');
   await expect(andrew.locator('.sb')).toContainText('Users');
@@ -77,7 +77,7 @@ test('team users: Andrew manages, Maya works her own list only', async ({ browse
   await expect(andrew.locator('tr[data-user="harut"]')).toContainText('Viewer');
   const harut = await signIn(browser, 'harut', harutPw, 'harut-own-pass1');
   await harut.locator('#appsel').click();
-  await expect(harut.locator('[role=menu] [role=menuitem]')).toHaveText([/^Outreach Manager/, /^Properties/, /^Calling and AI/, /^Data/]);
+  await expect(harut.locator('[role=menu] [role=menuitem]')).toHaveText([/^Outreach Manager/, /^Properties/, /^Calling and AI/]);
   await harut.keyboard.press('Escape');
   await harut.goto('/mgr/rules'); await harut.waitForLoadState('networkidle');
   await expect(harut.locator('#cfg-maxAtt')).toHaveAttribute('readonly', '');

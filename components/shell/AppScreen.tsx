@@ -12,13 +12,10 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 import { APP_FASE, S, bump, useApp, type AppKey } from '@/lib/state/store';
 import { PhaseBanner } from '@/components/ui';
-import { HelpPage } from './HelpPage';
-import { AppSwitcher } from './AppSwitcher';
 import { RepSide, RepPages } from '@/components/rep';
 import { MgrSide, MgrPages } from '@/components/mgr';
 import { PrpSide, PrpPages, PrpRecord } from '@/components/prp';
 import { P2Side, P2Pages } from '@/components/p2';
-import { DataPage } from '@/components/data/DataPage';
 
 /** A bit wider than the artifact's 244px, so the longest labels fit on one line (desktop only). */
 const SIDEBAR = 'min-[901px]:grid-cols-[264px_minmax(0,1fr)]';
@@ -35,8 +32,7 @@ function renderApp(k: AppKey) {
   const vw = VIEWS[k];
   let body: React.ReactNode;
   const det = S.det[k];
-  if (S.page[k] === 'help') body = <HelpPage k={k} />;
-  else if (det && vw.det) body = vw.det(det);
+  if (det && vw.det) body = vw.det(det);
   else { const Pg = vw.pages[S.page[k]] || Object.values(vw.pages)[0]; body = <Pg key={S.page[k]} />; }
   return <div className={`oapp ${SIDEBAR}`}><aside className="sb">{vw.side()}</aside><div className="op">{APP_FASE[k] === 'luego' ? <PhaseBanner /> : null}{body}</div></div>;
 }
@@ -73,6 +69,5 @@ export function AppScreen(props: Partial<Route>) {
   </div></div></section>;
   const v = S.view;
   if (v === 'in') return null; // no section yet: / sends each user to their home
-  if (v === 'db') return <section className="view" key="db"><div className={`oapp ${SIDEBAR}`}><aside className="sb"><AppSwitcher current="db" /></aside><div id="dbview" className="min-w-0"><DataPage /></div></div></section>;
   return <section className="view" key={v} id={'v-' + v}>{renderApp(v)}</section>;
 }
