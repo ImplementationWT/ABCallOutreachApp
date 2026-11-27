@@ -2,14 +2,14 @@ import { getDb } from '@/lib/db/mongodb';
 import { endWorkday, reactivateContact, reassign, reopenWorkday, saveResult } from '@/lib/db/work';
 import { HttpError, LOCAL_TIME } from '@/lib/db/server-state';
 import { forbidden, requirePerm } from '@/lib/auth/session';
-import { REP_PEOPLE, mayActFor } from '@/lib/auth/roles';
+import { REP_PEOPLE, isOutreachManager, mayActFor } from '@/lib/auth/roles';
 import type { RepKey } from '@/lib/domain';
 
 /* POST /api/work { action, rep, now: 'YYYY-MM-DDTHH:MM' (the browser's local time), ... }
  *   save      { ct, out, note, fu, ph } result of a call on a contact of the rep's list today (ph: number dialed)
  *   endday / reopenday                the rep's workday
  *   reassign  { to, n }               Outreach Manager: change (contacts of `rep` move to `to`)
- *   reactivate { ct }                 a contact on hold: its assigned rep or an administrator
+ *   reactivate { ct }                 a contact on hold: its assigned rep, the Outreach Manager or an administrator
  * Every write of a rep goes through here or /api/allocate; POST /api/state does not take them. */
 export async function POST(req: Request) {
   const a = await requirePerm('rep.workspace');
@@ -20,8 +20,8 @@ export async function POST(req: Request) {
   const me = { perms: a.user.perms, person: a.user.person ?? null };
   try {
     const db = await getDb();
-    // Reactivate is about a contact, not a rep's list: its assigned rep or an administrator
-    if (b.action === 'reactivate') return Response.json(await reactivateContact(db, now, { admin: a.user.role === 'admin', person: me.person, name: a.user.name }, String(b.ct ?? '')));
+    // Reactivate is about a contact, not a rep's list: its assigned rep, or mgr.manage (manager, admin)
+    if (b.action === 'reactivate') return Response.json(await reactivateContact(db, now, { admin: isOutreachManager(a.user), person: me.person, name: a.user.name }, String(b.ct ?? '')));
     if (!mayActFor(me, rep)) return forbidden();
     switch (b.action) {
       case 'save': return Response.json(await saveResult(db, now, rep, { ct: String(b.ct ?? ''), out: String(b.out ?? ''), note: typeof b.note === 'string' ? b.note : '', fu: typeof b.fu === 'string' ? b.fu : null, key: typeof b.key === 'string' ? b.key : undefined, ph: b.ph == null ? null : Number(b.ph) }));

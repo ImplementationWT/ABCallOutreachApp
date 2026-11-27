@@ -1,5 +1,5 @@
 'use client';
-/* Outreach Manager > Reports (administrator only; not in the artifact).
+/* Outreach Manager > Reports (Outreach Manager: change, so the manager and administrators; not in the artifact).
  * Andrew's metrics for one day, by rep and for the team, against the same day of the week before:
  * Calls Made, Connects, New Leads, Dial to Connect and Connect to Lead, with a leaderboard per metric.
  * The content follows the daily report Andrew gets from Orum (docs/andrew). The numbers come from the
@@ -7,12 +7,13 @@
  * the app. Nothing is emailed or written to monday from here. */
 import type React from 'react';
 import { OUT, OUTK, PEO, REPORT_METRICS, appCallSource, dailyReport, fmtRate, fmtS, fmtWD, pacificDay, trend, type ReportKey, type ReportMetrics } from '@/lib/domain';
-import { getMe } from '@/lib/state/auth';
+import { can } from '@/lib/state/auth';
 import { on } from '@/lib/state/actions';
 import { S } from '@/lib/state/store';
 import { Avatar, DateField, Icon, PageHeader } from '@/components/ui';
 
-const isAdmin = () => getMe()?.role === 'admin';
+/** The Outreach Manager or an administrator (mgr.manage). */
+const allowed = () => can('mgr.manage');
 export const reportDay = () => (S.f.repd as string) || pacificDay();
 const val = (m: ReportMetrics, k: ReportKey) => REPORT_METRICS.find(x => x.k === k)!.rate ? fmtRate(m[k]) : String(m[k] ?? 0);
 
@@ -25,7 +26,7 @@ function Trend({ m, prev, k, day }: { m: ReportMetrics; prev: ReportMetrics; k: 
 }
 
 export function ReportsPage() {
-  if (!isAdmin()) return <div className="empty">Only an administrator can see Reports.</div>;
+  if (!allowed()) return <div className="empty">Only the Outreach Manager or an administrator can see Reports.</div>;
   const day = reportDay(), today = pacificDay();
   const r = dailyReport(appCallSource, day);
   const connects = OUTK.filter(k => OUT[k].connect), leads = OUTK.filter(k => OUT[k].lead);

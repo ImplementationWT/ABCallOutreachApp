@@ -84,9 +84,9 @@ test.describe('6. API: a rep cannot read or change another rep\'s data', () => {
   });
 });
 
-test.describe('C1. Outcome catalog (administrator only)', () => {
-  test('only an administrator edits it; recall days of at least 1; names are unique', async ({ playwright }) => {
-    for (const u of ['maya', 'andrew']) {
+test.describe('C1. Outcome catalog (the Outreach Manager or an administrator)', () => {
+  test('a rep cannot edit it; recall days of at least 1; names are unique', async ({ playwright }) => {
+    for (const u of ['maya']) {
       const r = await (await api(playwright, u)).post('/api/outcomes', { data: { action: 'create', name: 'X', status: 'Contacted' } });
       expect(r.status(), u).toBe(403);
     }
@@ -136,14 +136,14 @@ test.describe('C2. Recall windows from the catalog', () => {
 });
 
 test.describe('C4. On hold and reactivation', () => {
-  test('the assigned rep or an administrator reactivates an on-hold contact; the attempts are kept', async ({ browser, playwright }) => {
+  test('the assigned rep, the Outreach Manager or an administrator reactivates an on-hold contact; the attempts are kept', async ({ browser, playwright }) => {
     const [a, b] = await withDb(async db => {
       const cs = await db.collection('contacts').find({ stop: null, out: null, rep: null }).limit(2).toArray();
       for (const c of cs) await db.collection('contacts').updateOne({ _id: c._id }, { $set: { rep: 'may', att: 6, out: 'Left VM', lastAt: '2026-10-20T10:00', nextAt: '2026-10-25' } });
       return cs;
     });
     const now = `${DAY}T09:00`;
-    for (const u of ['daniel', 'andrew']) expect((await (await api(playwright, u)).post('/api/work', { data: { action: 'reactivate', ct: a._id, now } })).status(), u).toBe(403);
+    expect((await (await api(playwright, 'daniel')).post('/api/work', { data: { action: 'reactivate', ct: a._id, now } })).status()).toBe(403); // another rep
     const p = await page(browser, 'maya', '/rep/fu');
     const held = p.locator('[data-hold]');
     await expect(held).toContainText(String(a.n));

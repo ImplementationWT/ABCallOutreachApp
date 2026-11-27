@@ -65,7 +65,7 @@ export const reassign = (db: Db, now: string, from: RepKey, to: RepKey, n: numbe
 export const reactivateContact = (db: Db, now: string, who: { admin: boolean; person: string | null; name: string }, ct: string) => withState(db, now, () => {
   const c = C(ct);
   if (!c) throw new HttpError(404, 'Contact not found');
-  if (!who.admin && (!who.person || c.rep !== who.person)) throw new HttpError(403, 'Only the rep assigned to this contact or an administrator can reactivate it');
+  if (!who.admin && (!who.person || c.rep !== who.person)) throw new HttpError(403, 'Only the rep assigned to this contact or the Outreach Manager can reactivate it');
   if (!onHold(c)) throw new HttpError(409, 'This contact is not on hold');
   reactivate(c);
   syncLog('Fire Rebuild Contacts', c.n, `Reactivated by ${who.name}` + (CFG.reactivateReset ? ', attempts back to 0' : `, ${c.att} attempts kept`));

@@ -1,11 +1,11 @@
 'use client';
-/* Outreach Manager > Call outcomes (administrator only; not in the artifact).
+/* Outreach Manager > Call outcomes (Outreach Manager: change, so the manager and administrators; not in the artifact).
  * The catalog the rep's form and the engine read: create, edit and deactivate outcomes without a
  * deploy. Outcomes are not deleted: an inactive one disappears from the form and stays in the
  * history. Saved by POST /api/outcomes, then the app reloads the state. */
 import { useState } from 'react';
 import { OUT, OUTK, type OutcomeDef } from '@/lib/domain';
-import { getMe } from '@/lib/state/auth';
+import { can } from '@/lib/state/auth';
 import { loadState } from '@/lib/state/persist';
 import { bump, toast } from '@/lib/state/store';
 import { Icon, PageHeader, Pill, paged } from '@/components/ui';
@@ -13,7 +13,7 @@ import { Icon, PageHeader, Pill, paged } from '@/components/ui';
 type Form = OutcomeDef & { name: string; edit: boolean };
 const PROP_TXT: Record<OutcomeDef['propagates'], string> = { none: 'Only the contact', property: 'The whole property', person: 'Every property of the person' };
 const STATUSES: OutcomeDef['status'][] = ['Not Contacted', 'Contacted', 'Not Interested', 'Potential Lead'];
-const isAdmin = () => getMe()?.role === 'admin';
+const allowed = () => can('mgr.manage');
 
 async function post(body: unknown) {
   const res = await fetch('/api/outcomes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -27,7 +27,7 @@ const waitOf = (d: OutcomeDef) => d.needsFollowUp ? 'Date and time the rep sets'
 /** embedded: inside Call Outcome & Eligibility Rules (a card instead of the page header). */
 export function OutcomesPage({ embedded = false }: { embedded?: boolean }) {
   const [form, setForm] = useState<Form | null>(null);
-  if (!isAdmin()) return <div className="empty">Only an administrator can change the call outcomes.</div>;
+  if (!allowed()) return <div className="empty">Only the Outreach Manager or an administrator can change the call outcomes.</div>;
   const toggle = async (k: string) => {
     try { await post({ action: 'update', name: k, active: !OUT[k].active }); await loadState(true); toast(`${k} ${OUT[k].active ? 'activated' : 'deactivated'}`); bump(); }
     catch (e) { toast((e as Error).message); }

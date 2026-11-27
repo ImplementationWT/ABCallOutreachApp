@@ -14,14 +14,13 @@ import { can } from '@/lib/state/auth';
 import { UsersPage } from './users';
 import { OutcomesPage } from './outcomes';
 import { ReportsPage } from './reports';
-import { getMe } from '@/lib/state/auth';
 import { TeamChart } from './TeamChart';
 import type { SbItem } from '@/components/shell/Sidebar';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { Avatar, Bar, Icon, KPI_GRID, Kv, OutPill, PageHeader, Pill, PrTag, StatFilter, paged } from '@/components/ui';
 
 export function MgrSide() {
-  return <Sidebar k="mgr" items={[['Today'], ['live', 'The day by rep', 'target'], ['pool', 'Contact pool', 'users'], ['leads', 'Hand-offs to sales', 'hand', LEADS.filter(l => l.fresh).length], ['Settings'], ['camp', 'Campaign Management', 'cal'], ['rules', 'Rep Assignment Profiles', 'users'], ['prio', 'Contact Priority Rules', 'list'], ['elig', 'Call Outcome & Eligibility', 'flag'], ['glob', 'Global Assignment Rules', 'gear'], ['Results'], ['perf', 'Performance', 'chart'], ...(getMe()?.role === 'admin' ? [['reports', 'Reports', 'chart']] as SbItem[] : []), ['mail', 'Daily emails', 'mail'], ['monday'], ['sync', 'monday sync', 'sync'], ...(can('users.manage') ? [['Admin'], ['users', 'Users', 'key']] as SbItem[] : [])]} />;
+  return <Sidebar k="mgr" items={[['Today'], ['live', 'The day by rep', 'target'], ['pool', 'Contact pool', 'users'], ['leads', 'Hand-offs to sales', 'hand', LEADS.filter(l => l.fresh).length], ['Settings'], ['camp', 'Campaign Management', 'cal'], ['rules', 'Rep Assignment Profiles', 'users'], ['prio', 'Contact Priority Rules', 'list'], ['elig', 'Call Outcome & Eligibility', 'flag'], ['glob', 'Global Assignment Rules', 'gear'], ['Results'], ['perf', 'Performance', 'chart'], ...(can('mgr.manage') ? [['reports', 'Reports', 'chart']] as SbItem[] : []), ['mail', 'Daily emails', 'mail'], ['monday'], ['sync', 'monday sync', 'sync'], ...(can('users.manage') ? [['Admin'], ['users', 'Users', 'key']] as SbItem[] : [])]} />;
 }
 
 /* ----- The day by rep ----- */
@@ -83,7 +82,7 @@ function MgrPool() {
           <div className="t"><b className="font-semibold">{p.addr || "No address"}</b><small>{AUDS[p.aud].s}, {p.permit === 'None' ? 'no permit' : p.permit}</small></div>
           <div className="cell"><OutPill o={c.out} /><small>{c.lastAt ? fmtS(c.lastAt) + (c.rep ? ' by ' + first(c.rep) : '') : ''}</small></div>
           <div className="cell">{c.nextAt ? <><b>{fmtWD(c.nextAt)}</b><small>{relDay(c.nextAt)}</small></> : <span className="muted">Any day</span>}</div>
-          <div className="cell"><Pill t={e.why.length > 46 ? e.why.slice(0, 44) + '...' : e.why} cls={e.tone} />{e.k === 'max' && getMe()?.role === 'admin' ? <button className="btn sec sm mt-[4px]" {...on('reactivate', c.k)}><Icon n="refresh" s={14} />Reactivate</button> : null}</div>
+          <div className="cell"><Pill t={e.why.length > 46 ? e.why.slice(0, 44) + '...' : e.why} cls={e.tone} />{e.k === 'max' && can('mgr.manage') ? <button className="btn sec sm mt-[4px]" {...on('reactivate', c.k)}><Icon n="refresh" s={14} />Reactivate</button> : null}</div>
         </div>;
       })}
     </div>
@@ -157,7 +156,7 @@ function Rule({ icon, t, d, r, tag }: { icon: string; t: string; d: React.ReactN
 }
 /* ===== Settings: the five areas of Andrew's Assignment Engine brief (docs/andrew, page 5) =====
  * Each existing setting lives in the area it belongs to; an area is shown only with real settings.
- * Changing needs Outreach Manager: change (mgr.manage); the outcome catalog, an administrator. */
+ * Changing anything, the outcome catalog included, needs Outreach Manager: change (mgr.manage). */
 const SETTINGS_NOTE = 'Changes apply to the next allocation.';
 /** 02 Rep Assignment Profiles: workload, request more, refresh and the end of the day (the same for every rep today). */
 function MgrProfiles() {
@@ -204,14 +203,14 @@ function MgrElig() {
       </div>
       <div className="card p-[6px_4px]"><h3 className="p-[10px_14px_0]"><Icon n="flag" s={16} />Attempts</h3>
         <Rule icon="flag" t="Max attempts per contact" d="Every call counts except Wrong Number (each outcome says if it counts). At the max the contact goes on hold; a follow-up set on the last attempt is kept." r={<><Num k="maxAtt" v={CFG.maxAtt} /><span className="sm muted">calls</span></>} />
-        <Rule icon="refresh" t="Reactivating an on-hold contact" d="Its rep or an administrator puts it back in the pool. Agreed with Andrew: it keeps its attempts." r={<span className="segs">{[['false', 'Keep the attempts'], ['true', 'Back to 0']].map(([k, l]) => <button key={k} className="seg" {...on('cfgset', `reactivateReset|${k}`)} aria-pressed={String(!!CFG.reactivateReset) === k}>{l}</button>)}</span>} />
+        <Rule icon="refresh" t="Reactivating an on-hold contact" d="Its rep or the Outreach Manager puts it back in the pool. Agreed with Andrew: it keeps its attempts." r={<span className="segs">{[['false', 'Keep the attempts'], ['true', 'Back to 0']].map(([k, l]) => <button key={k} className="seg" {...on('cfgset', `reactivateReset|${k}`)} aria-pressed={String(!!CFG.reactivateReset) === k}>{l}</button>)}</span>} />
       </div>
     </div>
-    {getMe()?.role === 'admin' ? <OutcomesPage embedded /> : <div className="card"><h3><Icon n="cal" s={16} />When a contact can be called again</h3>
+    {can('mgr.manage') ? <OutcomesPage embedded /> : <div className="card"><h3><Icon n="cal" s={16} />When a contact can be called again</h3>
       <table className="ptbl"><tbody><tr><th>Result</th><th>Property status</th><th>Eligible again</th></tr>
         {OUTK.map(o => <tr key={o}><td>{o}{OUT[o].proposed ? <> <Pill t="Proposed" cls="amber" /></> : null}</td><td>{OUT[o].status}</td><td>{waitText(o)}</td></tr>)}
       </tbody></table>
-      <p className="sm muted mt-[8px]">An administrator edits the outcomes. With several contacts, the property takes the most advanced status: Potential Lead, then Not Interested, then Contacted, then Not Contacted.</p>
+      <p className="sm muted mt-[8px]">The Outreach Manager edits the outcomes. With several contacts, the property takes the most advanced status: Potential Lead, then Not Interested, then Contacted, then Not Contacted.</p>
     </div>}
   </>;
 }

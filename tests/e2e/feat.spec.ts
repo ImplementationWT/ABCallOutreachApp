@@ -219,12 +219,15 @@ test.describe('4. Metrics', () => {
     await expect(p.locator('[data-report-day]')).toContainText('today');
     await withDb(db => db.collection('call_log').deleteMany({ _id: { $in: [800001, 800002] } as never }));
   });
-  test('only an administrator sees Reports (a manager does not)', async ({ browser }) => {
-    const m = await page(browser, 'andrew', '/mgr/reports');
-    await expect(m.locator('#main')).toContainText('Only an administrator can see Reports');
-    await expect(m.locator('.sb [data-act=pg_mgr][data-v=reports]')).toHaveCount(0);
-    const a = await page(browser, 'admin', '/mgr/live');
-    await expect(a.locator('.sb [data-act=pg_mgr][data-v=reports]')).toHaveCount(1);
+  test('the Outreach Manager (manager) and an administrator see Reports; a rep does not', async ({ browser }) => {
+    for (const u of ['andrew', 'admin']) {
+      const m = await page(browser, u, '/mgr/reports');
+      await expect(m.locator('.op-h h1'), u).toHaveText('Reports');
+      await expect(m.locator('[data-activity] [data-metric=calls] b'), u).toBeVisible();
+      await expect(m.locator('.sb [data-act=pg_mgr][data-v=reports]'), u).toHaveCount(1);
+    }
+    const r = await page(browser, 'maya', '/mgr/reports');
+    await expect(r).toHaveURL(/\/rep\/today$/);
   });
 });
 
@@ -261,17 +264,63 @@ test.describe('5. Settings in the five areas of the Assignment Engine brief', ()
     expect(await withDb(db => db.collection('rules').findOne({ _id: 'default' as never }))).toMatchObject({ first: 150 });
     await withDb(db => db.collection('rules').updateOne({ _id: 'default' as never }, { $set: { first: 200 } }));
   });
-  test('the old Call outcomes link lands in Call Outcome & Eligibility; a manager sees the outcomes but cannot edit them', async ({ browser }) => {
+  test('the old Call outcomes link lands in Call Outcome & Eligibility; the manager edits the catalog there', async ({ browser }) => {
     const a = await page(browser, 'admin', '/mgr/outc');
     await expect(a.locator('.op-h h1')).toHaveText('Call Outcome & Eligibility Rules');
     await expect(a.locator('[data-outcome]')).toHaveCount(11);
     const m = await page(browser, 'andrew', '/mgr/elig');
-    await expect(m.locator('[data-outcome]')).toHaveCount(0);
-    await expect(m.locator('#main')).toContainText('When a contact can be called again');
-    await expect(m.locator('#cfg-maxAtt')).not.toHaveAttribute('readonly', ''); // a manager changes the rules, as before
+    await expect(m.locator('[data-outcome]')).toHaveCount(11);
+    await expect(m.locator('#cfg-maxAtt')).not.toHaveAttribute('readonly', '');
+    await m.locator('[data-outcome="Hung Up"] button', { hasText: 'Edit' }).click();
+    await m.locator('#o-hint').fill('Answered, hung up');
+    await m.getByRole('button', { name: 'Save' }).click();
+    await expect(m.locator('[data-outcome="Hung Up"]')).toContainText('Answered, hung up');
+    await withDb(db => db.collection('outcomes').updateOne({ _id: 'Hung Up' as never }, { $set: { hint: 'Answered, no conversation' } }));
   });
   test('a rep has no settings: Outreach Manager stays closed', async ({ browser }) => {
     const r = await page(browser, 'maya', '/mgr/rules');
     await expect(r).toHaveURL(/\/rep\/today$/);
+  });
+});
+
+test.describe('6. Roles: the Outreach Manager (manager) does everything in Outreach Manager; a rep gets 403', () => {
+  const NOW = `${DAY}T11:00`;
+  const onHold = () => withDb(async db => String((await db.collection('contacts').findOne({ n: 'Raymond Varga' }))!._id));
+  test('API: manager and admin edit the catalog, reassign and reactivate; a rep is refused', async ({ playwright }) => {
+    const [maya, andrew, admin] = [await api(playwright, 'maya'), await api(playwright, 'andrew'), await api(playwright, 'admin')];
+    // the outcome catalog
+    expect((await maya.post('/api/outcomes', { data: { action: 'update', name: 'Left VM', hint: 'x' } })).status()).toBe(403);
+    for (const u of [andrew, admin]) expect((await u.post('/api/outcomes', { data: { action: 'update', name: 'Left VM', hint: 'Voicemail left' } })).status()).toBe(200);
+    // campaigns and rules (POST /api/state)
+    const camp = await withDb(db => db.collection('campaigns').findOne({ _id: 'C-PPSM' as never }));
+    expect((await maya.post('/api/state', { data: { changes: { campaigns: { upsert: [{ ...camp, status: 'paused' }] } } } })).status()).toBe(403);
+    expect((await andrew.post('/api/state', { data: { changes: { campaigns: { upsert: [{ ...camp, goal: 2 }] } } } })).status()).toBe(200);
+    expect((await andrew.post('/api/state', { data: { changes: { campaigns: { upsert: [camp] } } } })).status()).toBe(200);
+    // Reassign
+    expect((await maya.post('/api/work', { data: { action: 'reassign', rep: 'may', to: 'dan', n: 1, now: NOW } })).status()).toBe(403);
+    expect((await andrew.post('/api/work', { data: { action: 'reassign', rep: 'dan', to: 'pri', n: 1, now: NOW } })).status()).toBe(200);
+    // reactivate an on-hold contact assigned to Priya
+    const ct = await onHold();
+    const refused = await maya.post('/api/work', { data: { action: 'reactivate', ct, now: NOW } });
+    expect(refused.status()).toBe(403);
+    expect((await refused.json()).error).toBe('Only the rep assigned to this contact or the Outreach Manager can reactivate it');
+    expect((await andrew.post('/api/work', { data: { action: 'reactivate', ct, now: NOW } })).status()).toBe(200);
+    expect((await withDb(db => db.collection('contacts').findOne({ _id: ct as never })))!.react).toBe(6);
+  });
+  test('screens: the manager has every Outreach Manager area, the catalog and the Reactivate button; a rep is sent back to their list', async ({ browser }) => {
+    await withDb(async db => { const ct = await db.collection('contacts').findOne({ n: 'Raymond Varga' }); await db.collection('contacts').updateOne({ _id: ct!._id }, { $set: { react: null } }); });
+    const m = await page(browser, 'andrew', '/mgr/live');
+    const nav = (await m.locator('.sb button.nav').allTextContents()).map(t => t.trim());
+    for (const n of ['Campaign Management', 'Rep Assignment Profiles', 'Contact Priority Rules', 'Call Outcome & Eligibility', 'Global Assignment Rules', 'Reports']) expect(nav, n).toContain(n);
+    await m.goto('/mgr/camp'); await m.waitForLoadState('networkidle');
+    await expect(m.locator('[data-camp=C-PPSM] [data-act=camppause]')).toBeVisible();
+    await m.goto('/mgr/pool'); await m.waitForLoadState('networkidle');
+    await m.locator('.stat', { hasText: 'On hold, max attempts' }).click();
+    await m.locator('#srpool').fill('Raymond Varga');
+    await expect(m.locator('.row', { hasText: 'Raymond Varga' }).locator('[data-act=reactivate]')).toBeVisible();
+    for (const path of ['/mgr/live', '/mgr/camp', '/mgr/elig', '/mgr/reports']) {
+      const r = await page(browser, 'maya', path);
+      await expect(r, path).toHaveURL(/\/rep\/today$/);
+    }
   });
 });

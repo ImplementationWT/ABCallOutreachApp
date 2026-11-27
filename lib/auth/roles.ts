@@ -3,7 +3,7 @@
 export const PERMS = [
   ['rep.workspace', 'Rep Workspace', 'Their own call list (or any rep’s, with Outreach Manager)'],
   ['mgr.view', 'Outreach Manager: see', 'The day by rep, pool, hand-offs, performance, emails, sync; open a rep’s view'],
-  ['mgr.manage', 'Outreach Manager: change', 'Campaigns, assignment rules and reassigning contacts'],
+  ['mgr.manage', 'Outreach Manager: change', 'Campaigns, assignment rules, the call outcome catalog, reassigning and reactivating contacts, and Reports'],
   ['prp.view', 'Properties: see', 'Properties, contacts and their history'],
   ['prp.edit', 'Properties: change', 'Reopen a property, mark construction started, data loads'],
   ['p2.view', 'Calling and AI', 'The phase 2 screens (locked for everyone for now)'],
@@ -35,6 +35,9 @@ export const isLocked = (view: string) => LOCKED_VIEWS.includes(view);
 /** Whether a user may open a section: not locked, and with its permission. */
 export const canOpen = (me: Pick<Me, 'perms'>, view: string) => !isLocked(view) && !!VIEW_PERM[view] && me.perms.includes(VIEW_PERM[view]);
 
+/** The Outreach Manager (Andrew, role manager) or an administrator: Outreach Manager: change. Runs the
+ * outreach: campaigns, rules, the call outcome catalog, Reassign, reactivating on-hold contacts and Reports. */
+export const isOutreachManager = (me: Pick<Me, 'perms'>) => me.perms.includes('mgr.manage');
 /** Section of the app → permission needed to open it. */
 export const VIEW_PERM: Record<string, Perm> = { rep: 'rep.workspace', mgr: 'mgr.view', prp: 'prp.view', p2: 'p2.view', db: 'data.view' };
 /** A rep without Outreach Manager works only in their own list. */
