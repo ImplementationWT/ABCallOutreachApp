@@ -14,7 +14,8 @@ async function walk(page: Page) {
   await openAsMaya(page);
   await btn(page, 'Start Workday').click(); await idle(page);
   await note('start', toastText(page));
-  await page.locator('.ph-r button', { hasText: 'Call' }).first().click(); await idle(page);
+  // the artifact's Call is a button; the app's is a call link through the dialer (tel: with the normalized number)
+  await page.locator('.ph-r button, .ph-r a[data-call]', { hasText: 'Call' }).first().click(); await idle(page);
   await note('on call', text('.oncall'));
   await page.locator('.ob', { hasText: 'Follow Up' }).first().click(); await idle(page);
   await note('save disabled', String(await btn(page, 'Save and next').isDisabled()));

@@ -119,3 +119,40 @@ test.describe('2. Permanent campaigns', () => {
     await withDb(db => db.collection('campaigns').deleteOne({ _id: c!._id }));
   });
 });
+
+test.describe('3. Manual dialing', () => {
+  test('one click from the list and from the contact card: a tel: link with the normalized number, and the result is recorded in the same view', async ({ browser }) => {
+    await withDb(async db => { await db.collection('reservations').deleteMany({ date: DAY, rep: 'may' }); await db.collection('workdays').updateOne({ _id: `${DAY}:may` as never }, { $set: { st: 'reserved', startedAt: null } }); });
+    const p = await page(browser, 'maya');
+    const row = p.locator('.qi[data-act=qsel]:not(.done)').nth(1);
+    const ck = (await row.getAttribute('data-v'))!;
+    const link = row.locator('a.qcall');
+    const href = (await link.getAttribute('href'))!;
+    expect(href).toMatch(/^tel:\+1\d{10}$/);
+    await link.click();
+    // the contact is selected and on call, without leaving the view
+    await expect(p).toHaveURL(/\/rep\/today$/);
+    await expect(p.locator('.wdet .dh h2')).toHaveText((await row.locator('b').first().textContent())!);
+    await expect(p.locator('.oncall')).toContainText('from your phone');
+    const card = p.locator('.ph-r a[data-call]');
+    expect(await card.first().getAttribute('href')).toMatch(/^tel:\+1\d{10}$/);
+    await p.click(`[data-act=setout][data-v="${ck}|Left VM"]`);
+    await p.click(`[data-act=saveout][data-v="${ck}"]`);
+    await expect(p.locator('#toast')).toContainText('Left VM saved');
+    expect(await withDb(db => db.collection('call_log').findOne({ ct: ck, out: 'Left VM', rep: 'may' }))).toBeTruthy();
+  });
+  test('a number marked wrong is not offered to call: no link in the card, and the list links the next valid one', async ({ browser }) => {
+    const r = await withDb(db => db.collection('reservations').find({ date: DAY, rep: 'may', done: null }).toArray());
+    const ct = String(r.find(x => !String(x.ct).includes('@'))!.ct);
+    await withDb(async db => {
+      await db.collection('phone_numbers').updateMany({ ct }, { $set: { st: 'bad' } });
+      await db.collection('phone_numbers').insertOne({ _id: `${ct}#5` as never, ct, idx: 5, n: '(626) 555-0177', st: 'untested' });
+    });
+    const p = await page(browser, 'maya');
+    await p.locator(`.qi[data-v="${ct}"]`).click();
+    await expect(p.locator('.ph-r.bad')).not.toHaveCount(0);
+    await expect(p.locator('.ph-r.bad a[data-call]')).toHaveCount(0);
+    await expect(p.locator('.ph-r a[data-call]')).toHaveCount(1);
+    expect(await p.locator(`.qi[data-v="${ct}"] a.qcall`).getAttribute('href')).toBe('tel:+16265550177');
+  });
+});

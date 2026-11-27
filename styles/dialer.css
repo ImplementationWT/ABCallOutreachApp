@@ -1,0 +1,9 @@
+/* Manual dialing (components/rep/CallLink.tsx). Not from the artifact. */
+@layer components {
+.qi[role="button"]{cursor:pointer}
+.qi:focus-visible{outline:2px solid var(--g600); outline-offset:-2px}
+.qcall{display:inline-grid; place-items:center; width:32px; height:32px; border-radius:10px; color:var(--g700); background:var(--g50); border:1px solid var(--g100); flex:none; transition:background .12s}
+.qcall:hover{background:var(--g100)}
+.qcall:focus-visible{outline:2px solid var(--g600); outline-offset:2px}
+a.btn{text-decoration:none}
+}
