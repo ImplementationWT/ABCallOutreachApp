@@ -166,12 +166,12 @@ test.describe('A. Rep Workspace', () => {
     const after = await withDb(db => db.collection('reservations').find({ date: DAY }).toArray());
     expect(after.map(r => `${r._id}:${r.rep}`).sort()).toEqual(before.map(r => `${r._id}:${r.rep}`).sort());
   });
-  test('A1 if a rep has no list, the start screen says why (no campaign today), not a normal empty list', async ({ browser }) => {
+  test('A1 if a rep has no list, the start screen says why (no active campaigns), not a normal empty list', async ({ browser }) => {
     await withDb(async db => { await db.collection('reservations').deleteMany({ date: DAY, rep: 'pri' }); await db.collection('workdays').updateOne({ _id: `${DAY}:pri` as never }, { $set: { st: 'reserved', startedAt: null } }); });
-    await withDb(db => db.collection('campaigns').updateMany({ date: DAY }, { $pull: { reps: 'pri' } as never }));
+    await withDb(db => db.collection('campaigns').updateMany({ status: 'active' }, { $pull: { reps: 'pri' } as never }));
     const p = await page(browser, 'admin', '/mgr/live');
     await p.click('[data-act=viewas][data-v=pri]');
-    await expect(p.locator('.startw [data-empty=nocamp]').first()).toContainText('No campaign today');
+    await expect(p.locator('.startw [data-empty=nocamp]').first()).toContainText('No active campaigns');
     await expect(p.locator('#main')).not.toContainText('7:00 AM');
   });
   test('A2 the list is in priority order, and saving updates the counters without a reload', async ({ browser }) => {
@@ -329,7 +329,7 @@ test.describe('A. Rep Workspace', () => {
 test.describe('B. Engine on the server', () => {
   test('B7 two morning runs at the same time: one runs, one does nothing, no list is duplicated', async ({ playwright }) => {
     const NEXT = '2026-11-03';
-    await withDb(async db => { await db.collection('workdays').deleteMany({ date: NEXT }); await db.collection('reservations').deleteMany({ date: NEXT }); await db.collection('campaigns').insertOne({ _id: 'C-1103-T' as never, date: NEXT, auds: ['pp', 'sm', 'mb', 'ad'], reps: ['may', 'dan', 'pri'], goal: 1, pos: 99 }); });
+    await withDb(async db => { await db.collection('workdays').deleteMany({ date: NEXT }); await db.collection('reservations').deleteMany({ date: NEXT }); });
     const [a, b] = [await api(playwright, 'maya'), await api(playwright, 'daniel')];
     const rs = await Promise.all([a, b].map(x => x.post('/api/allocate', { data: { kind: 'morning', now: `${NEXT}T07:00` } }).then(r => r.json())));
     expect(rs.map(r => r.ran).sort()).toEqual([false, true]);
@@ -344,7 +344,7 @@ test.describe('B. Engine on the server', () => {
     await withDb(async db => {
       await db.collection('reservations').deleteMany({ date: DAY, rep: { $in: ['may', 'dan'] } });
       await db.collection('workdays').updateMany({ date: DAY, rep: { $in: ['may', 'dan'] } }, { $set: { st: 'started' } });
-      await db.collection('campaigns').updateMany({ date: DAY }, { $set: { auds: ['pp', 'sm', 'mb', 'ad'], reps: ['may', 'dan', 'pri'] } });
+      await db.collection('campaigns').updateMany({ status: 'active' }, { $set: { auds: ['pp', 'sm', 'mb', 'ad'], reps: ['may', 'dan', 'pri'] } });
     });
     const [a, b] = [await api(playwright, 'maya'), await api(playwright, 'daniel')];
     const rs = await Promise.all([a.post('/api/allocate', { data: { kind: 'more', rep: 'may', now: `${DAY}T10:00` } }), b.post('/api/allocate', { data: { kind: 'more', rep: 'dan', now: `${DAY}T10:00` } })]);
@@ -360,7 +360,7 @@ test.describe('B. Engine on the server', () => {
     const NEXT = '2026-11-04';
     await withDb(async db => {
       for (const c of ['workdays', 'reservations', 'property_locks']) await db.collection(c).deleteMany({ date: NEXT });
-      await db.collection('campaigns').insertOne({ _id: 'C-1104-T' as never, date: NEXT, auds: ['pp', 'sm', 'mb', 'ad'], reps: ['may', 'dan', 'pri'], goal: 1, pos: 98 });
+      await db.collection('campaigns').insertOne({ _id: 'C-1104-T' as never, status: 'active', auds: ['pp', 'sm', 'mb', 'ad'], reps: ['may', 'dan', 'pri'], goal: 1, pos: 98 });
     });
     const maya = await api(playwright, 'maya');
     expect((await (await maya.post('/api/allocate', { data: { kind: 'morning', now: `${NEXT}T07:00` } })).json()).ran).toBe(true);
@@ -391,7 +391,7 @@ test.describe('B. Engine on the server', () => {
   });
   test('B4 Reassign (on the server) moves contacts not called yet and their pending follow-ups to the new rep', async ({ playwright }) => {
     const admin = await api(playwright, 'admin');
-    await withDb(db => db.collection('campaigns').updateMany({ date: DAY }, { $set: { auds: ['pp', 'sm', 'mb', 'ad'], reps: ['may', 'dan', 'pri'] } }));
+    await withDb(db => db.collection('campaigns').updateMany({ status: 'active' }, { $set: { auds: ['pp', 'sm', 'mb', 'ad'], reps: ['may', 'dan', 'pri'] } }));
     await admin.post('/api/allocate', { data: { kind: 'start', rep: 'pri', now: `${DAY}T10:30` } });
     const before = await withDb(db => db.collection('reservations').find({ date: DAY, rep: 'pri', done: null }).toArray());
     expect(before.length).toBeGreaterThan(0);
@@ -408,7 +408,7 @@ test.describe('B. Engine on the server', () => {
     expect(res.status()).toBe(403);
   });
   test('B8 the rep sees a clear message when the pool is empty (no error)', async ({ browser }) => {
-    await withDb(async db => { await db.collection('campaigns').updateMany({ date: DAY }, { $set: { auds: [] } }); await db.collection('reservations').deleteMany({ date: DAY, rep: 'may' });
+    await withDb(async db => { await db.collection('campaigns').updateMany({ status: 'active' }, { $set: { auds: [] } }); await db.collection('reservations').deleteMany({ date: DAY, rep: 'may' });
       // her own follow-ups come back even without audiences: move them out of today so the pool is really empty
       await db.collection('contacts').updateMany({ rep: 'may' }, { $set: { nextAt: '2026-12-31' } }); });
     const p = await page(browser, 'maya');

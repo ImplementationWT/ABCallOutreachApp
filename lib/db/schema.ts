@@ -38,7 +38,9 @@ export const SCHEMAS: Record<CollectionName, Schema> = {
     mailAddr: strN, mailCity: strN, mailState: strN, mailZip: strN,
   }),
   phone_numbers: obj(['ct', 'idx', 'n', 'st'], { _id: str, ct: str, idx: num, n: str, st: enumOf(['untested', 'ok', 'bad']) }),
-  campaigns: obj(['date', 'auds', 'reps', 'goal', 'pos'], { _id: str, date, auds: { bsonType: 'array', items: enumOf(AUDK) }, reps: { bsonType: 'array', items: enumOf(REPS) }, goal: num, past: bool, pos: num }),
+  // Permanent campaigns: active until paused or ended. `date` only on the daily campaigns from before
+  // (history). status is not required, so a campaign written by an older version is still accepted.
+  campaigns: obj(['auds', 'reps', 'goal', 'pos'], { _id: str, n: str, status: enumOf(['active', 'paused', 'ended']), date, created: date, since: { bsonType: ['string', 'null'], pattern: date.pattern }, auds: { bsonType: 'array', items: enumOf(AUDK) }, reps: { bsonType: 'array', items: enumOf(REPS) }, goal: num, past: bool, pos: num }),
   reservations: obj(['ct', 'rep', 'date', 'order'], { _id: str, ct: str, rep: enumOf(REPS), date, order: num, done: numN }),
   workdays: obj(['rep', 'date', 'st', 'batches'], { _id: str, rep: enumOf(REPS), date, st: enumOf(['reserved', 'started', 'ended', 'off']), startedAt: strN, endedAt: strN, batches: { bsonType: 'array' } }),
   call_log: obj(['ct', 'rep', 'at', 'out', 'ph'], { _id: num, ct: str, rep: enumOf(PEOPLE), at: dateTime, out: str, note: str, ph: str, live: bool, fx: { bsonType: 'array', items: str }, key: str }),

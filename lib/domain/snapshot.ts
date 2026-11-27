@@ -99,7 +99,8 @@ export function fromDocs(s: Snapshot) {
     for (const pk of c.props || []) if (pk !== c.prop) CTS.push({ ...c, ...SLOT0, ...d.pst?.[pk], k: `${d._id}@${pk}`, prop: pk, base: d._id, res: null });
   }
   CAMPS.length = 0;
-  for (const d of (s.campaigns as CampaignDoc[]).slice().sort((a, b) => a.pos - b.pos)) CAMPS.push({ k: d._id, ...strip(d, 'pos') } as Campaign);
+  // A campaign without a status is a daily campaign from before permanent campaigns: ended (history)
+  for (const d of (s.campaigns as CampaignDoc[]).slice().sort((a, b) => a.pos - b.pos)) CAMPS.push({ k: d._id, ...strip(d, 'pos'), status: d.status ?? 'ended' } as Campaign);
   for (const d of (s.call_log as CallDoc[]).slice().sort((a, b) => a._id - b._id)) CALLS.push({ id: d._id, ...strip(d) } as Call);
   for (const d of (s.hand_offs as HandOffDoc[]).slice().sort((a, b) => a.pos - b.pos)) LEADS.push({ k: d._id, ...strip(d, 'pos') } as Lead);
   for (const d of (s.sync_log as SyncDoc[]).slice().sort((a, b) => b._id - a._id)) SYNC.push(strip(d) as SyncEntry);

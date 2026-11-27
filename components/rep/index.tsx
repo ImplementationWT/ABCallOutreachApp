@@ -5,7 +5,7 @@ import { Fragment } from 'react';
 import type React from 'react';
 import {
   AUDS, C, CALLS, CFG, CTS, DAY, LEADS, OUT, P, PEO, PRI, TODAY, onHold, activeOutcomes, isLeadOut, isNoOut,
-  callsOn, campName, emptyReason, campOf, ctsOf, demoN, docOf, effectsOf, elig, first, fmtD, fmtDT, fmtS, fmtT, fmtUS, fmtWD,
+  callsOn, campName, emptyReason, campsOf, ctsOf, demoN, docOf, effectsOf, elig, first, fmtD, fmtDT, fmtS, fmtT, fmtWD,
   fullAddr, getClock, historyOf, lastCallOf, isoT, listOf, mOf, openOf, ownerOf, phIdx, priOf, propStatus, relDay,
   type Contact, type Property, type RepKey,
 } from '@/lib/domain';
@@ -15,7 +15,7 @@ import { S, bump } from '@/lib/state/store';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { AudPill, Bar, DateField, Icon, Kv, OutPill, P2Tag, PageHeader, Pill, PrTag, StPill, paged } from '@/components/ui';
 
-const repCamp = () => campOf(S.user);
+const repCamps = () => campsOf(S.user);
 /* Render-time writes to S, as in the artifact (default selection and the draft of a contact). */
 const setSel = (u: RepKey, k: string | undefined) => { S.sel[u] = k; };
 const setFu = (k: string, v: string) => { S.draft[k].fu = v; };
@@ -27,10 +27,10 @@ export const fuOf = (dr: { fu: string | null; fuT?: string }) => dr.fu && dr.fuT
 const roleOf = (c: Contact) => c.role === 'Other' ? c.other || 'Other' : c.role;
 
 export function RepSide() {
-  const u = S.user, d = DAY[u], cp = repCamp();
+  const u = S.user, d = DAY[u], cps = repCamps();
   const fu = myFollowUps(u).filter(c => c.nextAt! > TODAY).length;
   return <Sidebar k="rep" items={[['My day'], ['today', 'My Outbound Dashboard', 'headset', d.st === 'started' ? openOf(u).length : 0], ['fu', 'My follow-ups', 'cal', fu, true], ['calls', 'My calls today', 'list', callsOn(u, TODAY).length, true]]}
-    foot={<><b>{PEO[u].n}</b>{cp ? <>Campaign {fmtUS(cp.date)}{cp.auds.map(a => <Fragment key={a}><br />{AUDS[a].n}</Fragment>)}</> : 'Not scheduled today'}</>} />;
+    foot={<><b>{PEO[u].n}</b>{cps.length ? cps.map(c => <Fragment key={c.k}><br />{campName(c)}</Fragment>) : <><br />No active campaign</>}</>} />;
 }
 
 function RepToday() {
@@ -40,15 +40,15 @@ function RepToday() {
   return <RepWork />;
 }
 function RepStart() {
-  const u = S.user, cs = listOf(u), cp = repCamp();
+  const u = S.user, cs = listOf(u), cps = repCamps();
   const own = cs.filter(c => ownerOf(c) === u).length;
   const why = emptyReason(u);
   return <>
     <PageHeader t="My Outbound Dashboard" sub={fmtWD(TODAY)} acts={<Pill t="Not Started" cls="dot" />} />
     <div className="startw"><div className="sico"><Icon n="headset" s={30} /></div><h2>Ready to start calling?</h2><p>Start your workday to receive your first daily allocation of eligible contacts. They are reserved for you, so nobody else calls them today.</p><button className="btn pri" {...on('startday')} disabled={S.loadingMore} aria-busy={S.loadingMore}>{S.loadingMore ? <span className="ld-spin" aria-hidden="true" /> : <Icon n="play" s={16} />}{S.loadingMore ? 'Getting your contacts…' : 'Start Workday'}</button>
       {why ? <div className="nextstep grey mt-[14px] text-left" data-empty={why.k}><span className="ic"><Icon n="info" s={17} /></span><div><b>{why.t}</b><small>{why.d}</small></div></div> : null}
-      <div className="pre"><Pill t={cs.length + ' contacts waiting'} cls="green" />{own ? <Pill t={own + ' are your follow-ups'} cls="red" /> : null}{cp ? <Pill t={campName(cp)} cls="blue" /> : null}</div></div>
-    <p className="sm muted text-center">Your list comes from today’s campaign with Andrew’s rules. Daily allocation per rep: {CFG.first} contacts ({demoN(CFG.first)} in this demo, scaled to its data).</p>
+      <div className="pre"><Pill t={cs.length + ' contacts waiting'} cls="green" />{own ? <Pill t={own + ' are your follow-ups'} cls="red" /> : null}{cps.map(c => <Pill key={c.k} t={campName(c)} cls="blue" />)}</div></div>
+    <p className="sm muted text-center">Your list comes from your active campaigns with Andrew’s rules. Daily allocation per rep: {CFG.first} contacts ({demoN(CFG.first)} in this demo, scaled to its data).</p>
   </>;
 }
 function RepEnded() {

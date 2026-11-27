@@ -26,7 +26,7 @@ export function load(c: Case): Snapshot {
   s.properties = c.props;
   s.contacts = c.contacts;
   s.phone_numbers = c.contacts.filter(x => !(c.noPhone || []).includes(x._id)).map((x, i) => ({ _id: `${x._id}#0`, ct: x._id, idx: 0, n: `(310) 555-${String(1000 + i)}`, st: 'untested' }));
-  s.campaigns = c.campaigns ?? [{ _id: 'C-T-A', date: TODAY0, auds: ['pp'], reps: ['may', 'dan', 'pri'], goal: 1, pos: 0 }];
+  s.campaigns = c.campaigns ?? [{ _id: 'C-T-A', status: 'active', auds: ['pp'], reps: ['may', 'dan', 'pri'], goal: 1, pos: 0 }];
   s.reservations = c.reservations ?? [];
   s.workdays = c.workdays ?? [];
   s.call_log = []; s.hand_offs = []; s.sync_log = [];

@@ -15,6 +15,14 @@ export const STEPS: Step[] = [
       return r.matchedCount ? 'Wrong Number: countsAsAttempt = false' : 'Wrong Number is not in the catalog: nothing to change';
     },
   },
+  {
+    name: '2026-11-permanent-campaigns',
+    what: 'Campaigns are permanent (active, paused or ended): the daily campaigns that exist are ended, their history kept',
+    run: async db => {
+      const r = await db.collection('campaigns').updateMany({ status: { $exists: false } }, [{ $set: { status: 'ended', since: { $ifNull: ['$date', null] } } }]);
+      return `${r.modifiedCount} daily campaign${r.modifiedCount === 1 ? '' : 's'} ended`;
+    },
+  },
 ];
 
 /** Runs every step not run yet, in order. Returns what each one did. */

@@ -4,8 +4,8 @@
 import type React from 'react';
 import {
   lastDay, pastDays, PERIODS, chartTitle, isCurrentPeriod, periodBuckets, periodDays, periodLabel, sumDays, type PeriodKind,
-  AUDK, AUDS, C, CALLS, CAMPS, CFG, CTS, D, DAY, LEADS, OUT, OUTK, recallOf, P, PEO, PRANK, PRI, PROPS, REPS, SYNC, TODAY, WD,
-  callsOn, campName, campOf, demoN, docOf, dupCheck, elig, first, fmtS, fmtT, fmtUS, fmtWD, listOf, mDay, mOf, openOf, ownerOf, propStatus, relDay,
+  AUDK, AUDS, C, CALLS, CAMPS, CFG, CTS, DAY, LEADS, OUT, OUTK, recallOf, P, PEO, PRANK, PRI, PROPS, REPS, SYNC, TODAY,
+  CAMP_ST, activeCamps, audsOf, callsOn, campName, campsName, campsOf, demoN, docOf, dupCheck, elig, first, fmtS, fmtT, fmtUS, fmtWD, listOf, mDay, mOf, openOf, ownerOf, propStatus, relDay,
   type Metrics, type Pri, type RepKey,
 } from '@/lib/domain';
 import { inp, on } from '@/lib/state/actions';
@@ -25,11 +25,11 @@ export function MgrSide() {
 
 /* ----- The day by rep ----- */
 function RepCard({ r }: { r: RepKey }) {
-  const d = DAY[r], cp = campOf(r), m = mOf(callsOn(r, TODAY)), all = d.list.length, dn = docOf(r).length + listOf(r).filter(c => !d.done[c.k] && (c.stop || P(c.prop).lead)).length;
+  const d = DAY[r], cn = campsName(r), m = mOf(callsOn(r, TODAY)), all = d.list.length, dn = docOf(r).length + listOf(r).filter(c => !d.done[c.k] && (c.stop || P(c.prop).lead)).length;
   const st = d.st === 'off' ? <Pill t="Off today" /> : d.st === 'started' ? <Pill t={'Calling since ' + fmtT(d.startedAt!)} cls="green dot" /> : d.st === 'ended' ? <Pill t={'Ended ' + fmtT(d.endedAt!)} cls="ink" /> : <Pill t="Not started" cls="amber dot" />;
   const own = listOf(r).filter(c => ownerOf(c) === r).length;
   return <div className={`repc ${d.st === 'off' ? 'off' : ''}`}>
-    <div className="h"><Avatar k={r} /><div><b>{PEO[r].n}</b><small>{cp ? campName(cp) : 'Not scheduled'}</small></div><span className="r">{st}</span></div>
+    <div className="h"><Avatar k={r} /><div><b>{PEO[r].n}</b><small>{cn || 'No active campaign'}</small></div><span className="r">{st}</span></div>
     <div className="sm flex justify-between"><span>{dn} of {all} documented</span><span className="muted">{own} own follow-ups</span></div><Bar n={dn} d={all} />
     <div className="nums"><div><small>Calls</small><b>{m.calls}</b></div><div><small>Connects</small><b>{m.con}</b></div><div><small>Convos</small><b>{m.conv}</b></div><div><small>Leads</small><b>{m.leads}</b></div></div>
     <div className="foot"><button className="btn sec sm" {...on('replist', r)}><Icon n="list" s={14} />See list</button><button className="btn sec sm" {...on('reassign', r)} disabled={!openOf(r).length}><Icon n="shuffle" s={14} />Reassign</button><button className="btn ghost sm" {...on('viewas', r)}>Open as {first(r)}</button></div>
@@ -48,7 +48,7 @@ function MgrLive() {
     <div className={`stats ${KPI_GRID}`}><div className="stat"><small>Reserved today</small><b>{res}</b></div><div className="stat green"><small>Documented</small><b>{docd}</b></div><div className="stat"><small>Calls so far</small><b>{mt.calls}</b></div><div className="stat green"><small>New leads today</small><b>{mt.leads}</b></div><div className="stat blue"><small>Eligible, not reserved</small><b>{pool}</b></div><div className={`stat ${dup ? 'red' : 'green'}`}><small>Same house, two reps</small><b>{dup}</b></div></div>
     <div className="reps">{REPS.map(r => <RepCard key={r} r={r} />)}</div>
     <div className="grid2">
-      <div className="card"><h3><Icon n="cal" s={16} />Today’s campaigns</h3>{CAMPS.filter(c => !c.past && c.date === TODAY).map(c => <div key={c.k} className="mrow"><b>{fmtUS(c.date)}</b><span>{c.auds.map(a => AUDS[a].n).join(', ')}</span><span className="ml-auto flex gap-[4px]">{c.reps.map(r => <Avatar key={r} k={r} sm />)}</span></div>)}</div>
+      <div className="card"><h3><Icon n="cal" s={16} />Active campaigns<span className="r"><button className="btn ghost sm" {...on('pg_mgr', 'camp')}>All</button></span></h3>{activeCamps().length ? activeCamps().map(c => <div key={c.k} className="mrow"><b>{campName(c)}</b><span className="muted">{c.auds.map(a => AUDS[a].s).join(', ')}</span><span className="ml-auto flex gap-[4px]">{c.reps.map(r => <Avatar key={r} k={r} sm />)}</span></div>) : <p className="sm muted">No active campaigns: nobody gets a list until one is created or resumed.</p>}</div>
       <div className="card"><h3><Icon n="hand" s={16} />Hand-offs to sales today<span className="r"><button className="btn ghost sm" {...on('pg_mgr', 'leads')}>All</button></span></h3>
         {today.length ? today.map(l => <div key={l.k} className="mrow cursor-pointer" {...on('openprop', l.prop)}><b>{C(l.ct).n}</b><span className="muted">{P(l.prop).addr || "No address"}</span><span className="ml-auto"><Pill t={l.out} cls="green" /></span></div>)
           : <p className="sm muted">None yet today. When a rep marks Interested or Working on Plans, it shows here and in the AB Leads board in monday.</p>}
@@ -114,31 +114,34 @@ function MgrLeads() {
   </>;
 }
 
-/* ----- Campaigns ----- */
-const CAMP_COLS = 'grid-cols-[110px_minmax(0,1.6fr)_150px_120px_110px_90px]';
+/* ----- Campaigns (permanent: active until paused or ended) ----- */
+const CAMP_COLS = 'grid-cols-[minmax(0,1.5fr)_minmax(0,1.2fr)_110px_110px_130px_minmax(170px,auto)]';
+/** Contacts reserved today for the campaign's reps whose property is in its audiences. */
+const reservedIn = (c: (typeof CAMPS)[number]) => c.reps.reduce((a, r) => a + DAY[r].list.filter(k => c.auds.includes(P(C(k).prop).aud)).length, 0);
 function CampRow({ c }: { c: (typeof CAMPS)[number] }) {
-  const res = c.date === TODAY ? c.reps.reduce((a, r) => a + DAY[r].list.length, 0) : null;
-  const m = c.date === TODAY ? mOf(CALLS.filter(x => c.reps.includes(x.rep as RepKey) && x.at.slice(0, 10) === TODAY))
-    : c.date < TODAY ? c.reps.reduce((a, r) => { const d = mDay(r, c.date); return { calls: a.calls + d.calls, leads: a.leads + d.leads }; }, { calls: 0, leads: 0 }) : null;
-  return <div className={`row ${CAMP_COLS}`}>
-    <div className="cell"><b>{fmtUS(c.date)}</b><small>{WD[D(c.date)!.getDay()]}</small></div>
-    <div className="t"><b>{c.auds.map(a => AUDS[a].n).join(', ')}</b><small>{c.k}, goal {c.goal} potential lead per rep</small></div>
+  const st = CAMP_ST[c.status], man = can('mgr.manage');
+  const calls = CALLS.filter(x => c.reps.includes(x.rep as RepKey) && x.at.slice(0, 10) === TODAY && c.auds.includes(P(C(x.ct).prop).aud)).length;
+  const when = c.date ? `Daily campaign of ${fmtUS(c.date)}` : c.status === 'active' ? `Active since ${c.since ? fmtS(c.since) : c.created ? fmtS(c.created) : 'creation'}` : c.since ? `${st.n} ${fmtS(c.since)}` : st.n;
+  return <div className={`row ${CAMP_COLS}`} data-camp={c.k}>
+    <div className="t"><b>{campName(c)}</b><small>{c.k}, goal {c.goal} potential lead{c.goal === 1 ? '' : 's'} per rep</small></div>
+    <div className="t"><b className="font-semibold">{c.auds.map(a => AUDS[a].s).join(', ')}</b><small>{when}</small></div>
     <div className="cell flex gap-[4px]">{c.reps.map(r => <Avatar key={r} k={r} sm />)}</div>
-    <div className="cell">{res != null ? res + ' reserved' : c.date > TODAY ? 'Allocates on its day' : 'Closed'}</div>
-    <div className="cell">{m ? m.calls + ' calls' : ''}</div>
-    <div className="cell">{m ? m.leads + ' leads' : ''}</div>
+    <div className="cell"><Pill t={st.n} cls={st.tone} /></div>
+    <div className="cell">{c.status === 'active' ? `${reservedIn(c)} reserved today` : 'No new assignments'}<small>{calls} calls today</small></div>
+    <div className="cell flex-row gap-[6px] justify-end">{man && c.status === 'active' ? <button className="btn sec sm" {...on('camppause', c.k)}><Icon n="pause" s={14} />Pause</button> : null}
+      {man && c.status === 'paused' ? <button className="btn sec sm" {...on('campresume', c.k)}><Icon n="play" s={14} />Resume</button> : null}
+      {man && c.status !== 'ended' ? <button className="btn ghost sm" {...on('campend', c.k)}><Icon n="x" s={14} />End</button> : null}</div>
   </div>;
 }
 function MgrCamps() {
-  const cur = CAMPS.filter(c => !c.past && c.date >= TODAY).sort((a, b) => a.date.localeCompare(b.date)), past = CAMPS.filter(c => c.past || c.date < TODAY);
-  const pc = paged('camp-cur', cur), pp = paged('camp-past', past);
+  const by = (s: string) => CAMPS.filter(c => c.status === s);
+  const groups: [string, string, string][] = [['active', 'Active', 'bg-g500'], ['paused', 'Paused', 'bg-a500'], ['ended', 'Ended', '']];
   return <>
-    <PageHeader t="Campaigns" sub="A campaign is a date, one or more audiences and the reps scheduled for it. The engine allocates each rep from the audiences of their campaign." acts={<button className="btn pri" {...on('newcamp')}><Icon n="plus" s={15} />New campaign</button>} />
-    <div className="grp"><div className="grp-h"><i className="bg-g500" />Today and upcoming<span className="n">{cur.length}</span></div><div className="rows">{pc.rows.map(c => <CampRow key={c.k} c={c} />)}</div>{pc.pager}</div>
-    <div className="grp"><div className="grp-h"><i />Past<span className="n">{past.length}</span></div><div className="rows">{pp.rows.map(c => <CampRow key={c.k} c={c} />)}</div>{pp.pager}</div>
+    <PageHeader t="Campaigns" sub="A campaign is a set of audiences and the reps who work it. It stays active until someone pauses or ends it, and several can be active at once. Each daily allocation takes the contacts of every active campaign of the rep together, with the same rules; a contact in two campaigns is assigned once." acts={can('mgr.manage') ? <button className="btn pri" {...on('newcamp')}><Icon n="plus" s={15} />New campaign</button> : null} />
+    {groups.map(([k, l, dot]) => { const cs = by(k), pg = paged('camp-' + k, cs); return <div key={k} className="grp" data-camps={k}><div className="grp-h"><i className={dot} />{l}<span className="n">{cs.length}</span></div>{cs.length ? <><div className="rows">{pg.rows.map(c => <CampRow key={c.k} c={c} />)}</div>{pg.pager}</> : <p className="sm muted p-[6px_2px]">{k === 'active' ? 'No active campaigns: nobody gets a list until one is created or resumed.' : 'None.'}</p>}</div>; })}
     <div className="card"><h3><Icon n="users" s={16} />Audiences</h3>
       <div className="grid4">{AUDK.map(a => { const ps = PROPS.filter(p => p.aud === a); return <Kv key={a} l={AUDS[a].n} v={ps.length + ' properties'} sub={`${ps.filter(p => propStatus(p) === 'Potential Lead').length} potential leads, ${ps.filter(p => p.permit === 'Permit Issued').length} with permit`} />; })}</div>
-      <p className="sm muted mt-[8px]">One zone is still to be loaded from PropertyRadar. New audiences by trigger (property sold, new permits) are phase 2.</p>
+      <p className="sm muted mt-[8px]">Each campaign includes the contacts of its audiences. Building a campaign from filters on any data column comes later.</p>
     </div>
   </>;
 }
@@ -238,7 +241,7 @@ function MgrPerf() {
 
 /* ----- Daily emails ----- */
 function MgrMail() {
-  const r = S.f.mailrep as RepKey, cp = campOf(r) || CAMPS[0], a = AUDS[cp.auds[0]];
+  const r = S.f.mailrep as RepKey, cp = campsOf(r)[0] || activeCamps()[0] || CAMPS[0], auds = audsOf(r).size ? [...audsOf(r)] : cp.auds, a = AUDS[auds[0]];
   const own = listOf(r).filter(c => ownerOf(c) === r).length;
   const body = `Good morning ${first(r)},
 
@@ -246,7 +249,7 @@ Today’s Goals
 Contact ${CFG.first} contacts
 Identify ${cp.goal} Potential Lead
 
-Audience: ${cp.auds.map(x => AUDS[x].n).join(', ')}
+Audience: ${auds.map(x => AUDS[x].n).join(', ')}
 You have ${DAY[r].list.length} contacts reserved${own ? `, ${own} of them your own follow-ups` : ''}.
 
 Audience background

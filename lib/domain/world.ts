@@ -11,7 +11,7 @@ import { DEFAULT_OUTCOMES } from './outcomes';
 import { CTS, LEADS, LN, FN, OTHER_ROLES, PROPS, SEQ, SYNC, ctsOf, mkCt, mkPhone, mkProp, P, resetData, syncLog, type Contact, type Phone } from './data';
 import { D, T0, TODAY, WDL, addBiz, addDays, fmtS, fmtWD, iso, p2, setClock, setToday, subBiz } from './dates';
 import { DAY, freeGroups, load, openOf, pastAt, pastCall, recallOf, reserve, resetDays, saveOutcome } from './engine';
-import { campOf, resetCampaigns } from './campaigns';
+import { campsOf, resetCampaigns } from './campaigns';
 import { CFG, demoN, resetRules } from './rules';
 import { buildDaym, resetDaym } from './metrics';
 import { REPS, type RepKey } from './people';
@@ -173,7 +173,7 @@ export function buildWorld(t0: Date = new Date()) {
  * compare with. Only the seed uses it: the app's engine (morningAlloc) allocates in strict P1 to P5
  * order, also when the daily volume runs out (Sprint 18, agreed rule). */
 function artifactMorning() {
-  const reps = REPS.filter(r => DAY[r].st !== 'off' && campOf(r));
+  const reps = REPS.filter(r => DAY[r].st !== 'off' && campsOf(r).length);
   const cap = demoN(CFG.first);
   for (const r of reps) for (const g of freeGroups(r).filter(g => g.own === r)) if (load(r) < cap) reserve(g, r);
   const full = new Set<RepKey>();

@@ -98,13 +98,25 @@ test('artifact and app walk the same', async ({ browser }) => {
   expect(b.length).toBe(a.length);
   // Sprint 18 (agreed): My follow-ups has a new subtitle and splits Overdue, Today and Upcoming, so
   // that step is checked on its own: the same contacts, in the new groups.
-  const CHANGED = ['follow-ups:'];
+  // Andrew's round 1 (feat/campaign-filtering): campaigns are permanent, so The day by rep lists the
+  // active campaigns (not today's), and a new campaign has no date: checked on their own.
+  const OWN: Record<string, (app: string, art: string) => void> = {
+    'follow-ups:': (app, art) => {
+      expect(app).toContain(bare('Your follow-ups and undecided contacts come back to you, and only to you'));
+      for (const name of ['SandraLiu']) { expect(art).toContain(name); expect(app).toContain(name); }
+    },
+    'live:': (app, art) => {
+      expect(app).toContain(bare('Active campaigns'));
+      expect(app.split(bare('Active campaigns'))[1]).toContain(bare('Pacific Palisades and Sunset Mesa'));
+      // everything above the campaigns card is the same as the artifact's
+      expect(app.split(bare('Active campaigns'))[0]).toBe(sprint18(art.split(bare('Today’s campaigns'))[0]));
+    },
+    'new campaign modal:': app => expect(app).toContain(bare('It is active from now until someone pauses or ends it')),
+    'campaign:': app => expect(app).toBe(bare('campaign: Campaign created: Pacific Palisades is active. The next allocation uses it')),
+  };
   for (let i = 0; i < a.length; i++) {
-    if (CHANGED.some(k => a[i].startsWith(k))) {
-      expect(bare(b[i])).toContain(bare('Your follow-ups and undecided contacts come back to you, and only to you'));
-      for (const name of ['SandraLiu']) { expect(bare(a[i])).toContain(name); expect(bare(b[i])).toContain(name); }
-      continue;
-    }
+    const own = Object.keys(OWN).find(k => a[i].startsWith(k));
+    if (own) { OWN[own](bare(b[i]), bare(a[i])); continue; }
     expect(bare(b[i]), `step ${i}: ${a[i].slice(0, 40)}`).toBe(sprint18(bare(a[i])));
   }
 });

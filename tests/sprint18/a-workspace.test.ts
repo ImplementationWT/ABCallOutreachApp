@@ -1,7 +1,7 @@
 /* Sprint 18, A. Rep Workspace: the parts that are domain logic (the screens are in tests/e2e/sprint18.spec.ts). */
 import { beforeEach, describe, expect, it } from 'vitest';
 import { C, DAY, emptyReason, historyOf, lastCallOf, saveOutcome, setClock, setToday, startNewDay } from '../../lib/domain';
-import { DAY0, TODAY0, ct, load, prop, started } from './fixture';
+import { DAY0, ct, load, prop, started } from './fixture';
 
 beforeEach(() => setToday(DAY0));
 
@@ -17,7 +17,7 @@ describe('A1 why a rep has no list', () => {
     expect(emptyReason('may')?.k).toBe('notyet');
   });
   it('the campaign\'s pool is empty', () => {
-    load({ props: [prop('P-1', 'pp')], contacts: [ct('C-1', 'P-1')], campaigns: [{ _id: 'C-T-A', date: TODAY0, auds: ['ad'], reps: ['may', 'dan', 'pri'], goal: 1, pos: 0 }] });
+    load({ props: [prop('P-1', 'pp')], contacts: [ct('C-1', 'P-1')], campaigns: [{ _id: 'C-T-A', status: 'active', auds: ['ad'], reps: ['may', 'dan', 'pri'], goal: 1, pos: 0 }] });
     startNewDay();
     expect(emptyReason('may')?.k).toBe('empty');
   });

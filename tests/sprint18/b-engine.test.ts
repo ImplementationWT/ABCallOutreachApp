@@ -77,7 +77,7 @@ describe('B2 priority', () => {
     load({
       props: kinds.map((k, i) => prop(`P-${i + 1}`, 'pp', k === 'P2' ? { permit: 'Permit Issued' } : {})),
       contacts: kinds.map((k, i) => ct(`C-${i + 1}`, `P-${i + 1}`, k === 'P2' ? {} : pri[k])),
-      campaigns: [{ _id: 'C-T-A', date: TODAY0, auds: ['pp'], reps: ['may'], goal: 1, pos: 0 }],
+      campaigns: [{ _id: 'C-T-A', status: 'active', auds: ['pp'], reps: ['may'], goal: 1, pos: 0 }],
       rules: { first, scale: 1 },
     });
     startNewDay();
@@ -126,7 +126,7 @@ describe('B3 daily list by volume', () => {
     expect(DAY.pri.batches.at(-1)).toMatchObject({ k: 'Morning allocation', n: 0 });
   });
   it('a rep who is not in today\'s campaign gets no list', () => {
-    const s = { _id: 'C-T-A', date: TODAY0, auds: ['pp'], reps: ['may', 'dan'], goal: 1, pos: 0 };
+    const s = { _id: 'C-T-A', status: 'active', auds: ['pp'], reps: ['may', 'dan'], goal: 1, pos: 0 };
     load({ props: Array.from({ length: 10 }, (_, i) => prop(`P-${i + 1}`, 'pp')), contacts: Array.from({ length: 10 }, (_, i) => ct(`C-${i + 1}`, `P-${i + 1}`)), campaigns: [s] });
     startNewDay();
     expect(listOf('pri')).toEqual([]);
@@ -151,7 +151,7 @@ describe('B4 due follow-ups go back to their rep', () => {
   });
   it('if its rep has no campaign today, nobody gets it that day (it waits)', () => {
     fu('pri');
-    load({ props: [prop('P-fu', 'pp')], contacts: [ct('C-fu', 'P-fu', { out: 'Follow Up', lastAt: '2026-10-28T10:00', nextAt: TODAY0, att: 1, rep: 'pri' })], campaigns: [{ _id: 'C-T-A', date: TODAY0, auds: ['pp'], reps: ['may', 'dan'], goal: 1, pos: 0 }] });
+    load({ props: [prop('P-fu', 'pp')], contacts: [ct('C-fu', 'P-fu', { out: 'Follow Up', lastAt: '2026-10-28T10:00', nextAt: TODAY0, att: 1, rep: 'pri' })], campaigns: [{ _id: 'C-T-A', status: 'active', auds: ['pp'], reps: ['may', 'dan'], goal: 1, pos: 0 }] });
     startNewDay();
     expect([...listOf('may'), ...listOf('dan'), ...listOf('pri')].map(c => c.k)).not.toContain('C-fu');
   });

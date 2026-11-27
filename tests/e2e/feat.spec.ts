@@ -3,6 +3,7 @@
 import { expect, test, type APIRequestContext, type Browser, type Page } from '@playwright/test';
 import { createSession, ensureTeamUsers } from '../../lib/db/auth-core';
 import { resetUsers, reseed, withDb } from './db';
+import { runMigrations } from '../../lib/db/migrations';
 import { fixClock } from './targets';
 
 const DAY = '2026-11-02';
@@ -62,5 +63,59 @@ test.describe('1. Wrong Number', () => {
     expect((await maya.post('/api/work', { data: { action: 'save', rep: 'may', ct, out: 'Wrong Number', now: NOW } })).status()).toBe(200);
     expect(await withDb(db => db.collection('phone_numbers').findOne({ ct, idx: 0 }))).toMatchObject({ st: 'bad' });
     expect(await withDb(db => db.collection('contacts').findOne({ _id: ct as never }))).toMatchObject({ out: 'Wrong Number', nextAt: null });
+  });
+});
+
+test.describe('2. Permanent campaigns', () => {
+  test('migration: the daily campaigns that exist are ended with their history; running it again changes nothing', async () => {
+    await withDb(async db => {
+      await db.collection('campaigns').insertOne({ _id: 'C-1030-A' as never, date: '2026-10-30', auds: ['pp'], reps: ['may'], goal: 1, pos: 50 });
+      await db.collection('migrations').deleteOne({ _id: '2026-11-permanent-campaigns' as never });
+      const r = await runMigrations(db);
+      expect(r.find(x => x.name === '2026-11-permanent-campaigns')).toMatchObject({ skipped: false, result: '1 daily campaign ended' });
+      expect(await db.collection('campaigns').findOne({ _id: 'C-1030-A' as never })).toMatchObject({ status: 'ended', since: '2026-10-30', date: '2026-10-30', auds: ['pp'] });
+      expect(await db.collection('campaigns').countDocuments({ status: 'active' })).toBe(2);
+      expect((await runMigrations(db)).every(x => x.skipped)).toBe(true);
+      await db.collection('campaigns').deleteOne({ _id: 'C-1030-A' as never });
+    });
+  });
+  test('the Campaigns page groups active, paused and ended; several are active at once', async ({ browser }) => {
+    const p = await page(browser, 'admin', '/mgr/camp');
+    await expect(p.locator('[data-camps=active] [data-camp]')).toHaveCount(2);
+    await expect(p.locator('[data-camps=ended] [data-camp]')).toHaveCount(3);
+    await expect(p.locator('[data-camp=C-PPSM]')).toContainText('Active');
+    await expect(p.locator('[data-camps=ended]')).toContainText('Daily campaign of');
+  });
+  test('ending a campaign stops its assignments and keeps its history; the rep sees "No active campaigns"', async ({ browser }) => {
+    const calls = await withDb(db => db.collection('call_log').countDocuments({ rep: 'may' }));
+    const a = await page(browser, 'admin', '/mgr/camp');
+    await a.locator('[data-camp=C-PPSM] [data-act=campend]').click();
+    await expect(a.locator('.modal')).toContainText('Ending is final');
+    await a.locator('.modal [data-act=campenddone]').click();
+    await expect(a.locator('#toast')).toContainText('ended. Its history is kept');
+    await expect(a.locator('[data-camps=ended] [data-camp=C-PPSM]')).toBeVisible();
+    await expect(a.locator('[data-camp=C-PPSM] [data-act=campresume], [data-camp=C-PPSM] [data-act=camppause]')).toHaveCount(0);
+    await a.waitForTimeout(800);
+    expect(await withDb(db => db.collection('campaigns').findOne({ _id: 'C-PPSM' as never }))).toMatchObject({ status: 'ended', since: DAY });
+    expect(await withDb(db => db.collection('call_log').countDocuments({ rep: 'may' }))).toBe(calls);
+    // Maya's day not started and her list empty: her start screen says why
+    await withDb(async db => { await db.collection('reservations').deleteMany({ date: DAY, rep: 'may' }); await db.collection('workdays').updateOne({ _id: `${DAY}:may` as never }, { $set: { st: 'reserved', startedAt: null } }); });
+    const m = await page(browser, 'maya', '/rep/today?no-start');
+    await expect(m.locator('.startw [data-empty=nocamp]')).toContainText('No active campaigns');
+    await expect(m.locator('.startw')).not.toContainText('No campaign today');
+    await withDb(db => db.collection('campaigns').updateOne({ _id: 'C-PPSM' as never }, { $set: { status: 'active', since: null } }));
+  });
+  test('a manager creates a campaign without a date: it is active at once', async ({ browser }) => {
+    const a = await page(browser, 'admin', '/mgr/camp');
+    await a.click('[data-act=newcamp]');
+    await a.fill('#ncname', 'Malibu permits');
+    await a.click('[data-act=ncaud][data-v=pp]'); await a.click('[data-act=ncaud][data-v=mb]');
+    await a.click('.modal [data-act=ncsave]');
+    await expect(a.locator('#toast')).toContainText('Campaign created: Malibu permits is active');
+    await a.waitForTimeout(800);
+    const c = await withDb(db => db.collection('campaigns').findOne({ n: 'Malibu permits' }));
+    expect(c).toMatchObject({ status: 'active', auds: ['mb'], created: DAY });
+    expect(c).not.toHaveProperty('date');
+    await withDb(db => db.collection('campaigns').deleteOne({ _id: c!._id }));
   });
 });

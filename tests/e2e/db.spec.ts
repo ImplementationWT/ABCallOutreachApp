@@ -36,7 +36,7 @@ test('a saved call, a new campaign and a rule survive a reload', async ({ page }
   await page.reload(); await page.waitForLoadState('networkidle');
   await expect(page.locator('#cfg-maxAtt')).toHaveValue('4');
   await page.goto('/mgr/camp'); await page.waitForLoadState('networkidle');
-  await expect(page.locator('.rows').first()).toContainText('C-1103-A');
+  await expect(page.locator('[data-camps=active] .rows')).toContainText('C-0001');
   await withDb(async db => {
     expect(await db.collection('rules').findOne({})).toMatchObject({ maxAtt: 4 });
     expect(await db.collection('campaigns').countDocuments()).toBe(6);
@@ -53,17 +53,21 @@ test('the database rejects a malformed document', async ({ request }) => {
   expect(bad.status()).toBe(400);
 });
 
-test('a new day: the first load runs the morning allocation for that day’s campaigns', async ({ page }) => {
+test('a new day: the first load runs the morning allocation for the active campaigns (a paused one gives nothing)', async ({ page }) => {
   await openApp(page, '/mgr/camp');
-  await btn(page, 'New campaign').click(); await idle(page); // defaults: next business day, Pacific Palisades, Maya and Daniel
+  await btn(page, 'New campaign').click(); await idle(page); // defaults: Pacific Palisades, Maya and Daniel
   await btn(page, 'Create campaign').click(); await idle(page);
+  // Priya's only campaign is paused: no list for her tomorrow
+  await page.locator('[data-camp=C-ADMB] [data-act=camppause]').click(); await idle(page);
+  await expect(page.locator('[data-camps=paused]')).toContainText('Altadena and Malibu');
   await page.waitForTimeout(800);
+  expect(await withDb(db => db.collection('campaigns').findOne({ _id: 'C-ADMB' as never }))).toMatchObject({ status: 'paused', since: '2026-11-02' });
   await page.clock.setFixedTime(new Date(2026, 10, 3, 9, 0));
   await page.goto('/'); await page.waitForLoadState('networkidle');
   await expect(page).toHaveURL(/\/mgr\/live$/);
   await expect(page.locator('.op-h p')).toContainText('Tue, Nov 3');
   await expect(page.locator('.repc', { hasText: 'Maya Torres' })).toContainText('Pacific Palisades');
-  await expect(page.locator('.repc', { hasText: 'Priya Shah' })).toContainText('Not scheduled');
+  await expect(page.locator('.repc', { hasText: 'Priya Shah' })).toContainText('No active campaign');
   await page.waitForTimeout(800);
   await withDb(async db => {
     expect(await db.collection('workdays').countDocuments({ date: '2026-11-03' })).toBe(3);

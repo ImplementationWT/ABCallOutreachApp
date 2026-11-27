@@ -2,7 +2,7 @@
  * Also holds pastCall/nextFor (from PROPERTIES AND CONTACTS), effectsOf/saveOutcome and dupCheck
  * (from OUTREACH MANAGER), so the domain has no DOM and no import cycles.
  */
-import { campOf } from './campaigns';
+import { audsOf, campsOf } from './campaigns';
 import { OUT, PRANK, ST_RANK, isNoOut, type Pri, type Status } from './catalogs';
 import { C, CALLS, CTS, LEADS, P, SEQ, ctsOf, slotsOf, syncLog, type Call, type Contact, type Property } from './data';
 import { Dx, T0, TODAY, addBiz, addDays, fmtD, fmtS, fmtT, fmtWD, getClock, iso, isoT, nowT } from './dates';
@@ -112,16 +112,18 @@ type Group = { p: Property; cs: Contact[]; own: PersonKey | null; best: number }
 /* Within a priority, the property that waited longest goes first (never called counts as oldest) */
 const waited = (g: Group) => Math.min(...g.cs.map(c => c.lastAt ? Dx(c.lastAt).getTime() : 0));
 export const ownerOf = (c: Contact) => (priOf(c) === 'P1' || priOf(c) === 'P3') && c.rep ? c.rep : null;
-/* Free groups (one property, all its eligible contacts) a rep can take */
+/* Free groups (one property, all its eligible contacts) a rep can take: the contacts of every active
+ * campaign of the rep together (each contact once, even if it is in two campaigns), plus their own
+ * follow-ups and undecided contacts wherever they are. */
 export function freeGroups(rep: RepKey) {
-  const cp = campOf(rep);
+  const auds = audsOf(rep);
   const gs: Record<string, Group> = {};
   for (const c of CTS) {
     const e = elig(c);
     if (!e.ok || e.k === 'res' || ownerBusy(c)) continue;
     const p = P(c.prop);
     const own = ownerOf(c);
-    const inAud = cp && cp.auds.includes(p.aud);
+    const inAud = auds.has(p.aud);
     if (!(inAud || own === rep)) continue;
     const g = gs[p.k] || (gs[p.k] = { p, cs: [], own: null, best: 9 });
     g.cs.push(c);
@@ -143,7 +145,7 @@ export const load = (rep: RepKey) => DAY[rep].list.length;
 /* Morning allocation: strict priority, each group to whoever has the lowest load (own groups only to their rep) */
 /** `at`: when it ran (the seeded demo day keeps the artifact's 7:00 AM; the app passes the real time). */
 export function morningAlloc(at = fmtT(nowT())) {
-  const reps = REPS.filter(r => DAY[r].st !== 'off' && campOf(r));
+  const reps = REPS.filter(r => DAY[r].st !== 'off' && campsOf(r).length);
   const cap = demoN(CFG.first);
   // Strict priority (P1 to P5), also when the daily volume runs out: each rep takes, in turn (lowest
   // load first), the best group of their own pool. Their own follow-ups come first because they are
@@ -160,18 +162,18 @@ export function morningAlloc(at = fmtT(nowT())) {
   }
   for (const r of REPS) DAY[r].batches.push({ at, n: DAY[r].list.length, k: 'Morning allocation' });
 }
-/** A day with no workdays yet (the first load of the day): the morning allocation for today's campaigns. */
+/** A day with no workdays yet (the first load of the day): the morning allocation for the active campaigns. */
 export function startNewDay() {
   resetDays();
   morningAlloc();
 }
-/** Why a rep has no contacts today, or null: no campaign with them today, today's allocation has not
- * run yet, or the campaign's pool is empty. */
+/** Why a rep has no contacts today, or null: they are in no active campaign, today's allocation has
+ * not run yet, or their campaigns' pool is empty. */
 export function emptyReason(rep: RepKey): { k: 'nocamp' | 'notyet' | 'empty'; t: string; d: string } | null {
   if (DAY[rep].list.length) return null;
-  if (!campOf(rep)) return { k: 'nocamp', t: 'No campaign today', d: 'You are not in any of today’s campaigns, so the allocation has nothing for you. Ask Andrew to add you to today’s campaign; your follow-ups wait for you.' };
+  if (!campsOf(rep).length) return { k: 'nocamp', t: 'No active campaigns', d: 'You are not in any active campaign, so the allocation has nothing for you. Ask Andrew to add you to a campaign; your follow-ups wait for you.' };
   if (!DAY[rep].batches.some(b => b.k === 'Morning allocation')) return { k: 'notyet', t: 'Today’s allocation has not run yet', d: 'It runs the first time someone opens the app today. Reload the page in a moment.' };
-  return { k: 'empty', t: 'No eligible contacts left in today’s campaign', d: 'Every contact of today’s audiences is reserved, waiting for its date, on hold or closed. Ask Andrew to add audiences to today’s campaign.' };
+  return { k: 'empty', t: 'No eligible contacts left in your campaigns', d: 'Every contact of your active campaigns is reserved, waiting for its date, on hold or closed. Ask Andrew to add audiences or a campaign.' };
 }
 export const listOf = (rep: RepKey) => DAY[rep].list.map(C);
 /** A follow-up set for later today, whose time has come: the contact is to call again today. */

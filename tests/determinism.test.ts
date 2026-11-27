@@ -56,7 +56,8 @@ describe('seed relative to the day it runs', () => {
     const shift = (s: string) => s.replace(/\d{4}-\d{2}-\d{2}/g, d => iso(addDays(new Date(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8)), 119)));
     expect(b.call_log.map((c: { at: string }) => c.at)).toEqual(a.call_log.map((c: { at: string }) => shift(c.at)));
     expect(b.reservations.length).toBe(a.reservations.length);
-    expect(b.campaigns.filter((c: { date: string }) => c.date === '2027-03-01').length).toBe(2);
+    expect(b.campaigns.filter((c: { status: string }) => c.status === 'active').length).toBe(2); // permanent campaigns: no date
+    expect(b.campaigns.filter((c: { date?: string }) => c.date).map((c: { date: string }) => c.date)).toEqual(a.campaigns.filter((c: { date?: string }) => c.date).map((c: { date: string }) => shift(c.date)));
   });
 });
 
