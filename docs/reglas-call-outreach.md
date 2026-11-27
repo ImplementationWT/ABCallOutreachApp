@@ -50,7 +50,7 @@ Usa la misma estructura que `docs/reglas-call-outreach-plantilla.md`. "Propiedad
 
 ## 5. Catálogo de resultados
 
-El catálogo está en la colección `outcomes` y lo edita un administrador en Outreach Manager → Call Outcome & Eligibility Rules, sin desplegar. Desactivar un resultado lo quita del formulario y conserva el historial.
+El catálogo está en la colección `outcomes` y lo edita el Outreach Manager (o un administrador) en Outreach Manager → Call Outcome & Eligibility Rules, sin desplegar. Desactivar un resultado lo quita del formulario y conserva el historial.
 
 "Cuenta como intento" de Wrong Number y "Crea lead" están acordados con Andrew. "Cuenta como connect" es una propuesta pendiente de Andrew (regla 5.4). Los días de espera y los efectos siguen pendientes de confirmar.
 
@@ -70,7 +70,7 @@ El catálogo está en la colección `outcomes` y lo edita un administrador en Ou
 
 | # | Regla | Valor | Estado |
 | --- | --- | --- | --- |
-| 5.0 | Catálogo editable | Crear, editar y desactivar sin desplegar; solo administrador | Acordada |
+| 5.0 | Catálogo editable | Crear, editar y desactivar sin desplegar; el Outreach Manager (rol manager) o un administrador | Acordada |
 | 5.1 | Ventana mínima | Al menos 1 día; el catálogo no acepta 0 | Acordada |
 | 5.2 | Cambio de ventana | Solo afecta a los resultados nuevos; no se recalculan las fechas ya puestas | Acordada |
 | 5.3 | Crea lead | Working on Plans e Interested generan un lead: la propiedad pasa a ventas y cuenta en New Leads. Es un campo del catálogo ("Creates a lead") | Acordada |
@@ -83,7 +83,7 @@ El catálogo está en la colección `outcomes` y lo edita un administrador en Ou
 | 6.0 | Qué cuenta como intento | Cada llamada cuenta 1, excepto Wrong Number | Acordada |
 | 6.0b | Máximo | 6 (es el valor que usa hoy la app: `rules/default.maxAtt`). Al llegar, el contacto pasa a on-hold y sale del pool | Acordada |
 | 6.0c | Excepción del sexto intento | Si en el sexto intento se agenda un follow-up, se respeta. El contacto pasa a on-hold solo si esa llamada tampoco se concreta | Acordada |
-| 6.0d | Quién reactiva | El rep asignado o un administrador; el contacto vuelve al pool | Acordada |
+| 6.0d | Quién reactiva | El rep asignado, el Outreach Manager (Andrew, rol manager) o un administrador; el contacto vuelve al pool | Acordada |
 | 6.1 | El contador al reactivar | Los intentos no vuelven a 0 (empieza una nueva ronda). La opción "Back to 0" de Call Outcome & Eligibility Rules queda apagada | Acordada |
 | 6.2 | Wrong Number | No cuenta como intento. El número marcado queda inválido y no se vuelve a ofrecer para llamar. Si el contacto no tiene otro número válido, sale del pool hasta que se agregue uno | Acordada |
 | 6.2b | Números alternativos verificados | Usar solo números alternativos verificados (brief Assignment Engine) | Pendiente de confirmar con Andrew |
@@ -115,7 +115,7 @@ El catálogo está en la colección `outcomes` y lo edita un administrador en Ou
 | # | Regla | Valor | Estado |
 | --- | --- | --- | --- |
 | 10.1 | Métricas de Andrew | Calls Made, Connects y New Leads | Acordada |
-| 10.2 | Cálculo | Por rep y por día, con el total del equipo, un ranking por métrica, Dial to Connect (Connects sobre Calls Made), Connect to Lead (New Leads sobre Connects) y la comparación con el mismo día de la semana anterior. Vista Reports, solo administrador; por defecto, hoy en hora del Pacífico | Acordada |
+| 10.2 | Cálculo | Por rep y por día, con el total del equipo, un ranking por métrica, Dial to Connect (Connects sobre Calls Made), Connect to Lead (New Leads sobre Connects) y la comparación con el mismo día de la semana anterior. Vista Reports, para el Outreach Manager (rol manager) y los administradores; por defecto, hoy en hora del Pacífico | Acordada |
 | 10.3 | Fuente de los datos | Hoy, los resultados registrados en la app (una llamada por resultado). Cuando exista la cuenta de RingCentral, sus llamadas; los cálculos no cambian | Acordada |
 | 10.4 | Qué es un connect | Ver la regla 5.4 | Propuesta pendiente de Andrew |
 | 10.5 | Envío del resumen por correo y métricas en monday | No se construye todavía | En espera |
